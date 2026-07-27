@@ -6,73 +6,52 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/AABBWrapper.h>
+#include <floattetwild/FloatTetwild.h>
+
 #include <floattetwild/FloatTetDelaunay.h>
 #include <floattetwild/MeshImprovement.h>
-#include <floattetwild/Parameters.h>
 #include <floattetwild/Simplification.h>
-#include <floattetwild/TriangleInsertion.h>
-#include <floattetwild/LocalOperations.h>
 #include <floattetwild/Statistics.h>
-#include <geogram/mesh/mesh_reorder.h>
-#include <geogram/mesh/mesh_repair.h>
 #include <floattetwild/Timer.h>
-#include <floattetwild/Logger.hpp>
-#include <floattetwild/MeshIO.hpp>
-#include <floattetwild/Types.hpp>
+#include <floattetwild/TriangleInsertion.h>
+
+#include <algorithm>
 
 namespace floatTetWild {
 
-int tetrahedralization(GEO::Mesh&       sf_mesh,
-                       Parameters       params,
-                       Eigen::MatrixXd& V,
-                       Eigen::MatrixXi& T,
-                       int              boolean_op,
-                       bool             skip_simplify)
+int tetrahedralization(AABBWrapper&           tree,
+                       std::vector<Vector3>&  input_vertices,
+                       std::vector<Vector3i>& input_faces,
+                       std::vector<int>&      input_tags,
+                       Mesh&                  mesh,
+                       bool                   skip_simplify)
 {
-    if (!sf_mesh.facets.are_simplices()) {
-        GEO::mesh_repair(
-          sf_mesh, GEO::MeshRepairMode(GEO::MESH_REPAIR_TRIANGULATE | GEO::MESH_REPAIR_QUIET));
-    }
-    GEO::mesh_reorder(sf_mesh, GEO::MESH_ORDER_MORTON);
+    Parameters& params = mesh.params;
 
-    std::vector<Vector3>  input_vertices(sf_mesh.vertices.nb());
-    std::vector<Vector3i> input_faces(sf_mesh.facets.nb());
-    for (size_t i = 0; i < input_vertices.size(); i++) {
-        input_vertices[i] << (sf_mesh.vertices.point(i))[0], (sf_mesh.vertices.point(i))[1],
-          (sf_mesh.vertices.point(i))[2];
-    }
-    for (size_t i = 0; i < input_faces.size(); i++) {
-        input_faces[i] << sf_mesh.facets.vertex(i, 0), sf_mesh.facets.vertex(i, 1),
-          sf_mesh.facets.vertex(i, 2);
-    }
-
-    if (input_vertices.empty() || input_faces.empty()) {
+    if (input_vertices.empty() || input_faces.empty())
         return EXIT_FAILURE;
-    }
 
-    AABBWrapper      tree(sf_mesh);
+    if (!params.init(tree.get_sf_diag()))
+        return EXIT_FAILURE;
+
 #ifdef NEW_ENVELOPE
-    tree.init_sf_tree(input_vertices, input_faces, params.eps);
+    if (!params.input_epsr_tags.empty())
+        tree.init_sf_tree(
+          input_vertices, input_faces, params.input_epsr_tags, params.bbox_diag_length);
+    else
+        tree.init_sf_tree(input_vertices, input_faces, params.eps);
 #endif
-    std::vector<int> input_tags(input_faces.size(), 0);
-
-    if (!params.init(tree.get_sf_diag())) {
-        return EXIT_FAILURE;
-    }
 
     stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
+
+    Timer timer;
 
     /////////////////////////////////////////////////
     // STEP 1: Preprocessing (mesh simplification) //
     /////////////////////////////////////////////////
-    Mesh mesh;
-    mesh.params = params;
-
-    Timer timer;
 
     timer.start();
-    simplify(input_vertices, input_faces, input_tags, tree, mesh.params, skip_simplify);
+    simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);
     tree.init_b_mesh_and_tree(input_vertices, input_faces, mesh);
     logger().info("preprocessing {}s", timer.getElapsedTimeInSec());
     logger().info("");
@@ -89,9 +68,7 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
 
     timer.start();
     std::vector<bool> is_face_inserted(input_faces.size(), false);
-
     FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
-
     logger().info("#v = {}", mesh.get_v_num());
     logger().info("#t = {}", mesh.get_t_num());
     logger().info("tetrahedralizing {}s", timer.getElapsedTimeInSec());
@@ -124,7 +101,8 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
     //////////////////////////////////////
 
     timer.start();
-    optimization(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
+    optimization(
+      input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
     logger().info("mesh optimization {}s", timer.getElapsedTimeInSec());
     logger().info("");
     stats().record(StateInfo::optimization_id,
@@ -134,49 +112,8 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
                    mesh.get_max_energy(),
                    mesh.get_avg_energy());
 
-    /////////////////////////////////
-    // STEP 5: Interior extraction //
-    /////////////////////////////////
-
-    timer.start();
-    if (boolean_op < 0) {
-//        filter_outside(mesh);
-        if (params.smooth_open_boundary) {
-            smooth_open_boundary(mesh, tree);
-            for (auto &t: mesh.tets) {
-                if (t.is_outside)
-                    t.is_removed = true;
-            }
-        } else {
-            if(!params.disable_filtering) {
-                if(params.use_floodfill) {
-                    filter_outside_floodfill(mesh);
-                } else if(params.use_input_for_wn){
-                    filter_outside(mesh, input_vertices, input_faces);
-                } else {
-                    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
-                    Eigen::Matrix<int, Eigen::Dynamic, 3>    Ft;
-                    get_tracked_surface(mesh, Vt, Ft);
-                    filter_outside(mesh, Vt, Ft);
-                }
-            }
-        }
-    } else {
-        boolean_operation(mesh, boolean_op);
-    }
-    stats().record(StateInfo::wn_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy());
-    logger().info("after winding number");
-    logger().info("#v = {}", mesh.get_v_num());
-    logger().info("#t = {}", mesh.get_t_num());
-    logger().info("winding number {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-
-    MeshIO::extract_volume_mesh(mesh, V, T, false);
+    correct_tracked_surface_orientation(mesh, tree);
+    logger().info("correct_tracked_surface_orientation done");
 
     return 0;
 }

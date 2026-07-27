@@ -16,6 +16,7 @@
 
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/FloatTetDelaunay.h>
+#include <floattetwild/FloatTetwild.h>
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/MeshImprovement.h>
 #include <floattetwild/Simplification.h>
@@ -423,85 +424,16 @@ int main(int argc, char** argv)
         }
     }
     AABBWrapper tree(sf_mesh);
-    if (!params.init(tree.get_sf_diag())) {
+
+    if (tetrahedralization(tree, input_vertices, input_faces, input_tags, mesh, skip_simplify) !=
+        0) {
+        MeshIO::write_mesh(output_mesh_name, mesh, false);
         return EXIT_FAILURE;
     }
 
-#ifdef NEW_ENVELOPE
-    if (!epsr_tags.empty())
-        tree.init_sf_tree(
-          input_vertices, input_faces, params.input_epsr_tags, params.bbox_diag_length);
-    else
-        tree.init_sf_tree(input_vertices, input_faces, params.eps);
-#endif
-
-    stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
-
+    // Times the interior extraction below, recorded as wn_id. correct_tracked_surface_orientation
+    // used to fall inside this window and is now inside tetrahedralization.
     timer.start();
-    simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);
-    tree.init_b_mesh_and_tree(input_vertices, input_faces, mesh);
-    logger().info("preprocessing {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::preprocessing_id,
-                   timer.getElapsedTimeInSec(),
-                   input_vertices.size(),
-                   input_faces.size(),
-                   -1,
-                   -1);
-
-    timer.start();
-    std::vector<bool> is_face_inserted(input_faces.size(), false);
-    FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
-    logger().info("#v = {}", mesh.get_v_num());
-    logger().info("#t = {}", mesh.get_t_num());
-    logger().info("tetrahedralizing {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::tetrahedralization_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   -1,
-                   -1);
-
-    timer.start();
-    insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, false);
-    logger().info("cutting {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::cutting_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy(),
-                   std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
-
-    //    timer.start();
-    ////    cutting(input_vertices, input_faces, mesh, is_face_inserted, tree);
-    //    cutting(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree);
-    //    logger().info("cutting {}s", timer.getElapsedTimeInSec());
-    //    logger().info("");
-    //    stats().record(StateInfo::cutting_id, timer.getElapsedTimeInSec(), mesh.get_v_num(),
-    //    mesh.get_t_num(),
-    //                                                   mesh.get_max_energy(),
-    //                                                   mesh.get_avg_energy(),
-    //                                                   std::count(is_face_inserted.begin(),
-    //                                                   is_face_inserted.end(), false));
-
-    timer.start();
-    optimization(
-      input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
-    logger().info("mesh optimization {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::optimization_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy());
-
-    timer.start();
-    correct_tracked_surface_orientation(mesh, tree);
-    logger().info("correct_tracked_surface_orientation done");
 
     if (export_raw) {
         Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
