@@ -1,7 +1,7 @@
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/AABBWrapper.h>
-#include <geogram/mesh/mesh_reorder.h>
-#include <geogram/basic/geometry_nd.h>
+#include <floattetwild/geo_mesh_reorder.h>
+#include <floattetwild/geo_geometry_nd.h>
 #include <floattetwild/TriangleInsertion.h>
 
 
@@ -32,7 +32,7 @@ void floatTetWild::AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&
     if (b_edges.empty()) {
         b_mesh.vertices.clear();
         b_mesh.vertices.create_vertices(1);
-        b_mesh.vertices.point(0) = GEO::vec3(0, 0, 0);
+        b_mesh.vertices.point(0) = geo::vec3(0, 0, 0);
         b_mesh.facets.clear();
         b_mesh.facets.create_triangles(1);
         b_mesh.facets.set_vertex(0, 0, 0);
@@ -44,7 +44,7 @@ void floatTetWild::AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&
         int cnt = 0;
         for (auto &e:b_edges) {
             for (int j = 0; j < 2; j++) {
-                GEO::vec3 &p = b_mesh.vertices.point(cnt++);
+                geo::vec3 &p = b_mesh.vertices.point(cnt++);
                 p[0] = input_vertices[e[j]][0];
                 p[1] = input_vertices[e[j]][1];
                 p[2] = input_vertices[e[j]][2];
@@ -59,7 +59,7 @@ void floatTetWild::AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&
         }
     }
 
-    mesh_reorder(b_mesh, GEO::MESH_ORDER_MORTON);
+    mesh_reorder(b_mesh, geo::MESH_ORDER_MORTON);
     b_tree = std::make_shared<MeshFacetsAABBWithEps>(b_mesh);
 
     if(b_edges.empty())
@@ -91,7 +91,7 @@ void floatTetWild::AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vecto
     if (b_edges1.empty() && b_edges2.empty()) {
         tmp_b_mesh.vertices.clear();
         tmp_b_mesh.vertices.create_vertices(1);
-        tmp_b_mesh.vertices.point(0) = GEO::vec3(0, 0, 0);
+        tmp_b_mesh.vertices.point(0) = geo::vec3(0, 0, 0);
         tmp_b_mesh.facets.clear();
         tmp_b_mesh.facets.create_triangles(1);
         tmp_b_mesh.facets.set_vertex(0, 0, 0);
@@ -103,7 +103,7 @@ void floatTetWild::AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vecto
         int cnt = 0;
         for (auto &e:b_edges1) {
             for (int j = 0; j < 2; j++) {
-                GEO::vec3 &p = tmp_b_mesh.vertices.point(cnt++);
+                geo::vec3 &p = tmp_b_mesh.vertices.point(cnt++);
                 p[0] = input_vertices[e[j]][0];
                 p[1] = input_vertices[e[j]][1];
                 p[2] = input_vertices[e[j]][2];
@@ -111,7 +111,7 @@ void floatTetWild::AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vecto
         }
         for (auto &e:b_edges2) {
             for (int j = 0; j < 2; j++) {
-                GEO::vec3 &p = tmp_b_mesh.vertices.point(cnt++);
+                geo::vec3 &p = tmp_b_mesh.vertices.point(cnt++);
                 p[0] = mesh.tet_vertices[e[j]].pos[0];
                 p[1] = mesh.tet_vertices[e[j]].pos[1];
                 p[2] = mesh.tet_vertices[e[j]].pos[2];
@@ -131,7 +131,7 @@ void floatTetWild::AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vecto
             tmp_b_mesh.facets.set_vertex(i, 2, i * 2 + 1);
         }
     }
-    mesh_reorder(tmp_b_mesh, GEO::MESH_ORDER_MORTON);
+    mesh_reorder(tmp_b_mesh, geo::MESH_ORDER_MORTON);
     tmp_b_tree = std::make_shared<MeshFacetsAABBWithEps>(tmp_b_mesh);
 
 #ifdef NEW_ENVELOPE

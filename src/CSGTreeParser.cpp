@@ -11,18 +11,18 @@
 #include <floattetwild/Logger.hpp>
 #include <floattetwild/Timer.h>
 
-#include <geogram/mesh/mesh_reorder.h>
+#include <floattetwild/geo_mesh_reorder.h>
 
 
 namespace floatTetWild {
 
 namespace {
-    // Build a GEO::Mesh from vertex and face vectors, carry the tags through as a facet
+    // Build a geo::Mesh from vertex and face vectors, carry the tags through as a facet
 // attribute, Morton reorder it, and read the permuted result back out. Named load_mesh
 // on MeshIO, but it touches no files.
 void build_reordered_sf_mesh(std::vector<Vector3>&  points,
                            std::vector<Vector3i>& faces,
-                           GEO::Mesh&             input,
+                           geo::Mesh&             input,
                            std::vector<int>&      flags)
     {
         logger().debug("Loading mesh from data...");
@@ -34,7 +34,7 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
         input.vertices.create_vertices((int)points.size());
         for (int i = 0; i < (int)input.vertices.nb(); ++i)
         {
-            GEO::vec3 &p = input.vertices.point(i);
+            geo::vec3 &p = input.vertices.point(i);
             p[0] = points[i](0);
             p[1] = points[i](1);
             p[2] = points[i](2);
@@ -53,18 +53,18 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
         bool is_valid = (flags.size() == input.facets.nb());
         if (is_valid) {
             assert(flags.size() == input.facets.nb());
-            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 bflags[index] = flags[index];
             }
         }
 
-        GEO::mesh_reorder(input, GEO::MESH_ORDER_MORTON);
+        geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);
 
         if (is_valid) {
             flags.clear();
             flags.resize(input.facets.nb());
-            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 flags[index] = bflags[index];
             }
@@ -132,7 +132,7 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
         }
     }
 
-    void CSGTreeParser::merge(const std::vector<std::vector<Vector3>> &Vs, const std::vector<std::vector<Vector3i>> &Fs, std::vector<Vector3> &V, std::vector<Vector3i> &F, GEO::Mesh &sf_mesh, std::vector<int> &tags)
+    void CSGTreeParser::merge(const std::vector<std::vector<Vector3>> &Vs, const std::vector<std::vector<Vector3i>> &Fs, std::vector<Vector3> &V, std::vector<Vector3i> &F, geo::Mesh &sf_mesh, std::vector<int> &tags)
     {
         V.clear();
         F.clear();

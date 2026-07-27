@@ -109,7 +109,6 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${GMP_INCLUDE_DIRS})
 target_link_libraries(
   ${PROJECT_NAME}
   PUBLIC Eigen3::Eigen
-         geogram::geogram
          spdlog::spdlog
          Threads::Threads
          # fast_winding_number

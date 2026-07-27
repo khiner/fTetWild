@@ -44,12 +44,12 @@
  */
 
 #include <floattetwild/mesh_AABB.h>
-#include <geogram/mesh/mesh_geometry.h>
-#include <geogram/basic/geometry_nd.h>
+#include <floattetwild/geo_mesh.h>
+#include <floattetwild/geo_geometry_nd.h>
 
 namespace {
 
-    using namespace GEO;
+    using namespace floatTetWild::geo;
 
     /**
      * \brief Computes the axis-aligned bounding box of a mesh facet.
@@ -156,11 +156,11 @@ namespace {
     ) {
         geo_debug_assert(M.facets.nb_vertices(f) == 3);
         index_t c = M.facets.corners_begin(f);
-        const vec3& p1 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p1 = M.vertices.point(M.facet_corners.vertex(c));
         ++c;
-        const vec3& p2 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p2 = M.vertices.point(M.facet_corners.vertex(c));
         ++c;
-        const vec3& p3 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p3 = M.vertices.point(M.facet_corners.vertex(c));
         double lambda1, lambda2, lambda3;  // barycentric coords, not used.
         squared_dist = Geom::point_triangle_squared_distance(
             p, p1, p2, p3, nearest_p, lambda1, lambda2, lambda3
@@ -279,11 +279,11 @@ namespace {
     ) {
         geo_debug_assert(M.facets.nb_vertices(f) == 3);
         index_t c = M.facets.corners_begin(f);
-        const vec3& p1 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p1 = M.vertices.point(M.facet_corners.vertex(c));
         ++c;
-        const vec3& p2 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p2 = M.vertices.point(M.facet_corners.vertex(c));
         ++c;
-        const vec3& p3 = Geom::mesh_vertex(M, M.facet_corners.vertex(c));
+        const vec3& p3 = M.vertices.point(M.facet_corners.vertex(c));
         return segment_triangle_intersection(q1, q2, p1, p2, p3);
     }
 
@@ -406,7 +406,7 @@ namespace floatTetWild {
         index_t v = mesh_.facet_corners.vertex(
             mesh_.facets.corners_begin(nearest_f)
         );
-        nearest_point = Geom::mesh_vertex(mesh_, v);
+        nearest_point = mesh_.vertices.point(v);
         sq_dist = Geom::distance2(p, nearest_point);
     }
 

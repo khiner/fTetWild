@@ -34,56 +34,12 @@
 #include <floattetwild/default_num_threads.h>
 
 
-#include <geogram/basic/command_line.h>
-#include <geogram/basic/command_line_args.h>
-#include <geogram/basic/logger.h>
-#include <geogram/mesh/mesh.h>
+#include <floattetwild/geo_mesh.h>
 #include <bitset>
 
 using namespace floatTetWild;
 //using namespace Eigen;
 
-class GeoLoggerForward : public GEO::LoggerClient
-{
-    std::shared_ptr<spdlog::logger> logger_;
-
-  public:
-    template<typename T>
-    GeoLoggerForward(T logger)
-        : logger_(logger)
-    {}
-
-  private:
-    std::string truncate(const std::string& msg)
-    {
-        static size_t prefix_len = GEO::CmdLine::ui_feature(" ", false).size();
-        return msg.substr(prefix_len, msg.size() - 1 - prefix_len);
-    }
-
-  protected:
-    void div(const std::string& title) override
-    {
-        logger_->trace(title.substr(0, title.size() - 1));
-    }
-
-    void out(const std::string& str) override { logger_->info(truncate(str)); }
-
-    void warn(const std::string& str) override { logger_->warn(truncate(str)); }
-
-    void err(const std::string& str) override { logger_->error(truncate(str)); }
-
-    void status(const std::string& str) override
-    {
-        // Errors and warnings are also dispatched as status by geogram, but without
-        // the "feature" header. We thus forward them as trace, to avoid duplicated
-        // logger info...
-        logger_->trace(str.substr(0, str.size() - 1));
-    }
-};
-
-#include <geogram/basic/common.h>
-#include <geogram/basic/geometry.h>
-#include <geogram/basic/numeric.h>
 #include <floattetwild/Predicates.hpp>
 
 #include <floattetwild/MshLoader.h>
@@ -142,24 +98,12 @@ int main(int argc, char** argv)
     //
     //    return 0;
 
-#ifndef WIN32
-    setenv("GEO_NO_SIGNAL_HANDLER", "1", 1);
-#endif
-
-    GEO::initialize();
-    //    exactinit();
-
     std::vector<int> indices(20);
     std::iota(std::begin(indices), std::end(indices), 0);
     floatTetWild::Random::shuffle(indices);
     for (int a : indices)
         std::cout << a << " ";
     std::cout << std::endl;
-
-    // Import standard command line arguments, and custom ones
-    GEO::CmdLine::import_arg_group("standard");
-    GEO::CmdLine::import_arg_group("pre");
-    GEO::CmdLine::import_arg_group("algo");
 
     bool skip_simplify = false;
     bool nobinary      = false;
@@ -290,11 +234,6 @@ int main(int argc, char** argv)
     spdlog::set_level(static_cast<spdlog::level::level_enum>(params.log_level));
     spdlog::flush_every(std::chrono::seconds(3));
 
-    GEO::Logger* geo_logger = GEO::Logger::instance();
-    geo_logger->unregister_all_clients();
-    geo_logger->register_client(new GeoLoggerForward(logger().clone("geogram")));
-    geo_logger->set_pretty(false);
-
     if (params.output_path.empty())
         params.output_path = params.input_path;
     if (params.log_path.empty())
@@ -362,7 +301,7 @@ int main(int argc, char** argv)
 
     /// set envelope
     Timer               timer;
-    GEO::Mesh                sf_mesh;
+    geo::Mesh                sf_mesh;
     json                     tree_with_ids;
     std::vector<std::string>                 meshes;
     std::vector<std::vector<Vector3>>        csg_Vs;
@@ -384,7 +323,7 @@ int main(int argc, char** argv)
         csg_Vs.resize(meshes.size());
         csg_Fs.resize(meshes.size());
         {
-            GEO::Mesh        tmp_mesh;
+            geo::Mesh        tmp_mesh;
             std::vector<int> tmp_tags;
             for (int i = 0; i < meshes.size(); ++i) {
                 if (!MeshIO::load_mesh(meshes[i], csg_Vs[i], csg_Fs[i], tmp_mesh, tmp_tags)) {

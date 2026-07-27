@@ -14,7 +14,7 @@
 #include <array>
 #include <vector>
 
-#include <geogram/mesh/mesh.h>
+#include <floattetwild/geo_mesh.h>
 
 namespace floatTetWild {
     class Parameters {

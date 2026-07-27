@@ -15,10 +15,9 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/writeOBJ.h>
 
-#include <geogram/mesh/mesh_geometry.h>
-#include <geogram/mesh/mesh_io.h>
-#include <geogram/mesh/mesh_reorder.h>
-#include <geogram/mesh/mesh_repair.h>
+#include <floattetwild/SurfaceMeshLoad.hpp>
+#include <floattetwild/geo_mesh.h>
+#include <floattetwild/geo_mesh_reorder.h>
 
 #include <numeric>
 
@@ -148,32 +147,23 @@ void write_mesh_aux(const std::string&              path,
 bool MeshIO::load_mesh(const std::string&     path,
                        std::vector<Vector3>&  points,
                        std::vector<Vector3i>& faces,
-                       GEO::Mesh&             input,
+                       geo::Mesh&             input,
                        std::vector<int>&      flags)
 {
     logger().debug("Loading mesh at {}...", path);
     Timer timer;
     timer.start();
 
-    input.clear(false, false);
-
-    const bool ok = GEO::mesh_load(path, input);
-
-    if (!ok)
+    if (!load_surface_mesh(path, input))
         return false;
 
     bool is_valid = (flags.size() == input.facets.nb());
     if (is_valid) {
         assert(flags.size() == input.facets.nb());
-        GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
         for (int index = 0; index < (int)input.facets.nb(); ++index) {
             bflags[index] = flags[index];
         }
-    }
-
-    if (!input.facets.are_simplices()) {
-        mesh_repair(input,
-                    GEO::MeshRepairMode(GEO::MESH_REPAIR_TRIANGULATE | GEO::MESH_REPAIR_QUIET));
     }
 
     // #ifdef FLOAT_TETWILD_USE_FLOAT
@@ -182,12 +172,12 @@ bool MeshIO::load_mesh(const std::string&     path,
     // 		input.vertices.set_double_precision();
     // #endif
 
-    GEO::mesh_reorder(input, GEO::MESH_ORDER_MORTON);
+    geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);
 
     if (is_valid) {
         flags.clear();
         flags.resize(input.facets.nb());
-        GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
         for (int index = 0; index < (int)input.facets.nb(); ++index) {
             flags[index] = bflags[index];
         }
@@ -202,13 +192,13 @@ bool MeshIO::load_mesh(const std::string&     path,
     for (size_t i = 0; i < faces.size(); i++)
         faces[i] << input.facets.vertex(i, 0), input.facets.vertex(i, 1), input.facets.vertex(i, 2);
 
-    return ok;
+    return true;
 }
 
 bool MeshIO::load_mesh(const std::string&     path,
                            std::vector<Vector3>&  points,
                            std::vector<Vector3i>& faces,
-                           GEO::Mesh&             input,
+                           geo::Mesh&             input,
                            std::vector<int>&      flags,
                            std::vector<double>& epsr_flags)
     {
@@ -216,32 +206,23 @@ bool MeshIO::load_mesh(const std::string&     path,
         Timer timer;
         timer.start();
 
-        input.clear(false, false);
-
-        const bool ok = GEO::mesh_load(path, input);
-
-        if (!ok)
+        if (!load_surface_mesh(path, input))
             return false;
 
         bool is_valid = (flags.size() == input.facets.nb());
         if (is_valid) {
             assert(flags.size() == input.facets.nb());
-            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 bflags[index] = flags[index];
             }
         }
         bool is_valid_epsr = (epsr_flags.size() == input.facets.nb());
         if (is_valid_epsr) {
-            GEO::Attribute<double> eflags(input.facets.attributes(), "eflags");
+            geo::Attribute<double> eflags(input.facets.attributes(), "eflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 eflags[index] = epsr_flags[index];
             }
-        }
-
-        if (!input.facets.are_simplices()) {
-            mesh_repair(input,
-                        GEO::MeshRepairMode(GEO::MESH_REPAIR_TRIANGULATE | GEO::MESH_REPAIR_QUIET));
         }
 
         // #ifdef FLOAT_TETWILD_USE_FLOAT
@@ -250,12 +231,12 @@ bool MeshIO::load_mesh(const std::string&     path,
         // 		input.vertices.set_double_precision();
         // #endif
 
-        GEO::mesh_reorder(input, GEO::MESH_ORDER_MORTON);
+        geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);
 
         if (is_valid) {
             flags.clear();
             flags.resize(input.facets.nb());
-            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 flags[index] = bflags[index];
             }
@@ -263,7 +244,7 @@ bool MeshIO::load_mesh(const std::string&     path,
         if(is_valid_epsr){
             epsr_flags.clear();
             epsr_flags.resize(input.facets.nb());
-            GEO::Attribute<double> eflags(input.facets.attributes(), "eflags");
+            geo::Attribute<double> eflags(input.facets.attributes(), "eflags");
             for (int index = 0; index < (int)input.facets.nb(); ++index) {
                 epsr_flags[index] = eflags[index];
             }
@@ -278,7 +259,7 @@ bool MeshIO::load_mesh(const std::string&     path,
         for (size_t i = 0; i < faces.size(); i++)
             faces[i] << input.facets.vertex(i, 0), input.facets.vertex(i, 1), input.facets.vertex(i, 2);
 
-        return ok;
+        return true;
     }
 
 void MeshIO::write_mesh(const std::string&      path,

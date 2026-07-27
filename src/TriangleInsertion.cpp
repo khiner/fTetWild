@@ -14,6 +14,8 @@
 
 #include <floattetwild/TriangleInsertion.h>
 
+#include <floattetwild/geo_geometry_nd.h>
+
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/intersections.h>
 #include <floattetwild/Logger.hpp>
@@ -491,7 +493,7 @@ void floatTetWild::insert_triangles_aux(const std::vector<Vector3>&  input_verti
     //        if (!mesh.tet_vertices[v_id].is_on_boundary)
     //            continue;
     //
-    //        GEO::index_t prev_facet;
+    //        geo::index_t prev_facet;
     //        if (tree.is_out_tmp_b_envelope(mesh.tet_vertices[v_id].pos, mesh.params.eps_2,
     //        prev_facet))
     //            mesh.tet_vertices[v_id].is_on_boundary = false;
@@ -2271,7 +2273,7 @@ bool floatTetWild::insert_boundary_edges(
                 }
 #else
 #ifdef STORE_SAMPLE_POINTS
-                std::vector<GEO::vec3> ps;
+                std::vector<geo::vec3> ps;
                 sample_triangle({{mesh.tet_vertices[f[0]].pos,
                                   mesh.tet_vertices[f[1]].pos,
                                   mesh.tet_vertices[f[2]].pos}},
@@ -2279,7 +2281,7 @@ bool floatTetWild::insert_boundary_edges(
                                 mesh.params.dd);
                 if (tree.is_out_sf_envelope(ps, mesh.params.eps_2)) {
 #else
-                GEO::index_t prev_facet = GEO::NO_FACET;
+                geo::index_t prev_facet = geo::NO_FACET;
                 if (sample_triangle_and_check_is_out({{mesh.tet_vertices[f[0]].pos,
                                                        mesh.tet_vertices[f[1]].pos,
                                                        mesh.tet_vertices[f[2]].pos}},
@@ -2798,25 +2800,25 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                 //
                 //                static const Scalar dist_2_max = mesh.params.bbox_diag_length *
                 //                mesh.params.bbox_diag_length; std::array<Scalar, 3> min_dist_2 =
-                //                {{dist_2_max, dist_2_max, dist_2_max}}; std::array<GEO::vec3, 3>
-                //                t_vs_geo = {{GEO::vec3(tp1_3d[0], tp1_3d[1], tp1_3d[2]),
-                //                                                             GEO::vec3(tp2_3d[0],
+                //                {{dist_2_max, dist_2_max, dist_2_max}}; std::array<geo::vec3, 3>
+                //                t_vs_geo = {{geo::vec3(tp1_3d[0], tp1_3d[1], tp1_3d[2]),
+                //                                                             geo::vec3(tp2_3d[0],
                 //                                                             tp2_3d[1],
                 //                                                             tp2_3d[2]),
-                //                                                             GEO::vec3(tp3_3d[0],
+                //                                                             geo::vec3(tp3_3d[0],
                 //                                                             tp3_3d[1],
                 //                                                             tp3_3d[2])}};
                 //                for (int f_id: f_ids) {
-                //                    std::array<GEO::vec3, 3> f_vs_geo;
+                //                    std::array<geo::vec3, 3> f_vs_geo;
                 //                    for (int k = 0; k < 3; k++) {
                 //                        f_vs_geo[k] =
-                //                        GEO::vec3(input_vertices[input_faces[f_id][k]][0],
+                //                        geo::vec3(input_vertices[input_faces[f_id][k]][0],
                 //                                                input_vertices[input_faces[f_id][k]][1],
                 //                                                input_vertices[input_faces[f_id][k]][2]);
                 //                    }
                 //                    for (int k = 0; k < 3; k++) {
                 //                        double dist_2 =
-                //                        GEO::Geom::point_triangle_squared_distance(t_vs_geo[k],
+                //                        geo::Geom::point_triangle_squared_distance(t_vs_geo[k],
                 //                        f_vs_geo[0],
                 //                                                                                   f_vs_geo[1], f_vs_geo[2]);
                 //                        if (dist_2 < min_dist_2[k])
@@ -2926,11 +2928,11 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                 double dd    = (mesh.params.dd + mesh.params.dd_simplification) / 2;
                 eps_2 *= eps_2;
 #ifdef STORE_SAMPLE_POINTS
-                std::vector<GEO::vec3> ps;
+                std::vector<geo::vec3> ps;
                 sample_triangle({{tp1_3d, tp2_3d, tp3_3d}}, ps, dd);
                 if (tree.is_out_sf_envelope(ps, eps_2))
 #else
-                GEO::index_t prev_facet = GEO::NO_FACET;
+                geo::index_t prev_facet = geo::NO_FACET;
                 if (sample_triangle_and_check_is_out(
                       {{tp1_3d, tp2_3d, tp3_3d}}, dd, eps_2, tree, prev_facet))
 #endif
@@ -2970,14 +2972,14 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                 //                }
                 //                if (ff_id < 0) {
                 //                    continue;
-                ////                    std::vector<GEO::vec3> ps;
+                ////                    std::vector<geo::vec3> ps;
                 ////                    sample_triangle({{tp1_3d, tp2_3d, tp3_3d}}, ps,
                 /// mesh.params.dd); /                    if (tree.is_out_sf_envelope(ps,
                 /// mesh.params.eps_2)) /                        continue; /                    else
                 ////                        ff_id = track_surface_fs[t_id][j].front();
                 //                }
                 //                else {
-                //                    std::vector<GEO::vec3> ps;
+                //                    std::vector<geo::vec3> ps;
                 //                    sample_triangle({{tp1_3d, tp2_3d, tp3_3d}}, ps,
                 //                    mesh.params.dd); if (tree.is_out_sf_envelope(ps,
                 //                    mesh.params.eps_2))
@@ -3150,7 +3152,7 @@ bool floatTetWild::is_uninserted_face_covered(int                          unins
     std::array<Vector3, 3> vs = {{input_vertices[input_faces[uninserted_f_id][0]],
                                   input_vertices[input_faces[uninserted_f_id][1]],
                                   input_vertices[input_faces[uninserted_f_id][2]]}};
-    std::vector<GEO::vec3> ps;
+    std::vector<geo::vec3> ps;
     sample_triangle(vs, ps, mesh.params.dd);
 
     std::vector<int> n_t_ids;
@@ -3179,7 +3181,7 @@ bool floatTetWild::is_uninserted_face_covered(int                          unins
         bool is_valid = false;
         for (auto& f : faces) {
             double dis_2 =
-              GEO::Geom::point_triangle_squared_distance(p,
+              geo::Geom::point_triangle_squared_distance(p,
                                                          to_geo_p(mesh.tet_vertices[f[0]].pos),
                                                          to_geo_p(mesh.tet_vertices[f[1]].pos),
                                                          to_geo_p(mesh.tet_vertices[f[2]].pos));
@@ -3332,11 +3334,11 @@ void floatTetWild::check_track_surface_fs(
             //            for (int r = 0; r < 3; r++) {
             //                if(is_p_inside_tri_2d(t_vs_2d[r], f_vs_2d))
             //                    continue;
-            //                double dist_2 = GEO::Geom::point_triangle_squared_distance(
-            //                        GEO::vec3(t_vs[r][0], t_vs[r][1], t_vs[r][2]),
-            //                        GEO::vec3(f_vs[0][0], f_vs[0][1], f_vs[0][2]),
-            //                        GEO::vec3(f_vs[1][0], f_vs[1][1], f_vs[1][2]),
-            //                        GEO::vec3(f_vs[2][0], f_vs[2][1], f_vs[2][2]));
+            //                double dist_2 = geo::Geom::point_triangle_squared_distance(
+            //                        geo::vec3(t_vs[r][0], t_vs[r][1], t_vs[r][2]),
+            //                        geo::vec3(f_vs[0][0], f_vs[0][1], f_vs[0][2]),
+            //                        geo::vec3(f_vs[1][0], f_vs[1][1], f_vs[1][2]),
+            //                        geo::vec3(f_vs[2][0], f_vs[2][1], f_vs[2][2]));
             //                if (dist_2 > mesh.params.eps_2) {
             ////                    cout << "r = " << r << endl;
             ////                    cout << "dist_2 = " << dist_2 << endl;
@@ -3409,7 +3411,7 @@ void floatTetWild::check_track_surface_fs(
         }
         //        cout<<covered_fs_infos[f_id].size()<<endl;
         //
-        std::vector<GEO::vec3> ps;
+        std::vector<geo::vec3> ps;
         sample_triangle(f_vs, ps, mesh.params.dd);
         //
         double eps = mesh.params.eps_coplanar * mesh.params.eps_coplanar;
@@ -3429,13 +3431,13 @@ void floatTetWild::check_track_surface_fs(
                 std::array<int, 3>       f    = {{mesh.tets[t_id][(j + 1) % 4],
                                                   mesh.tets[t_id][(j + 2) % 4],
                                                   mesh.tets[t_id][(j + 3) % 4]}};
-                std::array<GEO::vec3, 3> vs;
+                std::array<geo::vec3, 3> vs;
                 for (int k = 0; k < 3; k++) {
-                    vs[k] = GEO::vec3(mesh.tet_vertices[f[k]].pos[0],
+                    vs[k] = geo::vec3(mesh.tet_vertices[f[k]].pos[0],
                                       mesh.tet_vertices[f[k]].pos[1],
                                       mesh.tet_vertices[f[k]].pos[2]);
                 }
-                double dis_2 = GEO::Geom::point_triangle_squared_distance(p, vs[0], vs[1], vs[2]);
+                double dis_2 = geo::Geom::point_triangle_squared_distance(p, vs[0], vs[1], vs[2]);
                 if (dis_2 <= eps) {
                     is_inside = true;
                     break;

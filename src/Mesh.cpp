@@ -9,9 +9,6 @@
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/LocalOperations.h>
 
-#include <geogram/mesh/mesh_partition.h>
-
-
 #include <numeric>
 
 namespace floatTetWild {
@@ -252,89 +249,5 @@ namespace floatTetWild {
 	// 	}
 	// }
 
-	void Mesh::partition(const int n_parts, std::vector<std::vector<int>> &tets_id) const
-	{
-		GEO::Mesh M;
-		// Setup vertices
-		M.vertices.create_vertices((int) tet_vertices.size());
-		for (int i = 0; i < (int) M.vertices.nb(); ++i) {
-			GEO::vec3 &p = M.vertices.point(i);
-			p[0] = tet_vertices[i][0];
-			p[1] = tet_vertices[i][1];
-			p[2] = tet_vertices[i][2];
-		}
-
-		M.cells.create_tets((int) get_t_num());
-
-		int c = 0;
-		for (int index = 0; index < (int) tets.size(); ++index) {
-			if(tets[index].is_removed)
-				continue;
-
-			for (int lv = 0; lv < 4; ++lv) {
-				M.cells.set_vertex(c, lv, tets[index][lv]);
-			}
-
-			++c;
-		}
-		M.cells.connect();
-
-		{
-			c = 0;
-			GEO::Attribute<int> original_indices(M.cells.attributes(), "indices");
-			for (int index = 0; index < (int) tets.size(); ++index) {
-				if(tets[index].is_removed)
-					continue;
-				original_indices[c] = index;
-				++c;
-			}
-		}
-
-		GEO::vector<GEO::index_t> facet_ptr, tet_ptr;
-		GEO::mesh_partition(M, GEO::MESH_PARTITION_HILBERT, facet_ptr, tet_ptr, n_parts);
-		//GEO::MESH_PARTITION_CONNECTED_COMPONENTS
-
-		GEO::Attribute<int> original_indices(M.cells.attributes(), "indices");
-
-		tets_id.clear();
-		tets_id.resize(tet_ptr.size()-1);
-		for(int i = 0; i < tet_ptr.size()-1; ++i)
-		{
-			for(int j = tet_ptr[i]; j < tet_ptr[i+1]; ++j)
-				tets_id[i].push_back(original_indices[j]);
-		}
-
-
-		// static const int UNVISITED = -1;
-
-	    //     std::vector<int> new_index(tets.size(), UNVISITED);
-	    //     std::stack<int> S;
-	    //     int new_cur_index = 0;
-	    //     for(int t = 0; t < tets.size(); ++t) {
-	    //         if(new_index[t] == UNVISITED) {
-	    //             // tet_ptr.push_back(new_cur_index);
-	    //             new_index[t] = new_cur_index;
-	    //             new_cur_index++;
-	    //             S.push(t);
-	    //         }
-	    //         while(!S.empty()) {
-	    //             int t1 = S.top();
-	    //             S.pop();
-
-	    //             for(int lf = 0; lf < 4; lf++) {
-	    //                 int t2 = tets[t1].opp_t_ids[lf];
-	    //                 if(t2 != -1 && new_index[t2] == UNVISITED) {
-	    //                     new_index[t2] = new_cur_index;
-	    //                     new_cur_index++;
-	    //                     S.push(int(t2));
-	    //                 }
-	    //             }
-	    //         }
-	    //     }
-	    //     assert(new_cur_index == tets.size());
-	    //     // tet_ptr.push_back(new_cur_index);
-	    //     // Permutation::invert(new_index);
-	    //     // M.cells.permute_elements(new_index);
-	}
 
 }

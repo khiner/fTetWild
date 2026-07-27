@@ -10,7 +10,7 @@
 
 #include <floattetwild/Types.hpp>
 
-#include <geogram/mesh/mesh.h>
+#include <floattetwild/geo_mesh.h>
 
 
 
@@ -41,7 +41,7 @@ class CSGTreeParser
 
     static bool keep_tet(const json &csg_tree_with_ids, const int t_id, const std::vector<Eigen::VectorXd> &w);
 
-    static void merge(const std::vector<std::vector<Vector3>> &Vs, const std::vector<std::vector<Vector3i>> &Fs, std::vector<Vector3> &V, std::vector<Vector3i> &F, GEO::Mesh &sf_mesh, std::vector<int> &tags);
+    static void merge(const std::vector<std::vector<Vector3>> &Vs, const std::vector<std::vector<Vector3i>> &Fs, std::vector<Vector3> &V, std::vector<Vector3i> &F, geo::Mesh &sf_mesh, std::vector<int> &tags);
 
     private:
     static void get_meshes_aux(const json &csg_tree_node, std::vector<std::string> &meshes, std::map<std::string, int> &existings, int &index, json &current_node);

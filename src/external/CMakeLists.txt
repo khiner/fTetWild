@@ -89,6 +89,8 @@ float_tetwild_copy_headers(${SOURCES})
 float_tetwild_set_source_group(${SOURCES})
 target_sources(FloatTetwild PRIVATE ${SOURCES})
 
+add_subdirectory(geo)
+
 # PyMesh .msh reader and writer, used only by MeshIO and by main.cpp for --bg-mesh, so they
 # belong with the binary rather than the core library.
 set(IO_SOURCES

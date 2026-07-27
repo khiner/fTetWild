@@ -524,7 +524,7 @@ void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const s
                         mesh.tet_vertices[v_id].is_on_cut = false;
                     }
 #else
-                    GEO::index_t prev_facet;
+                    geo::index_t prev_facet;
                     if (tree.is_out_tmp_b_envelope(mesh.tet_vertices[v_id].pos, mesh.params.eps_2, prev_facet)) {
                         mesh.tet_vertices[v_id].is_on_boundary = false;
                         mesh.tet_vertices[v_id].is_on_cut = false;
@@ -607,7 +607,7 @@ void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const s
     }
 }
 
-#include <geogram/points/kd_tree.h>
+#include <floattetwild/geo_kd_tree.h>
 bool floatTetWild::update_scaling_field(Mesh &mesh, Scalar max_energy) {
 //    return false;
 
@@ -679,8 +679,8 @@ bool floatTetWild::update_scaling_field(Mesh &mesh, Scalar max_energy) {
             scale_multipliers[v_ids[n][i]] = refine_scale;
         }
         // construct the kdtree
-        GEO::NearestNeighborSearch_var nnsearch = GEO::NearestNeighborSearch::create(3, "BNN");
-        nnsearch->set_points(int(v_ids[n].size()), pts.data());
+        geo::BalancedKdTree nnsearch(3);
+        nnsearch.set_points(int(v_ids[n].size()), pts.data());
 
         while (!v_queue.empty()) {
             int v_id = v_queue.front();
@@ -690,12 +690,12 @@ bool floatTetWild::update_scaling_field(Mesh &mesh, Scalar max_energy) {
                 for (int j = 0; j < 4; j++) {
                     if (is_visited.find(mesh.tets[t_id][j]) != is_visited.end())
                         continue;
-                    GEO::index_t _;
+                    geo::index_t _;
                     double sq_dist;
                     const double p[3] = {mesh.tet_vertices[mesh.tets[t_id][j]].pos[0],
                                          mesh.tet_vertices[mesh.tets[t_id][j]].pos[1],
                                          mesh.tet_vertices[mesh.tets[t_id][j]].pos[2]};
-                    nnsearch->get_nearest_neighbors(1, p, &_, &sq_dist);
+                    nnsearch.get_nearest_neighbors(1, p, &_, &sq_dist);
                     Scalar dis = sqrt(sq_dist);
 
                     if (dis < radius) {
@@ -1065,7 +1065,7 @@ void floatTetWild::check_envelope(Mesh& mesh, const AABBWrapper& tree) {//for de
             continue;
         for (int j = 0; j < 4; j++) {
             if (t.is_surface_fs[j] <= 0) {
-                std::vector<GEO::vec3> ps;
+                std::vector<geo::vec3> ps;
                 sample_triangle({{mesh.tet_vertices[t[(j + 1) % 4]].pos, mesh.tet_vertices[t[(j + 2) % 4]].pos,
                                          mesh.tet_vertices[t[(j + 3) % 4]].pos}}, ps, mesh.params.dd);
                 if(tree.is_out_sf_envelope(ps, mesh.params.eps_2)){
@@ -1083,7 +1083,7 @@ void floatTetWild::check_envelope(Mesh& mesh, const AABBWrapper& tree) {//for de
         if (v.is_removed || !v.is_on_surface)
             continue;
 
-        std::vector<GEO::vec3> ps = {GEO::vec3(v.pos[0], v.pos[1], v.pos[2])};
+        std::vector<geo::vec3> ps = {geo::vec3(v.pos[0], v.pos[1], v.pos[2])};
         Scalar d = tree.dist_sf_envelope(ps, check_eps);
         if (d > mesh.params.eps_2) {
             cout << "v out of envelope!" << endl;
@@ -1169,11 +1169,11 @@ int floatTetWild::get_max_p(const Mesh &mesh)
 //
 //    logger().debug("Applying sizing field...");
 //
-//    GEO::Mesh bg_mesh;
+//    geo::Mesh bg_mesh;
 //    bg_mesh.vertices.clear();
 //    bg_mesh.vertices.create_vertices((int) V_in.rows() / 3);
 //    for (int i = 0; i < V_in.rows() / 3; i++) {
-//        GEO::vec3 &p = bg_mesh.vertices.point(i);
+//        geo::vec3 &p = bg_mesh.vertices.point(i);
 //        for (int j = 0; j < 3; j++)
 //            p[j] = V_in(i * 3 + j);
 //    }
@@ -1190,7 +1190,7 @@ int floatTetWild::get_max_p(const Mesh &mesh)
 //            continue;
 //
 //        p.sizing_scalar = 1;//reset scalar
-//        GEO::vec3 geo_p(p.pos[0], p.pos[1], p.pos[2]);
+//        geo::vec3 geo_p(p.pos[0], p.pos[1], p.pos[2]);
 //        int bg_t_id = bg_aabb.containing_tet(geo_p);
 //        if (bg_t_id == GEO::MeshCellsAABB::NO_TET)
 //            continue;
@@ -1356,7 +1356,7 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
             const auto &fv1 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 0));
             const auto &fv2 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 1));
             const auto &fv3 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 2));
-            auto nf = GEO::cross((fv2 - fv1), (fv3 - fv1));
+            auto nf = geo::cross((fv2 - fv1), (fv3 - fv1));
             Vector3 n, nt;
             n << nf[0], nf[1], nf[2];
             //

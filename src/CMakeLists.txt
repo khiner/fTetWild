@@ -65,6 +65,8 @@ target_sources(FloatTetwild PRIVATE ${SOURCES})
 set(IO_SOURCES
 	MeshIO.hpp
 	MeshIO.cpp
+	SurfaceMeshLoad.hpp
+	SurfaceMeshLoad.cpp
 )
 prepend_current_path(IO_SOURCES)
 float_tetwild_copy_headers(${IO_SOURCES})

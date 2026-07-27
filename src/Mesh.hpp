@@ -187,7 +187,6 @@ public:
 
         // void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, std::vector<int> &safe_set) const;
 
-        void partition(const int n_parts, std::vector<std::vector<int>> &tets_id) const;
 
         static void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char> &v_is_removed,
                           const std::vector<char> &f_is_removed, const std::vector<std::unordered_set<int>> &conn_fs,

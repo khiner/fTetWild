@@ -13,7 +13,7 @@
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/Types.hpp>
 
-#include <geogram/delaunay/delaunay_3d.h>
+#include <floattetwild/geo_delaunay_3d.h>
 #include <floattetwild/AABBWrapper.h>
 
 namespace floatTetWild {

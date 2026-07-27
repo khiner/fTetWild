@@ -83,44 +83,6 @@ if(NOT TARGET Eigen3::Eigen)
     target_include_directories(Eigen3_Eigen SYSTEM INTERFACE ${eigen_SOURCE_DIR})
 endif()
 
-# Geogram
-if(NOT TARGET geogram::geogram)
-    FetchContent_Declare(
-        geogram
-        GIT_REPOSITORY https://github.com/BrunoLevy/geogram
-        GIT_TAG        v1.9.6
-        PATCH_COMMAND  ${CMAKE_COMMAND}
-                       -DGEOGRAM_SOURCE_DIR=<SOURCE_DIR>
-                       -P ${CMAKE_CURRENT_LIST_DIR}/patches/geogram_deterministic_shuffle.cmake
-    )
-
-    # --- Final Recommended Configuration ---
-    # Set the platform to force a static build
-    if(MSVC)
-        set(GEO_PLATFORM "Win-vs-generic")
-    elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-        set(GEO_PLATFORM "Darwin-clang")
-    else()
-        set(GEO_PLATFORM "Linux64-gcc")
-    endif()
-
-    set(VORPALINE_PLATFORM ${GEO_PLATFORM})
-
-    set(GEOGRAM_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    set(GEOGRAM_BUILD_STATIC ON CACHE BOOL "" FORCE)
-
-    set(GEOGRAM_SUB_BUILD ON CACHE BOOL "Building as subproject" FORCE)
-    set(GEOGRAM_LIB_ONLY ON CACHE BOOL "Build geogram lib only" FORCE)
-    set(GEOGRAM_WITH_GRAPHICS OFF CACHE BOOL "Disable graphics" FORCE)
-    set(GEOGRAM_WITH_LUA OFF CACHE BOOL "Disable LUA" FORCE)
-    set(GEOGRAM_WITH_EXPLORAGRAM OFF CACHE BOOL "Disable exploragram" FORCE)
-    set(GEOGRAM_WITH_LEGACY_NUMERICS OFF CACHE BOOL "Disable legacy numerics" FORCE)
-    set(GEOGRAM_WITH_TRIANGLE OFF CACHE BOOL "Disable triangle" FORCE)
-
-    FetchContent_MakeAvailable(geogram)
-    include(geogram)
-endif()
-
 
 
 # TBB
