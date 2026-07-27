@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+# Download a Thingi10K corpus into the gitignored corpus/, one mesh per model in whatever format the
+# dataset stores it (.stl, .off, .obj, .ply), all of which fTetWild reads directly. Selection is the
+# first N by ascending file id, so every machine builds the same corpus.
+#
+# Usage: script/download_corpus [--count N] [--force]
+
+import argparse
+import csv
+import io
+import sys
+import urllib.request
+from pathlib import Path
+
+Thingi10kUrl = "https://huggingface.co/datasets/Thingi10K/Thingi10K/resolve/main"
+
+RepoDir = Path(__file__).resolve().parent.parent
+CorpusDir = RepoDir / "corpus"
+
+
+def fetch(path):
+    request = urllib.request.Request(f"{Thingi10kUrl}/{path}", headers={"User-Agent": "fTetWild download_corpus"})
+    with urllib.request.urlopen(request) as response:
+        return response.read()
+
+
+def read_csv(path):
+    return list(csv.DictReader(io.StringIO(fetch(path).decode("utf-8", "replace"))))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--count", type=int, default=100, help="how many models to download")
+    parser.add_argument("--force", action="store_true", help="re-download models already in place")
+    args = parser.parse_args()
+
+    print("reading metadata")
+    file_ids = sorted((int(row["file_id"]) for row in read_csv("metadata/geometry_data.csv")))[: args.count]
+    # A model keeps the extension of the file it was uploaded as, which only `input_summary` names.
+    suffix_of = {row["ID"]: Path(row["Link"]).suffix.lower() for row in read_csv("metadata/input_summary.csv")}
+
+    CorpusDir.mkdir(parents=True, exist_ok=True)
+    downloaded = 0
+    for index, file_id in enumerate(file_ids, 1):
+        name = f"{file_id}{suffix_of[str(file_id)]}"
+        path = CorpusDir / name
+        if path.exists() and not args.force:
+            continue
+        path.write_bytes(fetch(f"raw_meshes/{name}"))
+        downloaded += 1
+        print(f"{index}/{len(file_ids)} {name}")
+
+    print(f"{len(file_ids)} meshes under {CorpusDir} ({downloaded} downloaded now)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

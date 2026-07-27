@@ -1,0 +1,34 @@
+# The 25 fastest models of the 100 in corpus/, with the seconds a Release run took on an M-series
+# Mac. Whole list runs in about 24s via script/check_corpus. Populate corpus/ with
+# script/download_corpus.
+#
+# Each one produced byte-identical output over 10 consecutive runs and at 1, 2, 6 and 18 threads, so
+# a diff against a recorded baseline means the change altered behaviour, not that the run was noisy.
+#
+# 32770 and 37003 were nondeterministic until recently and are worth running after touching
+# simplification or smoothing, but at 5.5s and 16s they are nowhere near the fastest 25.
+37322	0.34
+37622	0.40
+37620	0.45
+37621	0.45
+37323	0.58
+37627	0.63
+36082	0.65
+37404	0.76
+37179	0.78
+37568	0.78
+37091	0.80
+36372	0.86
+37221	0.91
+37012	1.06
+36075	1.08
+37229	1.24
+37331	1.25
+37225	1.29
+37286	1.31
+37065	1.37
+37332	1.39
+36069	1.43
+37095	1.43
+37274	1.46
+37283	1.58

@@ -145,8 +145,7 @@ void floatTetWild::sort_input_faces(const std::vector<Vector3>&  input_vertices,
 
     if (mesh.params.not_sort_input)
         return;
-    std::random_device rd;  // obtain a random number from hardware
-    std::mt19937 g(rd());   // seed the generator
+    std::mt19937 g(42);  // fixed seed, so the same input gives the same insertion order
 
     std::shuffle(sorted_f_ids.begin(), sorted_f_ids.end(), g);
 
@@ -1116,7 +1115,11 @@ void floatTetWild::find_cutting_tets(int                           f_id,
 
             tbb_t_ids.push_back(t_id);
         });
-        for (int t_id : tbb_t_ids) {
+        // Filled in thread arrival order, and the queue order decides the result, so sort to match
+        // the serial branch below.
+        std::vector<int> sorted_t_ids(tbb_t_ids.begin(), tbb_t_ids.end());
+        std::sort(sorted_t_ids.begin(), sorted_t_ids.end());
+        for (int t_id : sorted_t_ids) {
             queue_t_ids.push(t_id);
             is_visited[t_id] = true;
         }

@@ -14,21 +14,18 @@
 #include <oneapi/tbb/parallel_for.h>
 #endif
 
+#include <atomic>
+
 void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
 {
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-#ifdef FLOAT_TETWILD_USE_TBB
-    // TODO atomic<int> conunter
-    int counter        = 0;
-    int suc_counter    = 0;
-    int suc_counter_sf = 0;
-#else
-    int counter        = 0;
-    int suc_counter    = 0;
-    int suc_counter_sf = 0;
-#endif
+    // smooth_one runs under a parallel_for, so these have to be atomic even though they only feed
+    // the log line below.
+    std::atomic<int> counter{0};
+    std::atomic<int> suc_counter{0};
+    std::atomic<int> suc_counter_sf{0};
 
     const auto smooth_one = [&](const int v_id) {
         if (tet_vertices[v_id].is_removed)
@@ -146,7 +143,10 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
     std::vector<int>              serial_set;
     // mesh.one_ring_vertex_sets(tbb::task_scheduler_init::default_num_threads()*2, concurrent_sets,
     // serial_set);
-    mesh.one_ring_vertex_sets(mesh.params.num_threads * 2, concurrent_sets, serial_set);
+    // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
+    // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
+    // which made the output depend on the thread count.
+    mesh.one_ring_vertex_sets(2, concurrent_sets, serial_set);
 
     for (const auto& s : concurrent_sets) {
         tbb::parallel_for(size_t(0), size_t(s.size()), [&](size_t i) {

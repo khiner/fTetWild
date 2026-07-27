@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+
+# Run the fast corpus and compare its output against a recorded baseline, so a change that was not
+# meant to alter behaviour can be checked against 25 meshes in about 25s.
+#
+#   script/check_corpus --record     before the change
+#   script/check_corpus              after it, exit 1 lists what moved
+#
+# Every mesh in script/fast_corpus.txt is byte-identical run to run and at any thread count, so a
+# difference here is the change, not noise. Runs at full parallelism. --threads only pins a count
+# for debugging and is not enforced against the baseline, so running at a different count also
+# checks that thread invariance still holds. The baseline is specific to the binary and the machine.
+#
+# Usage: script/check_corpus [--record] [--threads N] [--bin PATH] [--baseline PATH]
+
+import argparse
+import hashlib
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+RepoDir = Path(__file__).resolve().parent.parent
+CorpusDir = RepoDir / "corpus"
+ListPath = RepoDir / "script" / "fast_corpus.txt"
+Timeout = 600
+
+# The .stl writer puts the output path in its solid header, so every run writes to the same place.
+Suffixes = [".msh", ".msh__sf.obj", ".msh__tracked_surface.stl"]
+
+
+def read_list():
+    ids = []
+    for line in ListPath.read_text().splitlines():
+        if line and not line.startswith("#"):
+            ids.append(line.split("\t")[0])
+    return ids
+
+
+def find_mesh(file_id):
+    for path in sorted(CorpusDir.glob(f"{file_id}.*")):
+        if path.suffix.lower() in (".stl", ".off", ".obj", ".ply"):
+            return path
+    return None
+
+
+def run(binary, mesh, out_dir, threads):
+    stem = out_dir / "out"
+    for suffix in Suffixes:
+        path = Path(str(stem) + suffix)
+        if path.exists():
+            path.unlink()
+
+    start = time.time()
+    try:
+        command = [str(binary), "-i", str(mesh), "-o", str(stem) + ".msh", "--level", "5"]
+        if threads is not None:
+            command += ["--max-threads", str(threads)]
+        code = subprocess.run(command, capture_output=True, timeout=Timeout).returncode
+    except subprocess.TimeoutExpired:
+        return "timeout", "", time.time() - start
+
+    digest = hashlib.md5()
+    for suffix in Suffixes:
+        path = Path(str(stem) + suffix)
+        digest.update(path.read_bytes() if path.exists() else b"missing")
+    return code, digest.hexdigest(), time.time() - start
+
+
+def read_baseline(path):
+    header, rows = {}, {}
+    for line in path.read_text().splitlines():
+        if line.startswith("#"):
+            key, _, value = line[1:].strip().partition("=")
+            header[key.strip()] = value.strip()
+        elif line:
+            file_id, digest, exit_code = line.split("\t")[:3]
+            rows[file_id] = (digest, exit_code)
+    return header, rows
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--record", action="store_true", help="write the baseline instead of checking it")
+    parser.add_argument("--threads", type=int, default=None,
+                        help="pin --max-threads (default: all cores, output is thread invariant)")
+    parser.add_argument("--bin", type=Path, default=RepoDir / "build" / "FloatTetwild_bin")
+    parser.add_argument("--baseline", type=Path, default=CorpusDir / "fast_corpus.baseline.tsv")
+    args = parser.parse_args()
+
+    if not args.bin.exists():
+        print(f"no binary at {args.bin}", file=sys.stderr)
+        return 2
+
+    ids = read_list()
+    missing = [i for i in ids if find_mesh(i) is None]
+    if missing:
+        print(f"{len(missing)} meshes missing from corpus/, run script/download_corpus: {' '.join(missing)}", file=sys.stderr)
+        return 2
+
+    baseline_rows = {}
+    if not args.record:
+        if not args.baseline.exists():
+            print(f"no baseline at {args.baseline}, run with --record first", file=sys.stderr)
+            return 2
+        header, baseline_rows = read_baseline(args.baseline)
+        recorded = header.get("threads")
+        if recorded is not None and recorded != str(args.threads):
+            print(f"note: baseline recorded with threads={recorded}, running with threads={args.threads}. "
+                  f"Output is thread invariant, so a difference here is a real regression.")
+
+    out_dir = CorpusDir / "check"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    results, changed, failed = [], [], []
+    start = time.time()
+    for i, file_id in enumerate(ids, 1):
+        code, digest, seconds = run(args.bin, find_mesh(file_id), out_dir, args.threads)
+        results.append((file_id, digest, code, round(seconds, 2)))
+
+        if code != 0:
+            failed.append(file_id)
+            note = f"exit={code}"
+        elif args.record:
+            note = "recorded"
+        else:
+            was = baseline_rows.get(file_id)
+            if was is None:
+                note = "new, not in baseline"
+                changed.append(file_id)
+            elif was[0] != digest:
+                note = "CHANGED"
+                changed.append(file_id)
+            else:
+                note = "ok"
+        print(f"{i:3}/{len(ids)} {file_id:<8} {note:<22} {seconds:6.2f}s", flush=True)
+
+    elapsed = time.time() - start
+    if args.record:
+        with open(args.baseline, "w") as f:
+            f.write(f"# threads = {args.threads if args.threads is not None else 'all'}\n")
+            f.write(f"# binary = {args.bin}\n")
+            f.write("# file_id\tmd5\texit\tseconds\n")
+            for row in results:
+                f.write("\t".join(str(c) for c in row) + "\n")
+        print(f"\nrecorded {len(results)} meshes to {args.baseline} in {elapsed:.0f}s")
+        return 1 if failed else 0
+
+    print(f"\n{len(ids) - len(changed) - len(failed)}/{len(ids)} unchanged in {elapsed:.0f}s")
+    if changed:
+        print(f"changed: {' '.join(changed)}")
+    if failed:
+        print(f"failed:  {' '.join(failed)}")
+    return 1 if changed or failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

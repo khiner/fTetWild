@@ -83,6 +83,9 @@ if(NOT TARGET geogram::geogram)
         geogram
         GIT_REPOSITORY https://github.com/BrunoLevy/geogram
         GIT_TAG        v1.9.6
+        PATCH_COMMAND  ${CMAKE_COMMAND}
+                       -DGEOGRAM_SOURCE_DIR=<SOURCE_DIR>
+                       -P ${CMAKE_CURRENT_LIST_DIR}/patches/geogram_deterministic_shuffle.cmake
     )
 
     # --- Final Recommended Configuration ---

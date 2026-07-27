@@ -96,6 +96,23 @@ conda install -c conda-forge mpir
 ```
 This command should show a list of fTetWild parameters.
 
+## Behaviour regression testing
+
+Output is byte identical for a given input, run to run and at any thread count, so a change that was
+not meant to alter behaviour can be checked against a recorded baseline. `script/check_corpus` does
+this over the 25 models in `script/fast_corpus.txt` in about 25s.
+
+```bash
+script/download_corpus          # 100 Thingi10K models into corpus/, about 149M, once
+cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j 16
+script/check_corpus --record    # before a change
+script/check_corpus             # after it, exit 1 lists what moved
+```
+
+The baseline goes to the gitignored `corpus/`, so record it per machine. On CMake 4.x add
+`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` and patch libigl's eigen recipe, which still calls the removed
+`FetchContent_Populate`.
+
 ## Usage
 
 ### Input/output Format
