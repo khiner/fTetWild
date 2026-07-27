@@ -2,9 +2,7 @@
 
 #include <floattetwild/predicates.h>
 
-#include <geogram/delaunay/delaunay_3d.h>
 namespace floatTetWild {
-#define GEO_PREDICATES false
 
     namespace {
         // Shewchuk's error bounds have to be computed once before any predicate runs.
@@ -27,6 +25,18 @@ namespace floatTetWild {
             else
                 return 0;
         }
+
+        inline Scalar orient_3d_raw(const Vector3& p1,
+                                    const Vector3& p2,
+                                    const Vector3& p3,
+                                    const Vector3& p4)
+        {
+            init_predicates();
+            return predicate_sign(orient3d(const_cast<Scalar*>(p1.data()),
+                                           const_cast<Scalar*>(p2.data()),
+                                           const_cast<Scalar*>(p3.data()),
+                                           const_cast<Scalar*>(p4.data())));
+        }
     }  // namespace
 
     const int Predicates::ORI_POSITIVE;
@@ -35,16 +45,7 @@ namespace floatTetWild {
     const int Predicates::ORI_UNKNOWN;
 
     int Predicates::orient_3d(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p4) {
-#if GEO_PREDICATES
-        const int result = -GEO::PCK::orient_3d(p1.data(), p2.data(), p3.data(), p4.data());
-#else
-        init_predicates();
-        const Scalar result = predicate_sign(
-          orient3d(const_cast<Scalar*>(p1.data()),
-                   const_cast<Scalar*>(p2.data()),
-                   const_cast<Scalar*>(p3.data()),
-                   const_cast<Scalar*>(p4.data())));
-#endif
+        const Scalar result = orient_3d_raw(p1, p2, p3, p4);
 
         if (result > 0)
             return ORI_POSITIVE;
@@ -55,16 +56,7 @@ namespace floatTetWild {
     }
 
     int Predicates::orient_3d_tolerance(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p) {
-#if GEO_PREDICATES
-        const int result = -GEO::PCK::orient_3d(p1.data(), p2.data(), p3.data(), p.data());
-#else
-        init_predicates();
-        const Scalar result = predicate_sign(
-          orient3d(const_cast<Scalar*>(p1.data()),
-                   const_cast<Scalar*>(p2.data()),
-                   const_cast<Scalar*>(p3.data()),
-                   const_cast<Scalar*>(p.data())));
-#endif
+        const Scalar result = orient_3d_raw(p1, p2, p3, p);
 
         if (result == 0)
             return ORI_ZERO;
@@ -81,16 +73,8 @@ namespace floatTetWild {
     }
 
     Scalar Predicates::orient_3d_volume(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p4) {
-#if GEO_PREDICATES
-        const int ori = -GEO::PCK::orient_3d(p1.data(), p2.data(), p3.data(), p4.data());
-#else
-        init_predicates();
-        const Scalar ori = predicate_sign(
-          orient3d(const_cast<Scalar*>(p1.data()),
-                   const_cast<Scalar*>(p2.data()),
-                   const_cast<Scalar*>(p3.data()),
-                   const_cast<Scalar*>(p4.data())));
-#endif
+        const Scalar ori = orient_3d_raw(p1, p2, p3, p4);
+
         if (ori <= 0)
             return ori;
         else
@@ -98,15 +82,12 @@ namespace floatTetWild {
     }
 
     int Predicates::orient_2d(const Vector2& p1, const Vector2& p2, const Vector2& p3) {
-#if GEO_PREDICATES
-        const int result = -GEO::PCK::orient_2d(p1.data(), p2.data(), p3.data());
-#else
         init_predicates();
         const Scalar result = predicate_sign(
           orient2d(const_cast<Scalar*>(p1.data()),
                    const_cast<Scalar*>(p2.data()),
                    const_cast<Scalar*>(p3.data())));
-#endif
+
         if (result > 0)
             return ORI_POSITIVE;
         else if (result < 0)

@@ -21,7 +21,6 @@
 #include <geogram/mesh/mesh_io.h>
 #include <geogram/mesh/mesh_reorder.h>
 #include <geogram/mesh/mesh_repair.h>
-#include <geogram/numerics/predicates.h>
 
 #include <numeric>
 

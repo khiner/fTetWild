@@ -28,7 +28,6 @@
 #include <igl/fast_winding_number.h>
 
 #include <floattetwild/MshLoader.h>
-#include <geogram/mesh/mesh_AABB.h>
 
 //#define USE_FWN true
 

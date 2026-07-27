@@ -90,7 +90,6 @@ class GeoLoggerForward : public GEO::LoggerClient
 #include <floattetwild/Predicates.hpp>
 
 #include <floattetwild/MshLoader.h>
-#include <geogram/mesh/mesh_AABB.h>
 
 void connect_2_meshes(std::string m1, std::string m2, std::string m);
 
