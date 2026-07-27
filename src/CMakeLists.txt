@@ -44,8 +44,6 @@ set(SOURCES
 	Mesh.cpp
 	Mesh.hpp
 
-	MeshIO.hpp
-	MeshIO.cpp
 
 	Logger.hpp
 	Logger.cpp
@@ -61,6 +59,19 @@ prepend_current_path(SOURCES)
 float_tetwild_copy_headers(${SOURCES})
 float_tetwild_set_source_group(${SOURCES})
 target_sources(FloatTetwild PRIVATE ${SOURCES})
+
+# File I/O is not part of the core library: the binary owns it. The headers are still copied so
+# that main.cpp can include them, only the translation units move.
+set(IO_SOURCES
+	MeshIO.hpp
+	MeshIO.cpp
+)
+prepend_current_path(IO_SOURCES)
+float_tetwild_copy_headers(${IO_SOURCES})
+float_tetwild_set_source_group(${IO_SOURCES})
+if(TARGET FloatTetwild_bin)
+	target_sources(FloatTetwild_bin PRIVATE ${IO_SOURCES})
+endif()
 
 ################################################################################
 # Subfolders

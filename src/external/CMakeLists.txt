@@ -9,11 +9,6 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 		mesh_AABB.cpp
 
 
-		MshSaver.h
-		MshSaver.cpp
-		MshLoader.h
-		MshLoader.cpp
-		Exception.h
 
 		triangle_triangle_intersection.cpp
 
@@ -58,11 +53,6 @@ else()
 			mesh_AABB.cpp
 
 
-			MshSaver.h
-			MshSaver.cpp
-			MshLoader.h
-			MshLoader.cpp
-			Exception.h
 
 			triangle_triangle_intersection.cpp
 
@@ -98,3 +88,19 @@ prepend_current_path(SOURCES)
 float_tetwild_copy_headers(${SOURCES})
 float_tetwild_set_source_group(${SOURCES})
 target_sources(FloatTetwild PRIVATE ${SOURCES})
+
+# PyMesh .msh reader and writer, used only by MeshIO and by main.cpp for --bg-mesh, so they
+# belong with the binary rather than the core library.
+set(IO_SOURCES
+	MshSaver.h
+	MshSaver.cpp
+	MshLoader.h
+	MshLoader.cpp
+	Exception.h
+)
+prepend_current_path(IO_SOURCES)
+float_tetwild_copy_headers(${IO_SOURCES})
+float_tetwild_set_source_group(${IO_SOURCES})
+if(TARGET FloatTetwild_bin)
+	target_sources(FloatTetwild_bin PRIVATE ${IO_SOURCES})
+endif()

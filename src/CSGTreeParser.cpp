@@ -8,11 +8,79 @@
 
 #include <floattetwild/CSGTreeParser.hpp>
 
-#include <floattetwild/MeshIO.hpp>
 #include <floattetwild/Logger.hpp>
+#include <floattetwild/Timer.h>
+
+#include <geogram/mesh/mesh_reorder.h>
 
 
 namespace floatTetWild {
+
+namespace {
+    // Build a GEO::Mesh from vertex and face vectors, carry the tags through as a facet
+// attribute, Morton reorder it, and read the permuted result back out. Named load_mesh
+// on MeshIO, but it touches no files.
+void build_reordered_sf_mesh(std::vector<Vector3>&  points,
+                           std::vector<Vector3i>& faces,
+                           GEO::Mesh&             input,
+                           std::vector<int>&      flags)
+    {
+        logger().debug("Loading mesh from data...");
+        Timer timer;
+        timer.start();
+        input.clear(false, false);
+
+        input.clear();
+        input.vertices.create_vertices((int)points.size());
+        for (int i = 0; i < (int)input.vertices.nb(); ++i)
+        {
+            GEO::vec3 &p = input.vertices.point(i);
+            p[0] = points[i](0);
+            p[1] = points[i](1);
+            p[2] = points[i](2);
+        }
+        // Setup faces
+        input.facets.create_triangles((int)faces.size());
+
+        for (int c = 0; c < (int)input.facets.nb(); ++c)
+        {
+            for (int lv = 0; lv < 3; ++lv)
+            {
+                input.facets.set_vertex(c, lv, faces[c](lv));
+            }
+        }
+
+        bool is_valid = (flags.size() == input.facets.nb());
+        if (is_valid) {
+            assert(flags.size() == input.facets.nb());
+            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            for (int index = 0; index < (int)input.facets.nb(); ++index) {
+                bflags[index] = flags[index];
+            }
+        }
+
+        GEO::mesh_reorder(input, GEO::MESH_ORDER_MORTON);
+
+        if (is_valid) {
+            flags.clear();
+            flags.resize(input.facets.nb());
+            GEO::Attribute<int> bflags(input.facets.attributes(), "bbflags");
+            for (int index = 0; index < (int)input.facets.nb(); ++index) {
+                flags[index] = bflags[index];
+            }
+        }
+
+        points.resize(input.vertices.nb());
+        for (size_t i = 0; i < points.size(); i++)
+            points[i] << (input.vertices.point(i))[0], (input.vertices.point(i))[1],
+              (input.vertices.point(i))[2];
+
+        faces.resize(input.facets.nb());
+        for (size_t i = 0; i < faces.size(); i++)
+            faces[i] << input.facets.vertex(i, 0), input.facets.vertex(i, 1), input.facets.vertex(i, 2);
+    }
+}  // namespace
+
     void CSGTreeParser::get_meshes_aux(const json &csg_tree_node, std::vector<std::string> &meshes, std::map<std::string, int> &existings, int &index, json &current_node)
     {
         current_node["operation"] = csg_tree_node["operation"];
@@ -87,7 +155,7 @@ namespace floatTetWild {
 
 
 
-        MeshIO::load_mesh(V, F, sf_mesh, tags);
+        build_reordered_sf_mesh(V, F, sf_mesh, tags);
 
     }
 
