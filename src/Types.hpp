@@ -11,7 +11,6 @@
 
 #include <Eigen/Dense>
 
-#include <nlohmann/json.hpp>
 
 namespace floatTetWild {
 #ifdef FLOAT_TETWILD_USE_FLOAT
@@ -27,9 +26,6 @@ namespace floatTetWild {
 #endif
 
 //#define STORE_SAMPLE_POINTS
-
-    // Json
-    using json = nlohmann::json;
 
     typedef Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> MatrixXs;
 

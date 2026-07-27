@@ -103,7 +103,6 @@ target_link_libraries(
   PUBLIC Eigen3::Eigen
          Threads::Threads
          # fast_winding_number
-         json
 )
 if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE)
     target_link_libraries(${PROJECT_NAME} PUBLIC FastEnvelope)

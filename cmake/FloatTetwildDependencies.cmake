@@ -64,23 +64,6 @@ endif()
 # C++11 threads
 find_package(Threads REQUIRED)
 
-# Json
-if(NOT TARGET json)
-    FetchContent_Declare(
-        json
-        GIT_REPOSITORY https://github.com/jdumas/json
-        GIT_TAG        0901d33bf6e7dfe6f70fd9d142c8f5c6695c6c5b
-    )
-    FetchContent_MakeAvailable(json)
-    
-    # Create interface target if not provided by the library
-    if(NOT TARGET json)
-        add_library(json INTERFACE)
-        target_include_directories(json SYSTEM
-                                 INTERFACE ${json_SOURCE_DIR}/include)
-    endif()
-endif()
-
 # winding number float_tetwild_download_windingnumber()
 # set(windingnumber_SOURCES ${FLOAT_TETWILD_EXTERNAL}/windingnumber/SYS_Math.h
 # ${FLOAT_TETWILD_EXTERNAL}/windingnumber/SYS_Types.h

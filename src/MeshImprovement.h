@@ -11,6 +11,7 @@
 
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/AABBWrapper.h>
+#include <floattetwild/CSGTreeParser.hpp>
 #include <floattetwild/Types.hpp>
 
 namespace floatTetWild {
@@ -30,11 +31,11 @@ namespace floatTetWild {
     void boolean_operation(Mesh& mesh, int op);
     // Vs and Fs are the loaded csg operand meshes, one entry per id in the tree. Empty means
     // use the tracked surfaces instead. The caller loads them so the library reads no files.
-    void boolean_operation(Mesh& mesh, const json& csg_tree_with_ids,
+    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids,
                            const std::vector<std::vector<Vector3>>& Vs,
                            const std::vector<std::vector<Vector3i>>& Fs);
-    void boolean_operation(Mesh& mesh, const json &csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w);
-    void boolean_operation(Mesh& mesh, const json &csg_tree_with_ids);
+    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w);
+    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids);
     void filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
     // V and F are the tracked surface, from get_tracked_surface. The caller supplies it so
     // it is computed once even when it is also wanted for output.

@@ -1382,7 +1382,7 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
 
 
 void floatTetWild::boolean_operation(Mesh&                                     mesh,
-                                    const json&                               csg_tree_with_ids,
+                                    const CSGTree&                            csg_tree_with_ids,
                                     const std::vector<std::vector<Vector3>>&  Vs,
                                     const std::vector<std::vector<Vector3i>>& Fs)
 {
@@ -1431,14 +1431,14 @@ void floatTetWild::boolean_operation(Mesh&                                     m
     boolean_operation(mesh, csg_tree_with_ids, w);
 }
 
-void floatTetWild::boolean_operation(Mesh& mesh, const json &csg_tree_with_ids){
+void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids){
     boolean_operation(mesh,
                       csg_tree_with_ids,
                       std::vector<std::vector<Vector3>>(),
                       std::vector<std::vector<Vector3i>>());
 }
 
-void floatTetWild::boolean_operation(Mesh& mesh, const json &csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w)
+void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w)
 {
     int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
 

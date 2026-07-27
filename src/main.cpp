@@ -291,18 +291,21 @@ int main(int argc, char** argv)
     /// set envelope
     Timer               timer;
     geo::Mesh                sf_mesh;
-    json                     tree_with_ids;
+    CSGTree                  tree_with_ids;
     std::vector<std::string>                 meshes;
     std::vector<std::vector<Vector3>>        csg_Vs;
     std::vector<std::vector<Vector3i>>       csg_Fs;
     if (!csg_file.empty()) {
-        json          csg_tree = json({});
+        CSGTree       csg_tree;
         std::ifstream file(csg_file);
 
-        if (file.is_open())
-            file >> csg_tree;
-        else {
+        if (!file.is_open()) {
             logger().error("unable to open {} file", csg_file);
+            return EXIT_FAILURE;
+        }
+        std::string parse_error;
+        if (!CSGTreeParser::parse(file, csg_tree, parse_error)) {
+            logger().error("{}: {}", csg_file, parse_error);
             return EXIT_FAILURE;
         }
         file.close();
