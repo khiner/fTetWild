@@ -16,7 +16,7 @@
 #include <floattetwild/Statistics.h>
 #include <geogram/mesh/mesh_reorder.h>
 #include <geogram/mesh/mesh_repair.h>
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 #include <floattetwild/Logger.hpp>
 #include <floattetwild/MeshIO.hpp>
 #include <floattetwild/Types.hpp>
@@ -70,7 +70,7 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
     Mesh mesh;
     mesh.params = params;
 
-    igl::Timer timer;
+    Timer timer;
 
     timer.start();
     simplify(input_vertices, input_faces, input_tags, tree, mesh.params, skip_simplify);

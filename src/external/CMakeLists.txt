@@ -23,6 +23,13 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 		bfs_orient.h
 		bfs_orient.cpp
 
+		Timer.h
+		round.h
+		sortrows.h
+		unique_rows.h
+		remove_duplicate_vertices.h
+		remove_unreferenced.h
+
 #			WindingNumber.h
 #		FastWindingNumber.hpp
 #		FastWindingNumber.cpp
@@ -53,6 +60,13 @@ else()
 
 			bfs_orient.h
 			bfs_orient.cpp
+
+			Timer.h
+			round.h
+			sortrows.h
+			unique_rows.h
+			remove_duplicate_vertices.h
+			remove_unreferenced.h
 
 			Rational.h
 			)

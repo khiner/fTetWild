@@ -12,9 +12,9 @@
 #include <floattetwild/MshSaver.h>
 #include <floattetwild/Logger.hpp>
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 #include <igl/boundary_facets.h>
-#include <igl/remove_unreferenced.h>
+#include <floattetwild/remove_unreferenced.h>
 #include <igl/write_triangle_mesh.h>
 
 #include <geogram/mesh/mesh_geometry.h>
@@ -77,7 +77,7 @@ void extract_surface_mesh(const Mesh&                               mesh,
 
     Eigen::VectorXi I;
     igl::boundary_facets(TT, FS);
-    igl::remove_unreferenced(VT, FS, VS, FS, I);
+    remove_unreferenced(VT, FS, VS, FS, I);
 }
 
 void write_mesh_aux(const std::string&              path,
@@ -223,7 +223,7 @@ bool MeshIO::load_mesh(const std::string&     path,
                        std::vector<int>&      flags)
 {
     logger().debug("Loading mesh at {}...", path);
-    igl::Timer timer;
+    Timer timer;
     timer.start();
 
     input.clear(false, false);
@@ -284,7 +284,7 @@ bool MeshIO::load_mesh(const std::string&     path,
                            std::vector<double>& epsr_flags)
     {
         logger().debug("Loading mesh at {}...", path);
-        igl::Timer timer;
+        Timer timer;
         timer.start();
 
         input.clear(false, false);
@@ -358,7 +358,7 @@ void MeshIO::load_mesh(std::vector<Vector3>&  points,
                        std::vector<int>&      flags)
 {
     logger().debug("Loading mesh from data...");
-    igl::Timer timer;
+    Timer timer;
     timer.start();
     input.clear(false, false);
 
@@ -418,7 +418,7 @@ void MeshIO::load_mesh(std::vector<Vector3>&  points,
                        std::vector<int>&      flags,
                        std::vector<double>& epsr_flags) {
     logger().debug("Loading mesh from data...");
-    igl::Timer timer;
+    Timer timer;
     timer.start();
     input.clear(false, false);
 
@@ -492,7 +492,7 @@ void MeshIO::write_mesh(const std::string&      path,
                         const bool              separate_components)
 {
     logger().info("Writing mesh to {}...", path);
-    igl::Timer timer;
+    Timer timer;
     timer.start();
 
     if (only_interior) {
@@ -519,7 +519,7 @@ void MeshIO::write_mesh(const std::string&         path,
                         const bool                 separate_components)
 {
     logger().info("Writing mesh to {}...", path);
-    igl::Timer timer;
+    Timer timer;
     timer.start();
 
     std::vector<int> t_ids(mesh.tets.size());
@@ -543,7 +543,7 @@ void MeshIO::write_mesh(const std::string&         path,
 void MeshIO::write_surface_mesh(const std::string& path, const Mesh& mesh, const bool only_interior)
 {
     logger().debug("Extracting and writing surface to {}...", path);
-    igl::Timer timer;
+    Timer timer;
     timer.start();
 
     Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V_sf;

@@ -23,7 +23,7 @@
 
 #include <floattetwild/MeshImprovement.h>  //fortest
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 #include <igl/writeOFF.h>
 #include <igl/writeSTL.h>
 
@@ -678,7 +678,7 @@ bool floatTetWild::insert_one_triangle(
   AABBWrapper&                                  tree,
   bool                                          is_again)
 {
-    //    igl::Timer timer;
+    //    Timer timer;
     std::array<Vector3, 3> vs = {{input_vertices[input_faces[insert_f_id][0]],
                                   input_vertices[input_faces[insert_f_id][1]],
                                   input_vertices[input_faces[insert_f_id][2]]}};
@@ -705,7 +705,7 @@ bool floatTetWild::insert_one_triangle(
 
     /////
     //    timer.start();
-    //    igl::Timer timer1;
+    //    Timer timer1;
     //    timer1.start();
     CutMesh cut_mesh(mesh, n, vs);
     cut_mesh.construct(cut_t_ids);
@@ -806,7 +806,7 @@ void floatTetWild::push_new_tets(Mesh&                                         m
                                  std::vector<int>&                             modified_t_ids,
                                  bool                                          is_again)
 {
-    //    igl::Timer timer;
+    //    Timer timer;
     //    timer.start();
     /// vs
     const int old_v_size = mesh.tet_vertices.size();
@@ -2103,7 +2103,7 @@ bool floatTetWild::insert_boundary_edges(
     //    time_e2 = 0;
     //    time_e3 = 0;
     //    time_e4 = 0;
-    igl::Timer timer;
+    Timer timer;
 
     // fortest
     auto check_corvered_area = [&](int I, const std::vector<std::array<int, 3>>& cut_fs) {
@@ -2409,7 +2409,7 @@ bool floatTetWild::insert_boundary_edges_get_intersecting_edges_and_points(
   std::vector<std::array<int, 3>>&                     cut_fs,
   bool                                                 is_again)
 {
-    //    igl::Timer timer;
+    //    Timer timer;
 
     auto is_cross = [](int a, int b) {
         if ((a == Predicates::ORI_POSITIVE && b == Predicates::ORI_NEGATIVE) ||

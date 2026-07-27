@@ -23,7 +23,7 @@
 
 #include <floattetwild/Logger.hpp>
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 #include <igl/winding_number.h>
 #include <igl/fast_winding_number.h>
 
@@ -323,7 +323,7 @@ void floatTetWild::cleanup_empty_slots(Mesh &mesh, double percentage) {
 }
 
 void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops){
-    igl::Timer igl_timer;
+    Timer igl_timer;
     int v_num, t_num;
     double max_energy, avg_energy;
     double time;
@@ -408,7 +408,7 @@ void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const s
         Mesh &mesh, AABBWrapper& tree, const std::array<int, 5> &ops) {
     operation(mesh, tree, {{ops[0], ops[1], ops[2], ops[3]}});
 
-    igl::Timer igl_timer;
+    Timer igl_timer;
 //    int v_num, t_num;
 //    double max_energy, avg_energy;
 //    double time;
@@ -1342,8 +1342,8 @@ void floatTetWild::apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
 }
 
 #include <floattetwild/bfs_orient.h>
-#include <igl/unique_rows.h>
-#include <igl/remove_duplicate_vertices.h>
+#include <floattetwild/unique_rows.h>
+#include <floattetwild/remove_duplicate_vertices.h>
 #include <floattetwild/TriangleInsertion.h>
 void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::Dynamic, 3> &V_sf, Eigen::Matrix<int, Eigen::Dynamic, 3> &F_sf, int c_id) {
 #define SF_CONDITION t.is_surface_fs[j]<=0&&t.surface_tags[j]==c_id
@@ -1387,7 +1387,7 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::
         Eigen::MatrixXd V;
         Eigen::MatrixXi F;
         Eigen::VectorXi _1, _2;
-        igl::remove_duplicate_vertices(V_sf, F_sf, -1, V, _1, _2, F);
+        remove_duplicate_vertices(V_sf, F_sf, -1, V, _1, _2, F);
         V_sf = V;
         F_sf.resize(0, 3);
         bfs_orient(F, F_sf, _1);

@@ -9,7 +9,7 @@
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/Predicates.hpp>
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 
 #ifdef FLOAT_TETWILD_USE_TBB
 #include <oneapi/tbb/concurrent_vector.h>
@@ -115,7 +115,7 @@ void floatTetWild::set_opp_t_id(Mesh& mesh, int t_id, int j)
     assert((j + 1) % 4 == jp1);
     assert((j + 2) % 4 == jp2);
     assert((j + 3) % 4 == jp3);
-    //    igl::Timer timer;
+    //    Timer timer;
     //    timer.start();
     //    std::unordered_set<int> tmp;
     //    set_intersection(mesh.tet_vertices[t[(j + 1) % 4]].conn_tets,

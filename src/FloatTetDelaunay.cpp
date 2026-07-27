@@ -10,7 +10,7 @@
 
 #include <floattetwild/Logger.hpp>
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 
 #include <iterator>
 #include <algorithm>
@@ -157,7 +157,7 @@ namespace floatTetWild {
         }
     }
 
-//#include <igl/unique_rows.h>
+//#include <floattetwild/unique_rows.h>
 //#include <floattetwild/Predicates.hpp>
 //    extern "C" floatTetWild::Scalar orient3d(const floatTetWild::Scalar *pa, const floatTetWild::Scalar *pb, const floatTetWild::Scalar *pc, const floatTetWild::Scalar *pd);
 
@@ -256,7 +256,7 @@ namespace floatTetWild {
 //        for(int i=0;i<mesh.tet_vertices.size();i++){
 //            VV.row(i) = mesh.tet_vertices[i].pos;
 //        }
-//        igl::unique_rows(VV, VVo, _1, _2);
+//        unique_rows(VV, VVo, _1, _2);
 //        cout<<VV.rows()<<" "<<VVo.rows()<<endl;
 //        cout<<T->nb_vertices()<<endl;
 //        cout<<mesh.tet_vertices.size()<<endl;

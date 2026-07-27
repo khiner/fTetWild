@@ -10,9 +10,9 @@
 #include <floattetwild/Simplification.h>
 #include <floattetwild/Logger.hpp>
 
-#include <igl/Timer.h>
-#include <igl/remove_duplicate_vertices.h>
-#include <igl/unique_rows.h>
+#include <floattetwild/Timer.h>
+#include <floattetwild/remove_duplicate_vertices.h>
+#include <floattetwild/unique_rows.h>
 #include <igl/writeOFF.h>
 
 #ifdef FLOAT_TETWILD_USE_TBB
@@ -42,7 +42,7 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
             conn_fs[input_faces[i][j]].insert(i);
     }
 
-    igl::Timer timer;
+    Timer timer;
     timer.start();
     collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
     std::cout << "collapsing " << timer.getElapsedTime() << std::endl;
@@ -163,7 +163,7 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
 
     //
     Eigen::VectorXi IV, _;
-    igl::remove_duplicate_vertices(
+    remove_duplicate_vertices(
       V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, IV, _, F_in);
     //
     for (int i = 0; i < F_in.rows(); i++) {
@@ -181,7 +181,7 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
     }
     F_tmp.resize(0, 0);
     Eigen::VectorXi IF;
-    igl::unique_rows(F_in, F_tmp, IF, _);
+    unique_rows(F_in, F_tmp, IF, _);
     F_in                            = F_tmp;
     std::vector<int> old_input_tags = input_tags;
     input_tags.resize(IF.rows());

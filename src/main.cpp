@@ -28,7 +28,7 @@
 #include <Eigen/Dense>
 #include <floattetwild/Logger.hpp>
 
-#include <igl/Timer.h>
+#include <floattetwild/Timer.h>
 #include <igl/write_triangle_mesh.h>
 #include "igl/default_num_threads.h"
 
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
     //                     "/Users/yixinhu/Downloads/metatron.stl", "cylinder-metatron");
 
     //    return 0;
-    //    igl::Timer test_timer;
+    //    Timer test_timer;
     //    int n = 1e8;
     //    std::vector<std::array<int, 2>> edges(n);
     //    for(int i=0;i<n;i++){
@@ -371,7 +371,7 @@ int main(int argc, char** argv)
 #endif
 
     /// set envelope
-    igl::Timer               timer;
+    Timer               timer;
     GEO::Mesh                sf_mesh;
     json                     tree_with_ids;
     std::vector<std::string> meshes;
