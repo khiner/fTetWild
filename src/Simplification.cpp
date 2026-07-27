@@ -13,7 +13,6 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/remove_duplicate_vertices.h>
 #include <floattetwild/unique_rows.h>
-#include <floattetwild/writeOBJ.h>
 
 #ifdef FLOAT_TETWILD_USE_TBB
 #include <oneapi/tbb/concurrent_unordered_set.h>
@@ -100,22 +99,6 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
 
     logger().info("#v = {}", input_vertices.size());
     logger().info("#f = {}", input_faces.size());
-
-    ////////////////////////
-    // output
-    if (params.log_level < 3) {
-        Eigen::MatrixXd V(input_vertices.size(), 3);
-        Eigen::MatrixXi F(input_faces.size(), 3);
-        for (int i = 0; i < input_vertices.size(); i++) {
-            V.row(i) = input_vertices[i];
-        }
-        for (int i = 0; i < input_faces.size(); i++) {
-            F.row(i) = input_faces[i];
-        }
-        if (!params.output_path.empty()) {
-            writeOBJ(params.output_path + "_" + params.postfix + "_simplify.obj", V, F);
-        }
-    }
 
     //    ////////////////////////
     //    //check
@@ -1008,25 +991,4 @@ void floatTetWild::check_surface(std::vector<Vector3>&    input_vertices,
     }
     // if(!is_valid)
     //     pausee();
-}
-
-void floatTetWild::output_component(const std::vector<Vector3>&  input_vertices,
-                                    const std::vector<Vector3i>& input_faces,
-                                    const std::vector<int>&      input_tags)
-{
-    return;
-
-    Eigen::MatrixXd V(input_vertices.size(), 3);
-    for (int i = 0; i < input_vertices.size(); i++)
-        V.row(i) = input_vertices[i];
-
-    const int       C = 2;
-    Eigen::MatrixXi F(std::count(input_tags.begin(), input_tags.end(), C), 3);
-    int             cnt = 0;
-    for (int i = 0; i < input_tags.size(); i++) {
-        if (input_tags[i] == C)
-            F.row(cnt++) = input_faces[i];
-    }
-
-    writeOBJ("comp.obj", V, F);
 }

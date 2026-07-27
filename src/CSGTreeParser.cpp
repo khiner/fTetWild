@@ -64,31 +64,6 @@ namespace floatTetWild {
         }
     }
 
-    bool CSGTreeParser::load_and_merge(const std::vector<std::string> &meshes, std::vector<Vector3> &V, std::vector<Vector3i> &F, GEO::Mesh &sf_mesh, std::vector<int> &tags)
-    {
-        std::vector<std::vector<Vector3>> Vs;
-        std::vector<std::vector<Vector3i>> Fs;
-
-        Vs.resize(meshes.size());
-        Fs.resize(meshes.size());
-
-        GEO::Mesh tmp_mesh;
-        std::vector<int> tmp_tags;
-
-        for(int i = 0; i < meshes.size(); ++i)
-        {
-            const auto &m = meshes[i];
-            if (!MeshIO::load_mesh(m, Vs[i], Fs[i], tmp_mesh, tmp_tags)){
-                logger().error("unable to open {} file", m);
-                return false;
-            }
-        }
-
-        merge(Vs, Fs, V, F, sf_mesh, tags);
-        return true;
-
-    }
-
     void CSGTreeParser::merge(const std::vector<std::vector<Vector3>> &Vs, const std::vector<std::vector<Vector3i>> &Fs, std::vector<Vector3> &V, std::vector<Vector3i> &F, GEO::Mesh &sf_mesh, std::vector<int> &tags)
     {
         V.clear();

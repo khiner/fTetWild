@@ -20,7 +20,6 @@
 #include <floattetwild/Logger.hpp>
 #include <floattetwild/MeshIO.hpp>
 #include <floattetwild/Types.hpp>
-#include <fstream>
 
 namespace floatTetWild {
 
@@ -83,9 +82,6 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
                    input_faces.size(),
                    -1,
                    -1);
-    if (mesh.params.log_level <= 1) {
-        output_component(input_vertices, input_faces, input_tags);
-    }
 
     ///////////////////////////////////////
     // STEP 2: Volume tetrahedralization //
@@ -157,8 +153,12 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
                     filter_outside_floodfill(mesh);
                 } else if(params.use_input_for_wn){
                     filter_outside(mesh, input_vertices, input_faces);
-                } else
-                    filter_outside(mesh);
+                } else {
+                    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
+                    Eigen::Matrix<int, Eigen::Dynamic, 3>    Ft;
+                    get_tracked_surface(mesh, Vt, Ft);
+                    filter_outside(mesh, Vt, Ft);
+                }
             }
         }
     } else {
@@ -177,18 +177,6 @@ int tetrahedralization(GEO::Mesh&       sf_mesh,
     logger().info("");
 
     MeshIO::extract_volume_mesh(mesh, V, T, false);
-
-    if (!params.log_path.empty()) {
-        std::ofstream fout(params.log_path + "_" + params.postfix + ".csv");
-        if (fout) {
-            fout << stats();
-        }
-    }
-
-    if (!params.envelope_log.empty()) {
-        std::ofstream fout(params.envelope_log);
-        fout << envelope_log_csv;
-    }
 
     return 0;
 }

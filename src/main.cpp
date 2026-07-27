@@ -222,7 +222,6 @@ int main(int argc, char** argv)
                           params.correct_surface_orientation,
                           "(for debugging usage only)");
 
-    command_line.add_option("--envelope-log", params.envelope_log, "(for debugging usage only)");
     command_line.add_flag(
       "--smooth-open-boundary", params.smooth_open_boundary, "Smooth the open boundary.");
     command_line.add_flag("--export-raw", export_raw, "Export raw output.");
@@ -364,7 +363,9 @@ int main(int argc, char** argv)
     Timer               timer;
     GEO::Mesh                sf_mesh;
     json                     tree_with_ids;
-    std::vector<std::string> meshes;
+    std::vector<std::string>                 meshes;
+    std::vector<std::vector<Vector3>>        csg_Vs;
+    std::vector<std::vector<Vector3i>>       csg_Fs;
     if (!csg_file.empty()) {
         json          csg_tree = json({});
         std::ifstream file(csg_file);
@@ -379,9 +380,19 @@ int main(int argc, char** argv)
 
         CSGTreeParser::get_meshes(csg_tree, meshes, tree_with_ids);
 
-        if (!CSGTreeParser::load_and_merge(
-              meshes, input_vertices, input_faces, sf_mesh, input_tags))
-            return EXIT_FAILURE;
+        csg_Vs.resize(meshes.size());
+        csg_Fs.resize(meshes.size());
+        {
+            GEO::Mesh        tmp_mesh;
+            std::vector<int> tmp_tags;
+            for (int i = 0; i < meshes.size(); ++i) {
+                if (!MeshIO::load_mesh(meshes[i], csg_Vs[i], csg_Fs[i], tmp_mesh, tmp_tags)) {
+                    logger().error("unable to open {} file", meshes[i]);
+                    return EXIT_FAILURE;
+                }
+            }
+        }
+        CSGTreeParser::merge(csg_Vs, csg_Fs, input_vertices, input_faces, sf_mesh, input_tags);
 
         // To disable the recent modification of using input for wn, use meshes.clear();
     }
@@ -437,8 +448,6 @@ int main(int argc, char** argv)
                    input_faces.size(),
                    -1,
                    -1);
-    if (params.log_level <= 1)
-        output_component(input_vertices, input_faces, input_tags);
 
     timer.start();
     std::vector<bool> is_face_inserted(input_faces.size(), false);
@@ -517,8 +526,13 @@ int main(int argc, char** argv)
         MeshIO::write_mesh(params.output_path + "_" + params.postfix + "_all.msh", mesh, false);
     }
 
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
+    Eigen::Matrix<int, Eigen::Dynamic, 3>    Ft;
+    get_tracked_surface(mesh, Vt, Ft);
+    writeOBJ(params.output_path + "_" + params.postfix + "_tracked_surface.obj", Vt, Ft);
+
     if (!csg_file.empty())
-        boolean_operation(mesh, tree_with_ids, meshes);
+        boolean_operation(mesh, tree_with_ids, csg_Vs, csg_Fs);
     else if (boolean_op >= 0)
         boolean_operation(mesh, boolean_op);
     else {
@@ -538,7 +552,7 @@ int main(int argc, char** argv)
                     filter_outside(mesh, input_vertices, input_faces);
                 }
                 else
-                    filter_outside(mesh);
+                    filter_outside(mesh, Vt, Ft);
             }
         }
     }
@@ -590,12 +604,6 @@ int main(int argc, char** argv)
     if (fout.good())
         fout << stats();
     fout.close();
-
-    if (!params.envelope_log.empty()) {
-        std::ofstream fout(params.envelope_log);
-        fout << envelope_log_csv;
-        fout.close();
-    }
 
     return EXIT_SUCCESS;
 }

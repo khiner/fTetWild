@@ -19,8 +19,6 @@
 
 namespace floatTetWild {
 bool        use_old_energy       = false;
-std::string envelope_log_csv     = "";
-int         envelope_log_csv_cnt = 0;
 }  // namespace floatTetWild
 
 using floatTetWild::Scalar;
@@ -738,25 +736,6 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
                 }
 #ifdef NEW_ENVELOPE
                 bool is_out = tree.is_out_sf_envelope_exact(vs);
-                if (!mesh.params.envelope_log.empty()) {
-                    if (envelope_log_csv_cnt < 1e5) {
-                        std::ostringstream ss;
-                        ss << std::setprecision(17);
-                        for (const auto& v : vs) {
-                            ss << v[0] << ',' << v[1] << ',' << v[2] << ',';
-                        }
-                        ss << is_out << "\n";
-                        std::string tmp = ss.str();
-                        envelope_log_csv += tmp;
-                        envelope_log_csv_cnt += 1;
-                    }
-                    else {
-                        std::ofstream fout(mesh.params.envelope_log);
-                        fout << envelope_log_csv;
-                        fout.close();
-                        mesh.params.envelope_log = "";
-                    }
-                }
                 if (is_out)
                     return true;
 #else
@@ -768,25 +747,6 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
                 bool is_out = sample_triangle_and_check_is_out(
                   vs, mesh.params.dd, mesh.params.eps_2, tree, prev_facet);
 #endif
-                if (!mesh.params.envelope_log.empty()) {
-                    if (envelope_log_csv_cnt < 1e5) {
-                        std::ostringstream ss;
-                        ss << std::setprecision(17);
-                        for (const auto& v : vs) {
-                            ss << v[0] << ',' << v[1] << ',' << v[2] << ',';
-                        }
-                        ss << is_out << "\n";
-                        std::string tmp = ss.str();
-                        envelope_log_csv += tmp;
-                        envelope_log_csv_cnt += 1;
-                    }
-                    else {
-                        std::ofstream fout(mesh.params.envelope_log);
-                        fout << envelope_log_csv;
-                        fout.close();
-                        mesh.params.envelope_log = "";
-                    }
-                }
                 if (is_out)
                     return true;
 #endif

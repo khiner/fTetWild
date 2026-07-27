@@ -26,7 +26,6 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/fast_winding_number.h>
 
-#include <floattetwild/MshLoader.h>
 
 //#define USE_FWN true
 
@@ -117,7 +116,6 @@ void floatTetWild::init(Mesh &mesh, AABBWrapper& tree) {
 //    fout.close();
 
     if (mesh.params.log_level<3) {
-        output_surface(mesh, mesh.params.output_path + "_" + mesh.params.postfix + "_cutting");
         output_info(mesh, tree);
         //pausee();
         int v_num, t_num;
@@ -784,7 +782,6 @@ void floatTetWild::output_info(Mesh& mesh, const AABBWrapper& tree) {
 //    }
 
     if(mesh.params.log_level > 1) {
-        output_surface(mesh, mesh.params.output_path+"_"+mesh.params.postfix+"_opt");
         return;
     }
 
@@ -1050,18 +1047,7 @@ void floatTetWild::output_info(Mesh& mesh, const AABBWrapper& tree) {
 //    check_envelope(mesh, tree);
 
 //    MeshIO::write_mesh(mesh.params.output_path+"_"+mesh.params.postfix+"test.msh", mesh);
-    output_surface(mesh, mesh.params.output_path+"_"+mesh.params.postfix+"_opt");
 
-    std::ofstream fout(mesh.params.output_path+"_"+mesh.params.postfix+"_b_vs.xyz");
-    for(auto& v: mesh.tet_vertices){
-        if(v.is_removed || !v.is_on_boundary)
-            continue;
-//        GEO::index_t prev_facet;
-//        if (tree.is_out_tmp_b_envelope(v.pos, mesh.params.eps_2, prev_facet))
-//            cout<<"bad b_v"<<endl;
-        fout<<v.pos[0]<<" "<<v.pos[1]<<" "<<v.pos[2]<<endl;
-    }
-    fout.close();
 //    //pausee();
 
     return;
@@ -1166,53 +1152,7 @@ int floatTetWild::get_max_p(const Mesh &mesh)
     return max_p;
 }
 
-#include <floattetwild/writeOBJ.h>
 #include <floattetwild/Predicates.hpp>
-
-void floatTetWild::output_surface(Mesh& mesh, const std::string& filename) {
-#define SF_CONDITION t.is_surface_fs[j]<=0
-//#define SF_CONDITION t.is_surface_fs[j]!=NOT_SURFACE
-//#define SF_CONDITION t.is_surface_fs[j]<=0&&t.surface_tags[j]==2
-//#define SF_CONDITION t.is_bbox_fs[j]==2
-//#define SF_CONDITION t.is_bbox_fs[j]!=NOT_BBOX
-//#define SF_CONDITION t.opp_t_ids[j]<0
-
-    auto &tets = mesh.tets;
-    auto &tet_vertices = mesh.tet_vertices;
-
-    int cnt = 0;
-    for (auto &t: mesh.tets) {
-        if (t.is_removed)
-            continue;
-        for (int j = 0; j < 4; j++) {
-            if (SF_CONDITION)
-                cnt++;
-        }
-    }
-
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V_sf(cnt * 3, 3);
-    Eigen::MatrixXi F_sf(cnt, 3);
-    cnt = 0;
-    for (int t_id = 0;t_id<mesh.tets.size();t_id++) {
-        auto &t = mesh.tets[t_id];
-        if (t.is_removed)
-            continue;
-        for (int j = 0; j < 4; j++) {
-            if (SF_CONDITION) {
-                for (int k = 0; k < 3; k++)
-                    V_sf.row(cnt * 3 + k) = tet_vertices[t[(j + k + 1) % 4]].pos;
-                if (Predicates::orient_3d(tet_vertices[t[(j + 1) % 4]].pos, tet_vertices[t[(j + 2) % 4]].pos,
-                                          tet_vertices[t[(j + 3) % 4]].pos, tet_vertices[t[j]].pos) ==
-                    Predicates::ORI_POSITIVE)
-                    F_sf.row(cnt) << cnt * 3, cnt * 3 + 2, cnt * 3 + 1;
-                else
-                    F_sf.row(cnt) << cnt * 3, cnt * 3 + 1, cnt * 3 + 2;
-                cnt++;
-            }
-        }
-    }
-    writeOBJ(filename + ".obj", Eigen::MatrixXd(V_sf), Eigen::MatrixXi(F_sf));
-}
 
 //void floatTetWild::apply_sizingfield(const Eigen::VectorXd& V_in, const Eigen::VectorXi& T_in, const Eigen::VectorXd& values,
 //        Mesh& mesh, AABBWrapper& tree) {
@@ -1389,7 +1329,6 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::
         F_sf.resize(0, 3);
         bfs_orient(F, F_sf, _1);
     }
-    writeOBJ(mesh.params.output_path + "_" + mesh.params.postfix + "_tracked_surface.obj", V_sf, F_sf);
 }
 
 void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree){
@@ -1442,7 +1381,10 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
 }
 
 
-void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, const std::vector<std::string> &meshes)
+void floatTetWild::boolean_operation(Mesh&                                     mesh,
+                                    const json&                               csg_tree_with_ids,
+                                    const std::vector<std::vector<Vector3>>&  Vs,
+                                    const std::vector<std::vector<Vector3i>>& Fs)
 {
     Eigen::MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
@@ -1459,7 +1401,7 @@ void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, 
     int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
     std::vector<Eigen::VectorXd> w(max_id + 1);
 
-    if(meshes.empty())
+    if(Vs.empty())
     {
         Eigen::Matrix<Scalar, Eigen::Dynamic, 3> vs;
         Eigen::Matrix<int, Eigen::Dynamic, 3>    fs;
@@ -1473,23 +1415,6 @@ void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, 
         }
     }
     else {
-        std::vector<std::vector<Vector3>>  Vs;
-        std::vector<std::vector<Vector3i>> Fs;
-
-        Vs.resize(meshes.size());
-        Fs.resize(meshes.size());
-
-        GEO::Mesh        tmp_mesh;
-        std::vector<int> tmp_tags;
-
-        for (int i = 0; i < meshes.size(); ++i) {
-            const auto& m = meshes[i];
-            if (!MeshIO::load_mesh(m, Vs[i], Fs[i], tmp_mesh, tmp_tags)) {
-                logger().error("unable to open {} file", m);
-                return;
-            }
-        }
-
         for (int i = 0; i <= max_id; ++i) {
             Eigen::Matrix<Scalar, Eigen::Dynamic, 3> vs(Vs[i].size(), 3);
             Eigen::Matrix<int, Eigen::Dynamic, 3>    fs(Fs[i].size(), 3);
@@ -1507,7 +1432,10 @@ void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, 
 }
 
 void floatTetWild::boolean_operation(Mesh& mesh, const json &csg_tree_with_ids){
-    boolean_operation(mesh, csg_tree_with_ids, std::vector<std::string>());
+    boolean_operation(mesh,
+                      csg_tree_with_ids,
+                      std::vector<std::vector<Vector3>>(),
+                      std::vector<std::vector<Vector3i>>());
 }
 
 void floatTetWild::boolean_operation(Mesh& mesh, const json &csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w)
@@ -1590,7 +1518,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
 //    output_surface(mesh, "inner.stl");
 }
 
-void floatTetWild::filter_outside(Mesh& mesh, bool invert_faces) {
+void floatTetWild::filter_outside(Mesh& mesh, const Eigen::Matrix<Scalar, Eigen::Dynamic, 3>& V,
+                                  const Eigen::Matrix<int, Eigen::Dynamic, 3>& F_in, bool invert_faces) {
     Eigen::MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
@@ -1604,9 +1533,7 @@ void floatTetWild::filter_outside(Mesh& mesh, bool invert_faces) {
     }
 //    C.conservativeResize(index, 3);
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V;
-    Eigen::Matrix<int, Eigen::Dynamic, 3> F;
-    get_tracked_surface(mesh, V, F);
+    Eigen::Matrix<int, Eigen::Dynamic, 3> F = F_in;
     Eigen::VectorXd W;
     if (invert_faces) {
         Eigen::Matrix<int, Eigen::Dynamic, 1> tmp = F.col(1);
@@ -1640,7 +1567,7 @@ void floatTetWild::filter_outside(Mesh& mesh, bool invert_faces) {
                 t.is_removed = old_flags[t_id];
             }
             logger().debug("Empty mesh trying to reverse the faces");
-            filter_outside(mesh, true);
+            filter_outside(mesh, V, F_in, true);
         }
     }
 

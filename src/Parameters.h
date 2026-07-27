@@ -25,8 +25,6 @@ namespace floatTetWild {
         std::string tag_path = "";
         std::string postfix = "";
 
-        std::string envelope_log = "";
-        std::string envelope_log_csv = "";
 
         bool not_sort_input = false;
         bool correct_surface_orientation = false;

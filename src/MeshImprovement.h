@@ -28,11 +28,18 @@ namespace floatTetWild {
     void correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree);
     void get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::Dynamic, 3> &V, Eigen::Matrix<int, Eigen::Dynamic, 3> &F, int c_id = 0);
     void boolean_operation(Mesh& mesh, int op);
-    void boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, const std::vector<std::string> &meshes);
+    // Vs and Fs are the loaded csg operand meshes, one entry per id in the tree. Empty means
+    // use the tracked surfaces instead. The caller loads them so the library reads no files.
+    void boolean_operation(Mesh& mesh, const json& csg_tree_with_ids,
+                           const std::vector<std::vector<Vector3>>& Vs,
+                           const std::vector<std::vector<Vector3i>>& Fs);
     void boolean_operation(Mesh& mesh, const json &csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w);
     void boolean_operation(Mesh& mesh, const json &csg_tree_with_ids);
     void filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
-    void filter_outside(Mesh& mesh, bool invert_faces = false);
+    // V and F are the tracked surface, from get_tracked_surface. The caller supplies it so
+    // it is computed once even when it is also wanted for output.
+    void filter_outside(Mesh& mesh, const Eigen::Matrix<Scalar, Eigen::Dynamic, 3>& V,
+                        const Eigen::Matrix<int, Eigen::Dynamic, 3>& F, bool invert_faces = false);
     void filter_outside_floodfill(Mesh& mesh, bool invert_faces = false);
     void mark_outside(Mesh& mesh, bool invert_faces = false);
     void smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree);
@@ -48,7 +55,6 @@ namespace floatTetWild {
 
     void output_info(Mesh& mesh, const AABBWrapper& tree);
     void check_envelope(Mesh& mesh, const AABBWrapper& tree);
-    void output_surface(Mesh& mesh, const std::string& filename);
 
     void untangle(Mesh &mesh);
 }
