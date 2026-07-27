@@ -85,26 +85,6 @@ endif()
 
 
 
-# TBB
-if(FLOAT_TETWILD_ENABLE_TBB AND NOT TARGET TBB::tbb)
-    FetchContent_Declare(
-        tbb
-        GIT_REPOSITORY https://github.com/oneapi-src/oneTBB
-        GIT_TAG        v2022.2.0
-    )
-
-    # Configure TBB build options
-    set(TBB_STRICT OFF CACHE BOOL "" FORCE)
-    set(TBB_BUILD_STATIC ON CACHE BOOL "" FORCE)
-    set(TBB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    set(TBB_BUILD_TBBMALLOC OFF CACHE BOOL "" FORCE)
-    set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL "" FORCE)
-    set(TBB_TEST OFF CACHE BOOL "" FORCE)
-    set(TBB_NO_DATE ON CACHE BOOL "" FORCE)
-
-    FetchContent_MakeAvailable(tbb)
-endif()
-
 # C++11 threads
 find_package(Threads REQUIRED)
 

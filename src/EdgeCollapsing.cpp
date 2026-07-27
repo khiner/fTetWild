@@ -11,11 +11,6 @@
 
 #include <floattetwild/MeshImprovement.h>  //todo: tmp
 
-#ifdef FLOAT_TETWILD_USE_TBB
-#include <oneapi/tbb/parallel_for.h>
-
-#endif
-
 #define EC_FAIL_INVERSION -1
 #define EC_FAIL_QUALITY -2
 #define EC_FAIL_ENVELOPE0 -3

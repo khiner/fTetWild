@@ -25,14 +25,8 @@
 
 #include <floattetwild/MeshImprovement.h>  //fortest
 
+#include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/Timer.h>
-
-#include <oneapi/tbb.h>
-#include <oneapi/tbb/parallel_for.h>
-
-#ifdef FLOAT_TETWILD_USE_TBB
-// #include <floattetwild/FloatTetCuttingParallel.h>
-#endif
 
 #include <bitset>
 #include <numeric>
@@ -497,20 +491,12 @@ void floatTetWild::insert_triangles_aux(const std::vector<Vector3>&  input_verti
     //            mesh.tet_vertices[v_id].is_on_boundary = false;
     //    }
 
-#ifdef FLOAT_TETWILD_USE_TBB
-    oneapi::tbb::parallel_for(size_t(0), mesh.tets.size(), [&](size_t i) {
+    parallel_for(size_t(0), mesh.tets.size(), [&](size_t i) {
         auto& t = mesh.tets[i];
-#else
-    for (auto& t : mesh.tets) {
-#endif
         if (!t.is_removed) {
             t.quality = get_quality(mesh, t);
         }
-#ifdef FLOAT_TETWILD_USE_TBB
     });
-#else
-    }
-#endif
 
     if (std::count(is_face_inserted.begin(), is_face_inserted.end(), false) == 0)
         mesh.is_input_all_inserted = true;
@@ -1095,51 +1081,29 @@ void floatTetWild::find_cutting_tets(int                           f_id,
                       input_vertices[input_faces[f_id][2]],
                       min_f,
                       max_f);
-#ifdef FLOAT_TETWILD_USE_TBB
-        tbb::concurrent_vector<int> tbb_t_ids;
-        tbb::parallel_for(size_t(0), mesh.tets.size(), [&](size_t t_id) {
-            if (mesh.tets[t_id].is_removed)
-                return;
+        // The queue order decides the result, and parallel_collect returns index order, which is
+        // the order the loop would push in if it ran on one thread.
+        const std::vector<int> bbox_t_ids =
+          parallel_collect<int>(0, mesh.tets.size(), [&](size_t t_id, std::vector<int>& out) {
+              if (mesh.tets[t_id].is_removed)
+                  return;
 
-            Vector3 min_t, max_t;
-            get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][1]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][2]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][3]].pos,
-                         min_t,
-                         max_t);
-            if (!is_bbox_intersected(min_f, max_f, min_t, max_t))
-                return;
+              Vector3 min_t, max_t;
+              get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][1]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][2]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][3]].pos,
+                           min_t,
+                           max_t);
+              if (!is_bbox_intersected(min_f, max_f, min_t, max_t))
+                  return;
 
-            tbb_t_ids.push_back(t_id);
-        });
-        // Filled in thread arrival order, and the queue order decides the result, so sort to match
-        // the serial branch below.
-        std::vector<int> sorted_t_ids(tbb_t_ids.begin(), tbb_t_ids.end());
-        std::sort(sorted_t_ids.begin(), sorted_t_ids.end());
-        for (int t_id : sorted_t_ids) {
+              out.push_back(t_id);
+          });
+        for (int t_id : bbox_t_ids) {
             queue_t_ids.push(t_id);
             is_visited[t_id] = true;
         }
-#else
-        for (int t_id = 0; t_id < mesh.tets.size(); t_id++) {
-            if (mesh.tets[t_id].is_removed)
-                continue;
-
-            Vector3 min_t, max_t;
-            get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][1]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][2]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][3]].pos,
-                         min_t,
-                         max_t);
-            if (!is_bbox_intersected(min_f, max_f, min_t, max_t))
-                continue;
-
-            queue_t_ids.push(t_id);
-            is_visited[t_id] = true;
-        }
-#endif
     }
 
     //    const int CUT_UNKNOWN = INT_MIN;
@@ -2429,48 +2393,26 @@ bool floatTetWild::insert_boundary_edges_get_intersecting_edges_and_points(
             for (const auto& info : covered_fs_infos[f_id])
                 t_ids.push_back(info.first);
         }
-#ifdef FLOAT_TETWILD_USE_TBB
-        tbb::concurrent_vector<int> tbb_t_ids;
-        tbb::parallel_for(size_t(0), mesh.tets.size(), [&](size_t t_id) {
-            if (mesh.tets[t_id].is_removed)
-                return;
-            if (track_surface_fs[t_id][0].empty() && track_surface_fs[t_id][1].empty() &&
-                track_surface_fs[t_id][2].empty() && track_surface_fs[t_id][3].empty())
-                return;
+        const std::vector<int> bbox_t_ids =
+          parallel_collect<int>(0, mesh.tets.size(), [&](size_t t_id, std::vector<int>& out) {
+              if (mesh.tets[t_id].is_removed)
+                  return;
+              if (track_surface_fs[t_id][0].empty() && track_surface_fs[t_id][1].empty() &&
+                  track_surface_fs[t_id][2].empty() && track_surface_fs[t_id][3].empty())
+                  return;
 
-            Vector3 min_t, max_t;
-            get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][1]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][2]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][3]].pos,
-                         min_t,
-                         max_t);
-            if (!is_bbox_intersected(min_e, max_e, min_t, max_t))
-                return;
-            tbb_t_ids.push_back(t_id);
-        });
-        t_ids.insert(t_ids.end(), tbb_t_ids.begin(), tbb_t_ids.end());
-#else
-        for (int t_id = 0; t_id < mesh.tets.size(); t_id++) {
-            if (mesh.tets[t_id].is_removed)
-                continue;
-            if (track_surface_fs[t_id][0].empty() && track_surface_fs[t_id][1].empty() &&
-                track_surface_fs[t_id][2].empty() && track_surface_fs[t_id][3].empty())
-                continue;
-
-            Vector3 min_t, max_t;
-            get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][1]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][2]].pos,
-                         mesh.tet_vertices[mesh.tets[t_id][3]].pos,
-                         min_t,
-                         max_t);
-            if (!is_bbox_intersected(min_e, max_e, min_t, max_t))
-                continue;
-
-            t_ids.push_back(t_id);
-        }
-#endif
+              Vector3 min_t, max_t;
+              get_bbox_tet(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][1]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][2]].pos,
+                           mesh.tet_vertices[mesh.tets[t_id][3]].pos,
+                           min_t,
+                           max_t);
+              if (!is_bbox_intersected(min_e, max_e, min_t, max_t))
+                  return;
+              out.push_back(t_id);
+          });
+        t_ids.insert(t_ids.end(), bbox_t_ids.begin(), bbox_t_ids.end());
 
         vector_unique(t_ids);
         for (int t_id : t_ids) {

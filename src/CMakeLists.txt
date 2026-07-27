@@ -48,6 +48,9 @@ set(SOURCES
 	Logger.hpp
 	Logger.cpp
 
+	ParallelFor.hpp
+	ParallelFor.cpp
+
 	Parameters.h
 
 	Types.hpp

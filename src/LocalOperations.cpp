@@ -9,14 +9,9 @@
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/Predicates.hpp>
 
+#include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/Timer.h>
 #include <floattetwild/geo_multi_precision.h>
-
-#ifdef FLOAT_TETWILD_USE_TBB
-#include <oneapi/tbb/concurrent_vector.h>
-#include <oneapi/tbb/parallel_for.h>
-#include <oneapi/tbb/parallel_sort.h>
-#endif
 
 namespace floatTetWild {
 bool        use_old_energy       = false;
@@ -144,54 +139,23 @@ void floatTetWild::set_opp_t_id(Mesh& mesh, int t_id, int j)
 
 void floatTetWild::get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges)
 {
-    edges.reserve(mesh.tets.size() * 6);
-
-#ifdef FLOAT_TETWILD_USE_TBB
-    tbb::concurrent_vector<std::array<int, 2>> edges_tbb;
-    tbb::parallel_for(size_t(0),
-                      mesh.tets.size(),
-                      [&](size_t i)
-#else
-    for (unsigned int i = 0; i < mesh.tets.size(); i++)
-#endif
-                      {
-                          if (mesh.tets[i].is_removed) {
-#ifdef FLOAT_TETWILD_USE_TBB
-                              return;
-#else
-            continue;
-#endif
-                          }
-                          for (int j = 0; j < 3; j++) {
-                              std::array<int, 2> e = {{mesh.tets[i][0], mesh.tets[i][j + 1]}};
-                              if (e[0] > e[1])
-                                  std::swap(e[0], e[1]);
-#ifdef FLOAT_TETWILD_USE_TBB
-                              edges_tbb.push_back(e);
-#else
-            edges.push_back(e);
-#endif
-                              e = {{mesh.tets[i][j + 1], mesh.tets[i][mod3(j + 1) + 1]}};
-                              if (e[0] > e[1])
-                                  std::swap(e[0], e[1]);
-#ifdef FLOAT_TETWILD_USE_TBB
-                              edges_tbb.push_back(e);
-#else
-            edges.push_back(e);
-#endif
-                          }
-                      }
-#ifdef FLOAT_TETWILD_USE_TBB
-    );
-    edges.reserve(edges_tbb.size());
-    edges.insert(edges.end(), edges_tbb.begin(), edges_tbb.end());
-    assert(edges_tbb.size() == edges.size());
-    tbb::parallel_sort(edges.begin(), edges.end());
-
+    edges = parallel_collect<std::array<int, 2>>(
+      0, mesh.tets.size(), [&](size_t i, std::vector<std::array<int, 2>>& out) {
+          if (mesh.tets[i].is_removed)
+              return;
+          for (int j = 0; j < 3; j++) {
+              std::array<int, 2> e = {{mesh.tets[i][0], mesh.tets[i][j + 1]}};
+              if (e[0] > e[1])
+                  std::swap(e[0], e[1]);
+              out.push_back(e);
+              e = {{mesh.tets[i][j + 1], mesh.tets[i][mod3(j + 1) + 1]}};
+              if (e[0] > e[1])
+                  std::swap(e[0], e[1]);
+              out.push_back(e);
+          }
+      });
+    std::sort(edges.begin(), edges.end());
     edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
-#else
-    vector_unique(edges);
-#endif
 }
 
 void floatTetWild::get_all_edges(const Mesh&                      mesh,

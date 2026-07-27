@@ -8,11 +8,7 @@
 
 #include <CLI/CLI.hpp>
 
-#ifdef FLOAT_TETWILD_USE_TBB
-#include <oneapi/tbb.h>
-#include <oneapi/tbb/global_control.h>
 #include <thread>
-#endif
 
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/FloatTetDelaunay.h>
@@ -31,6 +27,7 @@
 
 #include <floattetwild/Timer.h>
 #include <floattetwild/writeOBJ.h>
+#include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/default_num_threads.h>
 
 
@@ -199,9 +196,7 @@ int main(int argc, char** argv)
 #endif
 
     unsigned int max_threads = std::numeric_limits<unsigned int>::max();
-#ifdef FLOAT_TETWILD_USE_TBB
     command_line.add_option("--max-threads", max_threads, "Maximum number of threads used");
-#endif
 
     try {
         command_line.parse(argc, argv);
@@ -210,19 +205,14 @@ int main(int argc, char** argv)
         return command_line.exit(e);
     }
 
-#ifdef FLOAT_TETWILD_USE_TBB
-    const size_t MB         = 1024 * 1024;
-    const size_t stack_size = 64 * MB;
     unsigned int num_threads = std::max(1u, std::thread::hardware_concurrency());
     num_threads              = std::min(max_threads, num_threads);
     params.num_threads       = num_threads;
-    std::cout << "TBB threads " << num_threads << std::endl;
-    tbb::global_control parallelism_limit(tbb::global_control::max_allowed_parallelism, num_threads);
-    tbb::global_control stack_size_limit(tbb::global_control::thread_stack_size, stack_size);
+    std::cout << "threads " << num_threads << std::endl;
+    floatTetWild::set_num_threads(num_threads);
     // Nested for loops oversubscribe otherwise, see
     // https://github.com/libigl/libigl/issues/2412
     floatTetWild::default_num_threads(std::ceil(std::sqrt(num_threads)));
-#endif
 
     //    if(params.is_quiet){
     //        std::streambuf *orig_buf = cout.rdbuf();

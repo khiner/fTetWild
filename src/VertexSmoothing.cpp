@@ -10,9 +10,7 @@
 #include <floattetwild/VertexSmoothing.h>
 
 #include <floattetwild/MeshImprovement.h>
-#ifdef FLOAT_TETWILD_USE_TBB
-#include <oneapi/tbb/parallel_for.h>
-#endif
+#include <floattetwild/ParallelFor.hpp>
 
 #include <atomic>
 
@@ -138,29 +136,19 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
         }
     };
 
-#ifdef FLOAT_TETWILD_USE_TBB
     std::vector<std::vector<int>> concurrent_sets;
     std::vector<int>              serial_set;
-    // mesh.one_ring_vertex_sets(tbb::task_scheduler_init::default_num_threads()*2, concurrent_sets,
-    // serial_set);
     // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
     // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
     // which made the output depend on the thread count.
     mesh.one_ring_vertex_sets(2, concurrent_sets, serial_set);
 
     for (const auto& s : concurrent_sets) {
-        tbb::parallel_for(size_t(0), size_t(s.size()), [&](size_t i) {
-            // for(int i = 0; i < s.size(); ++i)
-            smooth_one(s[i]);
-        });
+        parallel_for(size_t(0), size_t(s.size()), [&](size_t i) { smooth_one(s[i]); });
     }
 
     for (size_t v_id : serial_set)
         smooth_one(v_id);
-#else
-    for (size_t v_id = 0; v_id < tet_vertices.size(); v_id++)
-        smooth_one(v_id);
-#endif
 
     cout << "success = " << suc_counter << "(" << counter << ")" << endl;
 }
