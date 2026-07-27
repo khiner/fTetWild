@@ -10,37 +10,147 @@
 //
 
 #include "Logger.hpp"
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <memory>
-#include <vector>
+
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace floatTetWild {
+namespace {
 
-std::shared_ptr<spdlog::logger> Logger::logger_;
-
-// See https://github.com/gabime/spdlog#asynchronous-logger-with-multi-sinks
-void Logger::init(bool use_cout, const spdlog::filename_t& filename, bool truncate)
+// spdlog's names and console colours, so a run looks the same as it did.
+const char* level_name(Logger::Level level)
 {
-    std::vector<spdlog::sink_ptr> sinks;
-    if (use_cout) {
-        sinks.emplace_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+    switch (level) {
+    case Logger::Trace:
+        return "trace";
+    case Logger::Debug:
+        return "debug";
+    case Logger::Info:
+        return "info";
+    case Logger::Warn:
+        return "warning";
+    case Logger::Error:
+        return "error";
+    case Logger::Critical:
+        return "critical";
+    case Logger::Off:
+    default:
+        return "off";
     }
-    if (!filename.empty()) {
-        sinks.emplace_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename, truncate));
+}
+
+const char* level_colour(Logger::Level level)
+{
+    switch (level) {
+    case Logger::Trace:
+        return "\033[37m";
+    case Logger::Debug:
+        return "\033[36m";
+    case Logger::Info:
+        return "\033[32m";
+    case Logger::Warn:
+        return "\033[33m\033[1m";
+    case Logger::Error:
+        return "\033[31m\033[1m";
+    case Logger::Critical:
+        return "\033[1m\033[41m";
+    case Logger::Off:
+    default:
+        return "\033[m";
     }
+}
 
-    spdlog::init_thread_pool(8192, 1);
+// Colour only when stdout is a terminal, which is what spdlog's console sink did. It keeps
+// escape codes out of redirected output.
+bool stdout_is_terminal()
+{
+#ifdef _WIN32
+    return _isatty(_fileno(stdout)) != 0;
+#else
+    return isatty(fileno(stdout)) != 0;
+#endif
+}
 
-    logger_ = std::make_shared<spdlog::async_logger>("float-tetwild",
-                                                     sinks.begin(),
-                                                     sinks.end(),
-                                                     spdlog::thread_pool(),
-                                                     spdlog::async_overflow_policy::block);
+std::string timestamp()
+{
+    using namespace std::chrono;
+    const auto now  = system_clock::now();
+    const auto secs = system_clock::to_time_t(now);
+    const auto ms   = duration_cast<milliseconds>(now.time_since_epoch()) % seconds(1);
 
-    spdlog::drop("float-tetwild");
-    spdlog::register_logger(logger_);
+    std::tm broken_down {};
+#ifdef _WIN32
+    localtime_s(&broken_down, &secs);
+#else
+    localtime_r(&secs, &broken_down);
+#endif
+    char date[32];
+    std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", &broken_down);
+
+    std::ostringstream out;
+    out << date << '.' << std::setfill('0') << std::setw(3) << ms.count();
+    return out.str();
+}
+
+}  // namespace
+
+Logger& logger()
+{
+    static Logger instance;
+    return instance;
+}
+
+void Logger::init(bool use_cout, const std::string& filename, bool truncate)
+{
+    Logger&                     instance = logger();
+    std::lock_guard<std::mutex> lock(instance.mutex_);
+
+    instance.use_cout_ = use_cout;
+    if (instance.file_.is_open())
+        instance.file_.close();
+    if (!filename.empty())
+        instance.file_.open(filename, truncate ? std::ios::trunc : std::ios::app);
+}
+
+void Logger::set_level(int level)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    level_ = level < Trace ? int(Trace) : (level > Off ? int(Off) : level);
+}
+
+void Logger::write(Level level, const std::string& message)
+{
+    // Only the level name is coloured, matching spdlog's default pattern.
+    static const bool colour = stdout_is_terminal();
+
+    const std::string stamp = timestamp();
+    const std::string plain =
+      "[" + stamp + "] [float-tetwild] [" + level_name(level) + "] " + message;
+
+    // Flushed per line. spdlog logged from a background thread and flushed on a timer, so its
+    // lines could land out of order against the plain cout printing the rest of the code does.
+    // Writing them on the calling thread keeps the two in the order they were issued.
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (use_cout_) {
+        if (colour) {
+            std::cout << "[" << stamp << "] [float-tetwild] [" << level_colour(level)
+                      << level_name(level) << "\033[m] " << message << std::endl;
+        }
+        else {
+            std::cout << plain << std::endl;
+        }
+    }
+    if (file_.is_open())
+        file_ << plain << std::endl;
 }
 
 }  // namespace floatTetWild

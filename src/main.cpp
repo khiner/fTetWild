@@ -221,8 +221,7 @@ int main(int argc, char** argv)
 
     Logger::init(!params.is_quiet, params.log_path);
     params.log_level = std::max(0, std::min(6, params.log_level));
-    spdlog::set_level(static_cast<spdlog::level::level_enum>(params.log_level));
-    spdlog::flush_every(std::chrono::seconds(3));
+    logger().set_level(params.log_level);
 
     if (params.output_path.empty())
         params.output_path = params.input_path;

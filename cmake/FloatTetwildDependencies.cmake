@@ -38,30 +38,6 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT TARGET CLI11::CLI11)
     FetchContent_MakeAvailable(cli11)
 endif()
 
-# fmt
-if(NOT TARGET fmt::fmt)
-    FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY https://github.com/fmtlib/fmt
-        GIT_TAG        11.2.0
-    )
-    FetchContent_MakeAvailable(fmt)
-endif()
-
-# spdlog
-if(NOT TARGET spdlog::spdlog)
-    FetchContent_Declare(
-        spdlog
-        GIT_REPOSITORY https://github.com/gabime/spdlog
-        GIT_TAG        v1.15.3
-    )
-    
-    # Configure spdlog to use external fmt
-    set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
-    
-    FetchContent_MakeAvailable(spdlog)
-endif()
-
 # Eigen
 # libigl used to supply Eigen3::Eigen. Its recipe fetched tag 3.4.0 and wrapped
 # the headers in an INTERFACE target rather than configuring Eigen's own CMake

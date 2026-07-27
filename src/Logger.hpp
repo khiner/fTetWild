@@ -11,28 +11,96 @@
 
 #pragma once
 
-#include <spdlog/spdlog.h>
-#include <memory>
+#include <fstream>
+#include <mutex>
+#include <ostream>
+#include <sstream>
+#include <string>
 
 namespace floatTetWild {
 
-struct Logger
+// The slice of spdlog this project used: a level filter, a console sink, an optional file sink, and
+// {} substitution. Every format string in the tree is a bare {} with no format spec and every
+// argument streams, so writing one argument per {} covers all of them.
+class Logger
 {
-    static std::shared_ptr<spdlog::logger> logger_;
+  public:
+    // Same numbering spdlog used, so --level keeps its meaning.
+    enum Level
+    {
+        Trace = 0,
+        Debug,
+        Info,
+        Warn,
+        Error,
+        Critical,
+        Off
+    };
 
     // By default, write to stdout, but don't write to any file
-    static void init(bool                      use_cout = true,
-                     const spdlog::filename_t& filename = spdlog::filename_t(),
-                     bool                      truncate = true);
+    static void init(bool               use_cout = true,
+                     const std::string& filename = std::string(),
+                     bool               truncate = true);
+
+    void set_level(int level);
+
+    template<typename... Args>
+    void trace(const char* fmt, const Args&... args)
+    { log(Trace, fmt, args...); }
+    template<typename... Args>
+    void debug(const char* fmt, const Args&... args)
+    { log(Debug, fmt, args...); }
+    template<typename... Args>
+    void info(const char* fmt, const Args&... args)
+    { log(Info, fmt, args...); }
+    template<typename... Args>
+    void warn(const char* fmt, const Args&... args)
+    { log(Warn, fmt, args...); }
+    template<typename... Args>
+    void error(const char* fmt, const Args&... args)
+    { log(Error, fmt, args...); }
+    template<typename... Args>
+    void critical(const char* fmt, const Args&... args)
+    { log(Critical, fmt, args...); }
+
+  private:
+    template<typename... Args>
+    void log(Level level, const char* fmt, const Args&... args)
+    {
+        if (level < level_)
+            return;
+        std::ostringstream message;
+        format(message, fmt, args...);
+        write(level, message.str());
+    }
+
+    // Copies fmt through, writing the next argument at each {}. Anything else, a lone brace
+    // included, goes through untouched. Arguments left over once the placeholders run out are
+    // dropped, where fmt would have thrown.
+    static void format(std::ostream& out, const char* fmt) { out << fmt; }
+
+    template<typename T, typename... Rest>
+    static void format(std::ostream& out, const char* fmt, const T& value, const Rest&... rest)
+    {
+        for (const char* c = fmt; *c != '\0'; ++c) {
+            if (c[0] == '{' && c[1] == '}') {
+                out << value;
+                format(out, c + 2, rest...);
+                return;
+            }
+            out << *c;
+        }
+    }
+
+    void write(Level level, const std::string& message);
+
+    int           level_    = Info;  // spdlog's default
+    bool          use_cout_ = true;
+    std::ofstream file_;
+    std::mutex    mutex_;
 };
 
 // Retrieve current logger, or create one if not available
-inline spdlog::logger& logger()
-{
-    if (!Logger::logger_) {
-        Logger::init();
-    }
-    return *Logger::logger_;
-}
+Logger& logger();
 
 }  // namespace floatTetWild

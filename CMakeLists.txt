@@ -101,7 +101,6 @@ endif()
 target_link_libraries(
   ${PROJECT_NAME}
   PUBLIC Eigen3::Eigen
-         spdlog::spdlog
          Threads::Threads
          # fast_winding_number
          json
