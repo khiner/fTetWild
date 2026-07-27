@@ -50,38 +50,6 @@ namespace triwild {
             mpq_clear(value);
         }
 
-//        //+, - another point
-//        Rational operator+(const Rational &r) const {
-//            Rational r_out;
-//            mpq_add(r_out.value, value, r.value);
-//            return r_out;
-//        }
-//
-//        Rational operator-(const Rational &r) const {
-//            Rational r_out;
-//            mpq_sub(r_out.value, value, r.value);
-//            return r_out;
-//        }
-//
-//        //*, / double/rational
-//        Rational operator*(const Rational &r) const {
-//            Rational r_out;
-//            mpq_mul(r_out.value, value, r.value);
-//            return r_out;
-//        }
-//
-//        Rational operator/(const Rational &r) const {
-//            Rational r_out;
-//            mpq_div(r_out.value, value, r.value);
-//            return r_out;
-//        }
-//
-//        //=
-//        void operator=(const Rational &r) {
-//            mpq_set(value, r.value);
-//        }
-
-
         friend Rational operator-(const Rational& x) {
             Rational r_out;
             mpq_neg(r_out.value, x.value);

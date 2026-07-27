@@ -17,7 +17,6 @@
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/CutMesh.h>
 
-#include <floattetwild/Rational.h>
 namespace floatTetWild {
     void match_surface_fs(const Mesh &mesh,
                           const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
@@ -121,11 +120,6 @@ namespace floatTetWild {
                                 const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
                                 const std::vector<int> &sorted_f_ids);
     Vector3 get_normal(const Vector3& a, const Vector3& b, const Vector3& c);
-
-    //fortest
-    typedef Eigen::Matrix<triwild::Rational, 3, 1> Vector3_r;
-
-    int orient_rational(const Vector3_r &p1, const Vector3_r &p2, const Vector3_r &p3, const Vector3_r &p);
 }
 
 
