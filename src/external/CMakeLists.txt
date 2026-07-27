@@ -40,7 +40,6 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 #		FastWindingNumber.hpp
 #		FastWindingNumber.cpp
 
-		Rational.h
 	)
 else()
 	set(SOURCES
@@ -80,7 +79,6 @@ else()
 			vertex_components.h
 			orientable_patches.h
 
-			Rational.h
 			)
 endif()
 

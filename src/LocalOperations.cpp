@@ -10,6 +10,7 @@
 #include <floattetwild/Predicates.hpp>
 
 #include <floattetwild/Timer.h>
+#include <floattetwild/geo_multi_precision.h>
 
 #ifdef FLOAT_TETWILD_USE_TBB
 #include <oneapi/tbb/concurrent_vector.h>
@@ -1196,7 +1197,64 @@ bool floatTetWild::is_energy_unstable(const std::array<Scalar, 12>& T, Scalar re
 
 int cnt_stable = 0;
 int cnt_large  = 0;
-#include <floattetwild/Rational.h>
+
+namespace {
+// The AMIPS energy of a tet is
+//
+//     P / cbrt(16 * det^2)
+//
+// where P is the sum of the six squared edge lengths and det is the determinant of the three edge
+// vectors leaving the first vertex, so six times the signed volume. Both are polynomials in the
+// twelve coordinates with integer coefficients.
+//
+// That is the same value the rational version computed. It evaluated 27/16 * Q^3 / det^2 under a
+// cube root, and 3Q is P, so 27/16 * Q^3 / det^2 is P^3 / (16 det^2). The cube root then collapses:
+// 16 det^2 is positive wherever det is nonzero and cbrt is odd, so cbrt(P^3 / (16 det^2)) is
+// P / cbrt(16 det^2) whatever the sign of P. Nothing has to be cubed.
+//
+// det is why this path exists. It is an orient3d determinant and loses itself to cancellation in
+// double precision exactly when the tet is near-degenerate, which is when the caller falls through
+// to here. Expansions carry it and P exactly, and the result is rounded only at the end.
+Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
+{
+    using floatTetWild::geo::expansion;
+
+    const double* p0 = T.data();
+    const double* p1 = T.data() + 3;
+    const double* p2 = T.data() + 6;
+    const double* p3 = T.data() + 9;
+
+    // These macros allocate in this frame with alloca, so every expansion has to be built here and
+    // none of it can move into a helper that returns one.
+    const expansion& a11 = expansion_diff(p1[0], p0[0]);
+    const expansion& a12 = expansion_diff(p1[1], p0[1]);
+    const expansion& a13 = expansion_diff(p1[2], p0[2]);
+    const expansion& a21 = expansion_diff(p2[0], p0[0]);
+    const expansion& a22 = expansion_diff(p2[1], p0[1]);
+    const expansion& a23 = expansion_diff(p2[2], p0[2]);
+    const expansion& a31 = expansion_diff(p3[0], p0[0]);
+    const expansion& a32 = expansion_diff(p3[1], p0[1]);
+    const expansion& a33 = expansion_diff(p3[2], p0[2]);
+
+    // Capacity 192, under the 512 that new_expansion_on_stack() allows.
+    const expansion& det = expansion_det3x3(a11, a12, a13, a21, a22, a23, a31, a32, a33);
+    if (det.sign() == floatTetWild::geo::ZERO)
+        return std::numeric_limits<double>::infinity();
+
+    const expansion& d01  = expansion_sq_dist(p0, p1, 3);
+    const expansion& d02  = expansion_sq_dist(p0, p2, 3);
+    const expansion& d03  = expansion_sq_dist(p0, p3, 3);
+    const expansion& d12  = expansion_sq_dist(p1, p2, 3);
+    const expansion& d13  = expansion_sq_dist(p1, p3, 3);
+    const expansion& d23  = expansion_sq_dist(p2, p3, 3);
+    const expansion& sum4 = expansion_sum4(d01, d02, d03, d12);
+    const expansion& P    = expansion_sum3(sum4, d13, d23);
+
+    const double d = det.estimate();
+    return P.estimate() / std::cbrt(16.0 * d * d);
+}
+}  // namespace
+
 Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
 {
     Scalar res = AMIPS_energy_aux(T);
@@ -1234,50 +1292,7 @@ Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
             return std::numeric_limits<double>::infinity();
         }
 
-        std::array<triwild::Rational, 12> r_T;
-        for (int j = 0; j < 12; j++)
-            r_T[j] = T[j];
-        const triwild::Rational twothird = triwild::Rational(2) / triwild::Rational(3);
-        triwild::Rational       tmp =
-          ((-r_T[1 + 2] + r_T[1 + 5]) * r_T[1 + 1] + r_T[1 + 2] * r_T[1 + 7] +
-           (r_T[1 + -1] - r_T[1 + 5]) * r_T[1 + 4] - r_T[1 + -1] * r_T[1 + 7]) *
-            r_T[1 + 9] +
-          ((r_T[1 + 2] - r_T[1 + 5]) * r_T[1 + 0] - r_T[1 + 2] * r_T[1 + 6] +
-           (-r_T[1 + -1] + r_T[1 + 5]) * r_T[1 + 3] + r_T[1 + -1] * r_T[1 + 6]) *
-            r_T[1 + 10] +
-          (-r_T[1 + 2] * r_T[1 + 7] + (-r_T[1 + 8] + r_T[1 + 5]) * r_T[1 + 4] +
-           r_T[1 + 8] * r_T[1 + 7]) *
-            r_T[1 + 0] +
-          (r_T[1 + 2] * r_T[1 + 6] + (r_T[1 + 8] - r_T[1 + 5]) * r_T[1 + 3] -
-           r_T[1 + 8] * r_T[1 + 6]) *
-            r_T[1 + 1] +
-          (r_T[1 + 3] * r_T[1 + 7] - r_T[1 + 4] * r_T[1 + 6]) * (r_T[1 + -1] - r_T[1 + 8]);
-        if (tmp == 0)
-            return std::numeric_limits<double>::infinity();
-
-        auto res_r =
-          triwild::Rational(27) / 16 * pow(tmp, -2) *
-          pow(r_T[1 + 9] * r_T[1 + 9] +
-                (-twothird * r_T[1 + 0] - twothird * r_T[1 + 3] - twothird * r_T[1 + 6]) *
-                  r_T[1 + 9] +
-                r_T[1 + 10] * r_T[1 + 10] +
-                (-twothird * r_T[1 + 1] - twothird * r_T[1 + 4] - twothird * r_T[1 + 7]) *
-                  r_T[1 + 10] +
-                r_T[1 + 0] * r_T[1 + 0] +
-                (-twothird * r_T[1 + 3] - twothird * r_T[1 + 6]) * r_T[1 + 0] +
-                r_T[1 + 1] * r_T[1 + 1] +
-                (-twothird * r_T[1 + 4] - twothird * r_T[1 + 7]) * r_T[1 + 1] +
-                r_T[1 + 2] * r_T[1 + 2] +
-                (-twothird * r_T[1 + -1] - twothird * r_T[1 + 8] - twothird * r_T[1 + 5]) *
-                  r_T[1 + 2] +
-                r_T[1 + 3] * r_T[1 + 3] - twothird * r_T[1 + 3] * r_T[1 + 6] +
-                r_T[1 + 4] * r_T[1 + 4] - twothird * r_T[1 + 4] * r_T[1 + 7] +
-                r_T[1 + 5] * r_T[1 + 5] +
-                (-twothird * r_T[1 + -1] - twothird * r_T[1 + 8]) * r_T[1 + 5] -
-                twothird * r_T[1 + -1] * r_T[1 + 8] + r_T[1 + -1] * r_T[1 + -1] +
-                r_T[1 + 8] * r_T[1 + 8] + r_T[1 + 6] * r_T[1 + 6] + r_T[1 + 7] * r_T[1 + 7],
-              3);
-        return std::cbrt(res_r.to_double());
+        return AMIPS_energy_exact(T);
     }
     else {
         return res;
