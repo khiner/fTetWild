@@ -28,7 +28,7 @@ void extract_volume_mesh(const Mesh&                     mesh,
                          const std::function<bool(int)>& skip_tet,
                          const std::function<bool(int)>& skip_vertex,
                          MatrixXs&                       V,
-                         Eigen::MatrixXi&                T)
+                         MatrixXi&                       T)
 {
     const auto& points = mesh.tet_vertices;
     const auto& tets   = mesh.tets;
@@ -43,7 +43,7 @@ void extract_volume_mesh(const Mesh&                     mesh,
             continue;
         }
         old_2_new[i] = index;
-        V.row(index) = points[i].pos.transpose();
+        V.row(index) = points[i].pos;
         ++index;
     }
 
@@ -319,9 +319,9 @@ void MeshIO::write_mesh(const std::string&         path,
 }
 
 void MeshIO::extract_volume_mesh(const Mesh&      mesh,
-                                 MatrixXs&        V,
-                                 Eigen::MatrixXi& T,
-                                 bool             only_interior)
+                                 MatrixXs& V,
+                                 MatrixXi& T,
+                                 bool      only_interior)
 {
     if (only_interior) {
         const auto skip_tet    = [&mesh](const int i) { return mesh.tets[i].is_outside; };

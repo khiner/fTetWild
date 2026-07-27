@@ -1126,21 +1126,21 @@ int floatTetWild::get_max_p(const Mesh &mesh)
         const auto &v2 = mesh.tet_vertices[t[2]].pos;
         const auto &v3 = mesh.tet_vertices[t[3]].pos;
 
-        Eigen::Matrix<Scalar, 6, 3> e;
-        e.row(0) = (v0 - v1) * scaling;
-        e.row(1) = (v1 - v2) * scaling;
-        e.row(2) = (v2 - v0) * scaling;
+        std::array<Vector3, 6> e;
+        e[0] = (v0 - v1) * scaling;
+        e[1] = (v1 - v2) * scaling;
+        e[2] = (v2 - v0) * scaling;
 
-        e.row(3) = (v0 - v3) * scaling;
-        e.row(4) = (v1 - v3) * scaling;
-        e.row(5) = (v2 - v3) * scaling;
+        e[3] = (v0 - v3) * scaling;
+        e[4] = (v1 - v3) * scaling;
+        e[5] = (v2 - v3) * scaling;
 
-        const Eigen::Matrix<Scalar, 6, 1> en = e.rowwise().norm();
-
-        const Scalar S = (e.row(0).cross(e.row(1)).norm() + e.row(0).cross(e.row(4)).norm() + e.row(4).cross(e.row(1)).norm() + e.row(2).cross(e.row(5)).norm()) / 2;
-        const Scalar V = std::abs(e.row(3).dot(e.row(2).cross(-e.row(0))))/6;
+        const Scalar S = (e[0].cross(e[1]).norm() + e[0].cross(e[4]).norm() + e[4].cross(e[1]).norm() + e[2].cross(e[5]).norm()) / 2;
+        const Scalar V = std::abs(e[3].dot(e[2].cross(-e[0])))/6;
         const Scalar rho = 3 * V / S;
-        const Scalar h = en.maxCoeff();
+        Scalar h = e[0].norm();
+        for (int i = 1; i < 6; i++)
+            h = std::max(h, e[i].norm());
 
         const Scalar sigma = rho / h;
 
@@ -1282,7 +1282,7 @@ void floatTetWild::apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
 #include <floattetwild/unique_rows.h>
 #include <floattetwild/remove_duplicate_vertices.h>
 #include <floattetwild/TriangleInsertion.h>
-void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::Dynamic, 3> &V_sf, Eigen::Matrix<int, Eigen::Dynamic, 3> &F_sf, int c_id) {
+void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_sf, int c_id) {
 #define SF_CONDITION t.is_surface_fs[j]<=0&&t.surface_tags[j]==c_id
 
     auto &tets = mesh.tets;
@@ -1321,9 +1321,9 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::
 //    writeSTL("before_bfs.stl", V_sf, F_sf);
 
     if (true || mesh.params.correct_surface_orientation) {
-        Eigen::MatrixXd V;
-        Eigen::MatrixXi F;
-        Eigen::VectorXi _1, _2;
+        MatrixXd V;
+        MatrixXi F;
+        VectorXi _1, _2;
         remove_duplicate_vertices(V_sf, F_sf, -1, V, _1, _2, F);
         V_sf = V;
         F_sf.resize(0, 3);
@@ -1386,7 +1386,7 @@ void floatTetWild::boolean_operation(Mesh&                                     m
                                     const std::vector<std::vector<Vector3>>&  Vs,
                                     const std::vector<std::vector<Vector3i>>& Fs)
 {
-    Eigen::MatrixXd C(mesh.get_t_num(), 3);
+    MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
@@ -1399,32 +1399,30 @@ void floatTetWild::boolean_operation(Mesh&                                     m
     }
 
     int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
-    std::vector<Eigen::VectorXd> w(max_id + 1);
+    std::vector<VectorXd> w(max_id + 1);
 
     if(Vs.empty())
     {
-        Eigen::Matrix<Scalar, Eigen::Dynamic, 3> vs;
-        Eigen::Matrix<int, Eigen::Dynamic, 3>    fs;
+        MatrixXs vs;
+        MatrixXi fs;
 
 
         for (int i = 0; i <= max_id; ++i) {
             get_tracked_surface(mesh, vs, fs, i);
 
-            fast_winding_number(
-              Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
+            fast_winding_number(MatrixXd(vs.cast<double>()), MatrixXi(fs), C, w[i]);
         }
     }
     else {
         for (int i = 0; i <= max_id; ++i) {
-            Eigen::Matrix<Scalar, Eigen::Dynamic, 3> vs(Vs[i].size(), 3);
-            Eigen::Matrix<int, Eigen::Dynamic, 3>    fs(Fs[i].size(), 3);
+            MatrixXs vs(Vs[i].size(), 3);
+            MatrixXi fs(Fs[i].size(), 3);
             for (int k = 0; k < vs.rows(); ++k)
                 vs.row(k) = Vs[i][k];
             for (int k = 0; k < fs.rows(); ++k)
                 fs.row(k) = Fs[i][k];
 
-            fast_winding_number(
-              Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
+            fast_winding_number(MatrixXd(vs.cast<double>()), MatrixXi(fs), C, w[i]);
             }
         }
 
@@ -1438,7 +1436,7 @@ void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_id
                       std::vector<std::vector<Vector3i>>());
 }
 
-void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<Eigen::VectorXd> &w)
+void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<VectorXd> &w)
 {
     int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
 
@@ -1468,15 +1466,15 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
     const int OP_INTERSECTION = 1;
     const int OP_DIFFERENCE = 2;
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> v1;
-    Eigen::Matrix<int, Eigen::Dynamic, 3> f1;
+    MatrixXs v1;
+    MatrixXi f1;
     get_tracked_surface(mesh, v1, f1, 1);
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> v2;
-    Eigen::Matrix<int, Eigen::Dynamic, 3> f2;
+    MatrixXs v2;
+    MatrixXi f2;
     get_tracked_surface(mesh, v2, f2, 2);
 
-    Eigen::MatrixXd C(mesh.get_t_num(), 3);
+    MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
@@ -1488,9 +1486,9 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
         index++;
     }
 
-    Eigen::VectorXd w1, w2;
-    fast_winding_number(Eigen::MatrixXd(v1.cast<double>()), Eigen::MatrixXi(f1), C, w1);
-    fast_winding_number(Eigen::MatrixXd(v2.cast<double>()), Eigen::MatrixXi(f2), C, w2);
+    VectorXd w1, w2;
+    fast_winding_number(MatrixXd(v1.cast<double>()), MatrixXi(f1), C, w1);
+    fast_winding_number(MatrixXd(v2.cast<double>()), MatrixXi(f2), C, w2);
 
 
     int cnt = 0;
@@ -1518,9 +1516,9 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
 //    output_surface(mesh, "inner.stl");
 }
 
-void floatTetWild::filter_outside(Mesh& mesh, const Eigen::Matrix<Scalar, Eigen::Dynamic, 3>& V,
-                                  const Eigen::Matrix<int, Eigen::Dynamic, 3>& F_in, bool invert_faces) {
-    Eigen::MatrixXd C(mesh.get_t_num(), 3);
+void floatTetWild::filter_outside(Mesh& mesh, const MatrixXs& V,
+                                  const MatrixXi& F_in, bool invert_faces) {
+    MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
@@ -1533,14 +1531,13 @@ void floatTetWild::filter_outside(Mesh& mesh, const Eigen::Matrix<Scalar, Eigen:
     }
 //    C.conservativeResize(index, 3);
 
-    Eigen::Matrix<int, Eigen::Dynamic, 3> F = F_in;
-    Eigen::VectorXd W;
+    MatrixXi F = F_in;
+    VectorXd W;
     if (invert_faces) {
-        Eigen::Matrix<int, Eigen::Dynamic, 1> tmp = F.col(1);
-        F.col(1) = F.col(2).eval();
-        F.col(2) = tmp;
+        for (int i = 0; i < F.rows(); i++)
+            std::swap(F(i, 1), F(i, 2));
     }
-    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    fast_winding_number(MatrixXd(V.cast<double>()), MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -1586,7 +1583,7 @@ void floatTetWild::filter_outside(Mesh& mesh, const Eigen::Matrix<Scalar, Eigen:
 }
 
 void floatTetWild::filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces){
-    Eigen::MatrixXd C(mesh.get_t_num(), 3);
+    MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
@@ -1599,8 +1596,8 @@ void floatTetWild::filter_outside(Mesh& mesh, const std::vector<Vector3> &input_
     }
 //    C.conservativeResize(index, 3);
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V(input_vertices.size(), 3);
-    Eigen::Matrix<int, Eigen::Dynamic, 3> F(input_faces.size(), 3);
+    MatrixXs V(input_vertices.size(), 3);
+    MatrixXi F(input_faces.size(), 3);
 //    get_tracked_surface(mesh, V, F);
     ///
     for(int i=0;i<input_vertices.size();i++)
@@ -1608,13 +1605,13 @@ void floatTetWild::filter_outside(Mesh& mesh, const std::vector<Vector3> &input_
     for(int i=0;i<input_faces.size();i++)
         F.row(i) = input_faces[i];
     ///
-    Eigen::VectorXd W;
+    VectorXd W;
 //    if (invert_faces) {
 //        Eigen::Matrix<int, Eigen::Dynamic, 1> tmp = F.col(1);
 //        F.col(1) = F.col(2).eval();
 //        F.col(2) = tmp;
 //    }
-    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    fast_winding_number(MatrixXd(V.cast<double>()), MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -1703,7 +1700,7 @@ void floatTetWild::filter_outside_floodfill(Mesh& mesh, bool invert_faces) {
 }
 
 void floatTetWild::mark_outside(Mesh& mesh, bool invert_faces){
-    Eigen::MatrixXd C(mesh.get_t_num(), 3);
+    MatrixXd C(mesh.get_t_num(), 3);
     C.setZero();
     int index = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
@@ -1716,16 +1713,15 @@ void floatTetWild::mark_outside(Mesh& mesh, bool invert_faces){
     }
 //    C.conservativeResize(index, 3);
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V;
-    Eigen::Matrix<int, Eigen::Dynamic, 3> F;
+    MatrixXs V;
+    MatrixXi F;
     get_tracked_surface(mesh, V, F);
     if(invert_faces){
-        Eigen::Matrix<int, Eigen::Dynamic, 1> tmp = F.col(1);
-        F.col(1) = F.col(2).eval();
-        F.col(2) = tmp;
+        for (int i = 0; i < F.rows(); i++)
+            std::swap(F(i, 1), F(i, 2));
     }
-    Eigen::VectorXd W;
-    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    VectorXd W;
+    fast_winding_number(MatrixXd(V.cast<double>()), MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -2468,7 +2464,7 @@ void floatTetWild::manifold_vertices(Mesh& mesh){
     }
 }
 
-void floatTetWild::get_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
+void floatTetWild::get_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
 
@@ -2539,7 +2535,7 @@ void floatTetWild::get_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& 
     }
 }
 
-void floatTetWild::manifold_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
+void floatTetWild::manifold_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
 

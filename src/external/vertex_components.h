@@ -6,66 +6,59 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
-// Only the overloads taking an adjacency matrix are vendored. libigl also has a
-// face-list overload, which pulls in adjacency_matrix and is not reached here.
+// Only the overload taking an adjacency structure is vendored. libigl also has a face-list
+// overload, which pulls in adjacency_matrix and is not reached here, and a variant returning the
+// size of each component, which no caller read.
+//
+// libigl took a sparse adjacency matrix and walked each column, skipping stored zeros. The
+// adjacency lists here are that column with the zeros already dropped, ascending, which is the
+// order the sparse iterator produced.
 #ifndef FLOATTETWILD_VERTEX_COMPONENTS_H
 #define FLOATTETWILD_VERTEX_COMPONENTS_H
 
-#include <cassert>
+#include <floattetwild/Types.hpp>
+
 #include <queue>
 #include <vector>
-#include <Eigen/Core>
-#include <Eigen/Sparse>
 
 namespace floatTetWild
 {
-  // Compute connected components of a graph represented by a sparse adjacency matrix
+  // Compute connected components of a graph
   //
   // Inputs:
-  //   A  n by n sparse adjacency matrix
+  //   A  n lists of neighbours, each ascending
   // Outputs:
   //   C  n list of component ids (starting with 0)
-  //   counts  #components list of counts for each component
-  template <typename DerivedA, typename DerivedC, typename Derivedcounts>
   inline void vertex_components(
-    const Eigen::SparseCompressedBase<DerivedA> & A,
-    Eigen::PlainObjectBase<DerivedC> & C,
-    Eigen::PlainObjectBase<Derivedcounts> & counts)
+    const std::vector<std::vector<int> >& A,
+    MatrixXi& C)
   {
-    using namespace Eigen;
-    using namespace std;
-    assert(A.rows() == A.cols() && "A should be square.");
-    const size_t n = A.rows();
-    Array<bool,Dynamic,1> seen = Array<bool,Dynamic,1>::Zero(n,1);
+    const int n = A.size();
+    std::vector<bool> seen(n, false);
     C.resize(n,1);
-    typename DerivedC::Scalar id = 0;
-    vector<typename Derivedcounts::Scalar> vcounts;
+    int id = 0;
     // breadth first search
-    for(int k=0; k<A.outerSize(); ++k)
+    for(int k=0; k<n; ++k)
     {
-      if(seen(k))
+      if(seen[k])
       {
         continue;
       }
-      queue<int> Q;
+      std::queue<int> Q;
       Q.push(k);
-      vcounts.push_back(0);
       while(!Q.empty())
       {
         const int f = Q.front();
         Q.pop();
-        if(seen(f))
+        if(seen[f])
         {
           continue;
         }
-        seen(f) = true;
+        seen[f] = true;
         C(f,0) = id;
-        vcounts[id]++;
-        // Iterate over inside
-        for(typename DerivedA::InnerIterator it (A,f); it; ++it)
+        for(const int g : A[f])
         {
-          const int g = it.index();
-          if(!seen(g) && it.value())
+          if(!seen[g])
           {
             Q.push(g);
           }
@@ -73,24 +66,6 @@ namespace floatTetWild
       }
       id++;
     }
-    assert((size_t) id == vcounts.size());
-    const size_t ncc = vcounts.size();
-    assert((size_t)C.maxCoeff()+1 == ncc);
-    counts.resize(ncc,1);
-    for(size_t i = 0;i<ncc;i++)
-    {
-      counts(i) = vcounts[i];
-    }
-  }
-
-  // \overload
-  template <typename DerivedA, typename DerivedC>
-  inline void vertex_components(
-    const Eigen::SparseCompressedBase<DerivedA> & A,
-    Eigen::PlainObjectBase<DerivedC> & C)
-  {
-    Eigen::VectorXi counts;
-    return vertex_components(A,C,counts);
   }
 }
 

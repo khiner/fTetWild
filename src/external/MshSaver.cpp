@@ -127,8 +127,8 @@ void MshSaver::save_elements(
         if (!m_binary) {
             for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
                 int elem_num = i/nodes_per_element + 1;
-                VectorI elem = elements.segment(i, nodes_per_element) +
-                               VectorI::Ones(nodes_per_element);
+                VectorI elem = elements.segment(i, nodes_per_element);
+                for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
 
                 fout << elem_num << " " << elem_type << " " << tags << " ";
                 if(components.size() > 0)
@@ -145,8 +145,8 @@ void MshSaver::save_elements(
             fout.write((char*)&tags, sizeof(int));
             for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
                 int elem_num = i/nodes_per_element + 1;
-                VectorI elem = elements.segment(i, nodes_per_element) +
-                               VectorI::Ones(nodes_per_element);
+                VectorI elem = elements.segment(i, nodes_per_element);
+                for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
 
                 fout.write((char*)&elem_num, sizeof(int));
                 if(components.size() > 0){

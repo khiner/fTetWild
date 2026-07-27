@@ -6,14 +6,13 @@
 #include <string>
 #include <vector>
 
-#include <Eigen/Core>
-#include <Eigen/Dense>
+#include <floattetwild/Types.hpp>
 
 namespace PyMesh {
 
 typedef double Float;
-typedef Eigen::VectorXd VectorF;
-typedef Eigen::VectorXi VectorI;
+typedef floatTetWild::MatrixX<double> VectorF;
+typedef floatTetWild::MatrixX<int> VectorI;
 
 class MshLoader {
     public:

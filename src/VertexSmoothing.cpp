@@ -288,9 +288,7 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         Scalar  a          = 1;
         Vector3 x_next;
         for (int i = 0; i < max_search_it; i++) {
-            x_next = H.colPivHouseholderQr().solve(H * x - a * J);
-            // https://eigen.tuxfamily.org/dox/group__TutorialLinearAlgebra.html
-            // JacobiSVD
+            x_next = solve_col_piv_householder_qr(H, H * x - a * J);
             if (!x_next.allFinite())
                 break;
             for (auto& T : Ts) {

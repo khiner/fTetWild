@@ -76,7 +76,8 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
 
     faces.resize(input.facets.nb());
     for (size_t i = 0; i < faces.size(); i++)
-        faces[i] << input.facets.vertex(i, 0), input.facets.vertex(i, 1), input.facets.vertex(i, 2);
+        faces[i] << int(input.facets.vertex(i, 0)), int(input.facets.vertex(i, 1)),
+          int(input.facets.vertex(i, 2));
 }
 // Just enough JSON for the csg tree format. Objects and strings are read straight into CSGTree, and
 // a value under any other key is skipped whatever its type, which is what parsing the file into a
@@ -427,7 +428,7 @@ void CSGTreeParser::get_max_id_aux(const CSGTree& csg_tree_node, int& max)
 
 bool CSGTreeParser::keep_tet(const CSGTree&                      csg_tree_with_ids,
                              const int                           t_id,
-                             const std::vector<Eigen::VectorXd>& w)
+                             const std::vector<VectorXd>&        w)
 {
     const auto inside = [&](const CSGTree::Child& child) {
         return child.kind == CSGTree::Child::Id ? w[child.id][t_id] > 0.5

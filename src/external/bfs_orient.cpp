@@ -8,18 +8,18 @@
 
 #include <floattetwild/bfs_orient.h>
 #include <floattetwild/orientable_patches.h>
-#include <Eigen/Sparse>
 #include <queue>
+#include <vector>
 
-void floatTetWild::bfs_orient(const Eigen::Matrix<int, Eigen::Dynamic, 3> &F, Eigen::Matrix<int, Eigen::Dynamic, 3> &FF, Eigen::VectorXi &C) {
-    Eigen::SparseMatrix<int> A;
+void floatTetWild::bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
+    std::vector<std::vector<int>> A;
     orientable_patches(F, C, A);
 
     // number of faces
     const int m = F.rows();
     // number of patches
     const int num_cc = C.maxCoeff() + 1;
-    Eigen::VectorXi seen = Eigen::VectorXi::Zero(m);
+    std::vector<int> seen(m, 0);
 
     // Edge sets
     const int ES[3][2] = {{1, 2},
@@ -51,35 +51,30 @@ void floatTetWild::bfs_orient(const Eigen::Matrix<int, Eigen::Dynamic, 3> &F, Ei
         while (!Q.empty()) {
             const int f = Q.front();
             Q.pop();
-            if (seen(f) > 0)
+            if (seen[f] > 0)
                 continue;
 
-            seen(f)++;
+            seen[f]++;
             // loop over neighbors of f
-            for (Eigen::SparseMatrix<int>::InnerIterator it(A, f); it; ++it) {
-                // might be some lingering zeros, and skip self-adjacency
-                if (it.value() != 0 && it.row() != f) {
-                    const int n = it.row();
-                    assert(n != f);
-                    // loop over edges of f
-                    for (int efi = 0; efi < 3; efi++) {
-                        // efi'th edge of face f
-                        Eigen::Vector2i ef(FF(f, ES[efi][0]), FF(f, ES[efi][1]));
-                        // loop over edges of n
-                        for (int eni = 0; eni < 3; eni++) {
-                            // eni'th edge of face n
-                            Eigen::Vector2i en(FF(n, ES[eni][0]), FF(n, ES[eni][1]));
-                            // Match (half-edges go same direction)
-                            if (ef(0) == en(0) && ef(1) == en(1)) {
-                                // flip face n
-                                FF.row(n) = FF.row(n).reverse().eval();
-                                cnt_inverted++;
-                            }
+            for (const int n : A[f]) {
+                // loop over edges of f
+                for (int efi = 0; efi < 3; efi++) {
+                    // efi'th edge of face f
+                    const Vector2i ef(FF(f, ES[efi][0]), FF(f, ES[efi][1]));
+                    // loop over edges of n
+                    for (int eni = 0; eni < 3; eni++) {
+                        // eni'th edge of face n
+                        const Vector2i en(FF(n, ES[eni][0]), FF(n, ES[eni][1]));
+                        // Match (half-edges go same direction)
+                        if (ef(0) == en(0) && ef(1) == en(1)) {
+                            // flip face n
+                            std::swap(FF(n, 0), FF(n, 2));
+                            cnt_inverted++;
                         }
                     }
-                    // add neighbor to queue
-                    Q.push(n);
                 }
+                // add neighbor to queue
+                Q.push(n);
             }
         }
         if (cnt_inverted < cnt / 2)
@@ -87,7 +82,7 @@ void floatTetWild::bfs_orient(const Eigen::Matrix<int, Eigen::Dynamic, 3> &F, Ei
 
         for (int f = 0; f < FF.rows(); f++) {
             if (C(f) == c)
-                FF.row(f) = FF.row(f).reverse().eval();
+                std::swap(FF(f, 0), FF(f, 2));
         }
     }
 }

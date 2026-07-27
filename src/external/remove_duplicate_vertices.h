@@ -8,10 +8,9 @@
 #ifndef FLOATTETWILD_REMOVE_DUPLICATE_VERTICES_H
 #define FLOATTETWILD_REMOVE_DUPLICATE_VERTICES_H
 
+#include <floattetwild/Types.hpp>
 #include <floattetwild/round.h>
 #include <floattetwild/unique_rows.h>
-
-#include <Eigen/Dense>
 
 namespace floatTetWild
 {
@@ -25,37 +24,28 @@ namespace floatTetWild
   //  SV  #SV by dim new list of vertex positions
   //  SVI #SV by 1 list of indices so SV = V(SVI,:)
   //  SVJ #V by 1 list of indices so V = SV(SVJ,:)
-  template <
-    typename DerivedV,
-    typename DerivedSV,
-    typename DerivedSVI,
-    typename DerivedSVJ>
+  template <typename T, typename U>
   inline void remove_duplicate_vertices(
-    const Eigen::MatrixBase<DerivedV>& V,
+    const MatrixX<T>& V,
     const double epsilon,
-    Eigen::PlainObjectBase<DerivedSV>& SV,
-    Eigen::PlainObjectBase<DerivedSVI>& SVI,
-    Eigen::PlainObjectBase<DerivedSVJ>& SVJ)
+    MatrixX<U>& SV,
+    MatrixXi& SVI,
+    MatrixXi& SVJ)
   {
-    static_assert(
-      (DerivedSVI::RowsAtCompileTime == 1 || DerivedSVI::ColsAtCompileTime == 1) &&
-      (DerivedSVJ::RowsAtCompileTime == 1 || DerivedSVJ::ColsAtCompileTime == 1),
-      "SVI and SVJ need to have RowsAtCompileTime == 1 or ColsAtCompileTime == 1");
     if(epsilon > 0)
     {
-      // The rounded copies only feed unique_rows, so their storage order is
-      // immaterial: SV is gathered from V, not from them.
-      Eigen::Matrix<typename DerivedV::Scalar,
-                    DerivedV::RowsAtCompileTime,
-                    DerivedV::ColsAtCompileTime,
-                    DerivedV::Options> rV;
-      round((V/(epsilon)).eval(),rV);
-      Eigen::Matrix<typename DerivedV::Scalar,
-                    Eigen::Dynamic,
-                    DerivedV::ColsAtCompileTime,
-                    DerivedV::Options> rSV;
-      unique_rows(rV,rSV,SVI,SVJ);
-      SV = V(SVI.derived(),Eigen::all);
+      // The rounded copy only feeds unique_rows: SV is gathered from V, not from it.
+      MatrixX<T> scaled(V.rows(), V.cols());
+      for(int i = 0;i<V.rows();i++)
+        for(int j = 0;j<V.cols();j++)
+          scaled(i,j) = V(i,j) / T(epsilon);
+      MatrixX<T> rounded, unused;
+      round(scaled,rounded);
+      unique_rows(rounded,unused,SVI,SVJ);
+      SV.resize(SVI.rows(),V.cols());
+      for(int i = 0;i<SVI.rows();i++)
+        for(int j = 0;j<V.cols();j++)
+          SV(i,j) = U(V(SVI(i),j));
     }else
     {
       unique_rows(V,SV,SVI,SVJ);
@@ -66,31 +56,18 @@ namespace floatTetWild
   //
   // Outputs:
   //  SF  #F by dim list of face indices into SV
-  template <
-    typename DerivedV,
-    typename DerivedF,
-    typename DerivedSV,
-    typename DerivedSVI,
-    typename DerivedSVJ,
-    typename DerivedSF>
+  template <typename T, typename U>
   inline void remove_duplicate_vertices(
-    const Eigen::MatrixBase<DerivedV>& V,
-    const Eigen::MatrixBase<DerivedF>& F,
+    const MatrixX<T>& V,
+    const MatrixXi& F,
     const double epsilon,
-    Eigen::PlainObjectBase<DerivedSV>& SV,
-    Eigen::PlainObjectBase<DerivedSVI>& SVI,
-    Eigen::PlainObjectBase<DerivedSVJ>& SVJ,
-    Eigen::PlainObjectBase<DerivedSF>& SF)
+    MatrixX<U>& SV,
+    MatrixXi& SVI,
+    MatrixXi& SVJ,
+    MatrixXi& SF)
   {
-    // SVI and SVJ need to have RowsAtCompileTime == 1 or ColsAtCompileTime == 1
-    static_assert(
-      (DerivedSVI::RowsAtCompileTime == 1 || DerivedSVI::ColsAtCompileTime == 1) &&
-      (DerivedSVJ::RowsAtCompileTime == 1 || DerivedSVJ::ColsAtCompileTime == 1),
-      "SVI and SVJ need to have RowsAtCompileTime == 1 or ColsAtCompileTime == 1");
-    using namespace Eigen;
-    using namespace std;
     remove_duplicate_vertices(V,epsilon,SV,SVI,SVJ);
-    SF.resizeLike(F);
+    SF.resize(F.rows(),F.cols());
     for(int f = 0;f<F.rows();f++)
     {
       for(int c = 0;c<F.cols();c++)

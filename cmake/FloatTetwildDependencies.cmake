@@ -38,29 +38,6 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT TARGET CLI11::CLI11)
     FetchContent_MakeAvailable(cli11)
 endif()
 
-# Eigen
-# libigl used to supply Eigen3::Eigen. Its recipe fetched tag 3.4.0 and wrapped
-# the headers in an INTERFACE target rather than configuring Eigen's own CMake
-# project, so keep both the version and that shape. SOURCE_SUBDIR points at a
-# directory with no CMakeLists.txt, which skips Eigen's project, and dropping
-# the recipe's FetchContent_Populate is what stops CMake 4.x rejecting it.
-if(NOT TARGET Eigen3::Eigen)
-    FetchContent_Declare(
-        eigen
-        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG        3.4.0
-        GIT_SHALLOW    TRUE
-        SOURCE_SUBDIR  cmake
-    )
-    FetchContent_MakeAvailable(eigen)
-
-    add_library(Eigen3_Eigen INTERFACE)
-    add_library(Eigen3::Eigen ALIAS Eigen3_Eigen)
-    target_include_directories(Eigen3_Eigen SYSTEM INTERFACE ${eigen_SOURCE_DIR})
-endif()
-
-
-
 # C++11 threads
 find_package(Threads REQUIRED)
 

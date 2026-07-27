@@ -134,7 +134,9 @@ namespace floatTetWild {
             for (int d = 0; d < 3; ++d)
                 n_voxels(d) = std::max(n_voxels(d), 1);
 
-            const Vector3 delta = diag.array() / n_voxels.array().cast<Scalar>();
+            Vector3 delta;
+            for (int d = 0; d < 3; ++d)
+                delta(d) = diag(d) / Scalar(n_voxels(d));
 
             voxels.clear();
             voxels.reserve((n_voxels(0) + 1) * (n_voxels(1) + 1) * (n_voxels(2) + 1));

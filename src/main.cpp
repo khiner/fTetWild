@@ -22,7 +22,6 @@
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/MeshIO.hpp>
 
-#include <Eigen/Dense>
 #include <floattetwild/Logger.hpp>
 
 #include <floattetwild/Timer.h>
@@ -242,9 +241,9 @@ int main(int argc, char** argv)
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// set sizing field
-    Eigen::VectorXd V_in;
-    Eigen::VectorXi T_in;
-    Eigen::VectorXd values;
+    VectorXd V_in;
+    VectorXi T_in;
+    VectorXd values;
     if (!background_mesh.empty()) {
         PyMesh::MshLoader mshLoader(background_mesh);
         V_in   = mshLoader.get_nodes();
@@ -367,8 +366,8 @@ int main(int argc, char** argv)
     timer.start();
 
     if (export_raw) {
-        Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
-        Eigen::Matrix<int, Eigen::Dynamic, 3>    Ft;
+        MatrixXs Vt;
+        MatrixXi Ft;
 
         if (!csg_file.empty()) {
             int max_id = CSGTreeParser::get_max_id(tree_with_ids);
@@ -389,8 +388,8 @@ int main(int argc, char** argv)
         MeshIO::write_mesh(params.output_path + "_" + params.postfix + "_all.msh", mesh, false);
     }
 
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> Vt;
-    Eigen::Matrix<int, Eigen::Dynamic, 3>    Ft;
+    MatrixXs Vt;
+    MatrixXi Ft;
     get_tracked_surface(mesh, Vt, Ft);
     writeOBJ(params.output_path + "_" + params.postfix + "_tracked_surface.obj", Vt, Ft);
 
@@ -419,8 +418,8 @@ int main(int argc, char** argv)
             }
         }
     }
-    Eigen::MatrixXd V_sf;
-    Eigen::MatrixXi F_sf;
+    MatrixXd V_sf;
+    MatrixXi F_sf;
     if (params.manifold_surface) {
         manifold_surface(mesh, V_sf, F_sf);
     }

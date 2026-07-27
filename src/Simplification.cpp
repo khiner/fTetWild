@@ -131,15 +131,15 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
     //               input_vertices[i2][2]);
     //    }), indices.end());
 
-    MatrixXs        V_tmp(input_vertices.size(), 3), V_in;
-    Eigen::MatrixXi F_tmp(input_faces.size(), 3), F_in;
+    MatrixXs V_tmp(input_vertices.size(), 3), V_in;
+    MatrixXi F_tmp(input_faces.size(), 3), F_in;
     for (int i = 0; i < input_vertices.size(); i++)
         V_tmp.row(i) = input_vertices[i];
     for (int i = 0; i < input_faces.size(); i++)
         F_tmp.row(i) = input_faces[i];
 
     //
-    Eigen::VectorXi IV, _;
+    VectorXi IV, _;
     remove_duplicate_vertices(
       V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, IV, _, F_in);
     //
@@ -157,7 +157,7 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
         F_in.row(i) << v0_id, v1_id, v2_id;
     }
     F_tmp.resize(0, 0);
-    Eigen::VectorXi IF;
+    VectorXi IF;
     unique_rows(F_in, F_tmp, IF, _);
     F_in                            = F_tmp;
     std::vector<int> old_input_tags = input_tags;
@@ -187,9 +187,12 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
                       F_in(i, 2) == F_in(i - 1, 1)))
             continue;
         // check area
-        Vector3 u    = V_in.row(F_in(i, 1)) - V_in.row(F_in(i, 0));
-        Vector3 v    = V_in.row(F_in(i, 2)) - V_in.row(F_in(i, 0));
-        Vector3 area = u.cross(v);
+        const Vector3 p0 = V_in.row(F_in(i, 0));
+        const Vector3 p1 = V_in.row(F_in(i, 1));
+        const Vector3 p2 = V_in.row(F_in(i, 2));
+        Vector3       u    = p1 - p0;
+        Vector3       v    = p2 - p0;
+        Vector3       area = u.cross(v);
         if (area.norm() / 2 <= SCALAR_ZERO * params.bbox_diag_length)
             continue;
         input_faces.push_back(F_in.row(i));

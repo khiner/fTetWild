@@ -39,9 +39,9 @@ namespace floatTetWild {
         bool coarsen = false;
 
         bool apply_sizing_field = false;
-        Eigen::VectorXd V_sizing_field;
-        Eigen::VectorXi T_sizing_field;
-        Eigen::VectorXd values_sizing_field;
+        VectorXd V_sizing_field;
+        VectorXi T_sizing_field;
+        VectorXd values_sizing_field;
         std::function<double(const Vector3&)> get_sizing_field_value;//get sizing field value for an point
 
 #ifdef NEW_ENVELOPE

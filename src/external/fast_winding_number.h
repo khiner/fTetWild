@@ -14,10 +14,11 @@
 #include <floattetwild/FastWindingNumberForSoups.h>
 #include <floattetwild/parallel_for.h>
 
+#include <floattetwild/Types.hpp>
+
 #include <cassert>
 #include <cmath>
 #include <vector>
-#include <Eigen/Core>
 
 namespace floatTetWild
 {
@@ -44,10 +45,9 @@ namespace floatTetWild
   //   order  Taylor series expansion order to use (e.g., 2)
   // Outputs:
   //   fwn_bvh  Precomputed bounding volume hierarchy
-  template <typename DerivedV, typename DerivedF>
   inline void fast_winding_number(
-    const Eigen::MatrixBase<DerivedV> & V,
-    const Eigen::MatrixBase<DerivedF> & F,
+    const MatrixXd & V,
+    const MatrixXi & F,
     const int order,
     FastWindingNumberBVH & fwn_bvh)
   {
@@ -88,12 +88,11 @@ namespace floatTetWild
   //   Q  #Q by 3 list of query positions
   // Outputs:
   //   W  #Q list of winding number values
-  template <typename DerivedQ, typename DerivedW>
   inline void fast_winding_number(
     const FastWindingNumberBVH & fwn_bvh,
     const float accuracy_scale,
-    const Eigen::MatrixBase<DerivedQ> & Q,
-    Eigen::PlainObjectBase<DerivedW> & W)
+    const MatrixXd & Q,
+    VectorXd & W)
   {
     assert(Q.cols() == 3 && "Q should be 3D");
     W.resize(Q.rows(),1);
@@ -116,16 +115,11 @@ namespace floatTetWild
   //   Q  #Q by 3 list of query positions
   // Outputs:
   //   W  #Q list of winding number values
-  template <
-    typename DerivedV,
-    typename DerivedF,
-    typename DerivedQ,
-    typename DerivedW>
   inline void fast_winding_number(
-    const Eigen::MatrixBase<DerivedV> & V,
-    const Eigen::MatrixBase<DerivedF> & F,
-    const Eigen::MatrixBase<DerivedQ> & Q,
-    Eigen::PlainObjectBase<DerivedW> & W)
+    const MatrixXd & V,
+    const MatrixXi & F,
+    const MatrixXd & Q,
+    VectorXd & W)
   {
     FastWindingNumberBVH fwn_bvh;
     int order = 2;

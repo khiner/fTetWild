@@ -8,68 +8,49 @@
 #ifndef FLOATTETWILD_UNIQUE_ROWS_H
 #define FLOATTETWILD_UNIQUE_ROWS_H
 
+#include <floattetwild/Types.hpp>
 #include <floattetwild/sortrows.h>
 
 #include <algorithm>
 #include <vector>
-#include <Eigen/Core>
 
 namespace floatTetWild
 {
   // Act like matlab's [C,IA,IC] = unique(X,'rows')
   //
   // Inputs:
-  //  A  m by n matrix whose entries are to unique'd according to rows
+  //  A  m by n matrix whose rows are to be unique'd
   // Outputs:
-  //  C  #C vector of unique rows in A
+  //  C  #C by n matrix of unique rows of A
   //  IA  #C index vector so that C = A(IA,:);
   //  IC  #A index vector so that A = C(IC,:);
-  template <typename DerivedA, typename DerivedC, typename DerivedIA, typename DerivedIC>
+  template <typename T, typename U>
   inline void unique_rows(
-    const Eigen::DenseBase<DerivedA>& A,
-    Eigen::PlainObjectBase<DerivedC>& C,
-    Eigen::PlainObjectBase<DerivedIA>& IA,
-    Eigen::PlainObjectBase<DerivedIC>& IC)
+    const MatrixX<T>& A,
+    MatrixX<U>& C,
+    MatrixXi& IA,
+    MatrixXi& IC)
   {
-    // IA and IC need to have RowsAtCompileTime == 1 or ColsAtCompileTime == 1
-    static_assert(
-      (DerivedIA::RowsAtCompileTime == 1 || DerivedIA::ColsAtCompileTime == 1) &&
-      (DerivedIC::RowsAtCompileTime == 1 || DerivedIC::ColsAtCompileTime == 1),
-      "IA and IC need to have RowsAtCompileTime == 1 or ColsAtCompileTime == 1");
-    using namespace std;
-    using namespace Eigen;
-    VectorXi IM;
-    Eigen::Matrix<typename DerivedA::Scalar, DerivedA::RowsAtCompileTime, DerivedA::ColsAtCompileTime> sortA;
-    sortrows(A,true,sortA,IM);
-
+    MatrixXi IM;
+    MatrixX<T> sortA;
+    sortrows(A,IM,sortA);
 
     const int num_rows = sortA.rows();
     const int num_cols = sortA.cols();
-    vector<int> vIA(num_rows);
+    std::vector<int> vIA(num_rows);
     for(int i=0;i<num_rows;i++)
     {
       vIA[i] = i;
     }
 
-    auto index_equal =
-      //[&sortA, &num_cols]
-      // using & so the warnings will shut up about &num_cols (which for some
-      // templates is const at compile time and thus not required but for other
-      // templates is not known until runtime and thus needed to be captured.
-      [&]
-      (const size_t i, const size_t j) {
-      for (size_t c=0; c<num_cols; c++) {
+    const auto index_equal = [&sortA, num_cols](const int i, const int j) {
+      for (int c=0; c<num_cols; c++) {
         if (sortA(i,c) != sortA(j,c))
           return false;
       }
       return true;
     };
-    vIA.erase(
-      std::unique(
-      vIA.begin(),
-      vIA.end(),
-      index_equal
-      ),vIA.end());
+    vIA.erase(std::unique(vIA.begin(),vIA.end(),index_equal),vIA.end());
 
     IC.resize(A.rows(),1);
     {
@@ -83,14 +64,14 @@ namespace floatTetWild
         IC(IM(i,0),0) = j;
       }
     }
-    const int unique_rows = vIA.size();
-    C.resize(unique_rows,A.cols());
-    IA.resize(unique_rows,1);
+    const int n_unique = vIA.size();
+    C.resize(n_unique,A.cols());
+    IA.resize(n_unique,1);
     // Reindex IA according to IM
-    for(int i = 0;i<unique_rows;i++)
+    for(int i = 0;i<n_unique;i++)
     {
       IA(i,0) = IM(vIA[i],0);
-      C.row(i) << A.row(IA(i,0));
+      for(int j = 0;j<A.cols();j++) C(i,j) = U(A(IA(i,0),j));
     }
   }
 }

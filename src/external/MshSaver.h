@@ -5,15 +5,13 @@
 
 #include <fstream>
 #include <string>
-#include <Eigen/Core>
-#include <Eigen/Dense>
 
 namespace floatTetWild {
 namespace PyMesh {
 
 typedef floatTetWild::Scalar Float;
-typedef Eigen::Matrix<Float, Eigen::Dynamic, 1> VectorF;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1> VectorI;
+typedef MatrixX<Float> VectorF;
+typedef MatrixX<int> VectorI;
 
 class MshSaver {
     public:

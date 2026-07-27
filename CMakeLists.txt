@@ -100,8 +100,7 @@ endif()
 
 target_link_libraries(
   ${PROJECT_NAME}
-  PUBLIC Eigen3::Eigen
-         Threads::Threads
+  PUBLIC Threads::Threads
          # fast_winding_number
 )
 if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE)

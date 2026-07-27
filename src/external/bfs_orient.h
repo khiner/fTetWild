@@ -8,7 +8,7 @@
 #ifndef FLOATTETWILD_BFS_ORIENT_H
 #define FLOATTETWILD_BFS_ORIENT_H
 
-#include <Eigen/Core>
+#include <floattetwild/Types.hpp>
 namespace floatTetWild {
     // Consistently orient faces in orientable patches using BFS
     //
@@ -21,9 +21,6 @@ namespace floatTetWild {
     //  C  #F list of component ids
     //
     //
-//    template<typename DerivedF, typename DerivedFF, typename DerivedC>
-//    void bfs_orient(const Eigen::MatrixBase<DerivedF> &F, Eigen::PlainObjectBase<DerivedFF> &FF,
-//                    Eigen::PlainObjectBase<DerivedC> &C);
-    void bfs_orient(const Eigen::Matrix<int, Eigen::Dynamic, 3> &F, Eigen::Matrix<int, Eigen::Dynamic, 3> &FF, Eigen::VectorXi &C);
+    void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C);
 }
 #endif

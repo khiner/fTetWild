@@ -8,16 +8,17 @@
 #ifndef FLOATTETWILD_ROUND_H
 #define FLOATTETWILD_ROUND_H
 
+#include <floattetwild/Types.hpp>
+
 #include <cmath>
-#include <Eigen/Dense>
 
 namespace floatTetWild
 {
   // Round a scalar value
   //
   // http://stackoverflow.com/a/485549
-  template <typename DerivedX>
-  inline DerivedX round(const DerivedX r)
+  template <typename T>
+  inline T round(const T r)
   {
     return (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
   }
@@ -28,16 +29,12 @@ namespace floatTetWild
   //  X  m by n matrix of scalars
   // Outputs:
   //  Y  m by n matrix of rounded integers
-  template <typename DerivedX, typename DerivedY>
-  inline void round(
-    const Eigen::MatrixBase<DerivedX>& X,
-    Eigen::PlainObjectBase<DerivedY>& Y)
+  template <typename T>
+  inline void round(const MatrixX<T>& X, MatrixX<T>& Y)
   {
-    Y.resizeLike(X);
-    // loop over rows
+    Y.resize(X.rows(),X.cols());
     for(int i = 0;i<X.rows();i++)
     {
-      // loop over cols
       for(int j = 0;j<X.cols();j++)
       {
         Y(i,j) = floatTetWild::round(X(i,j));

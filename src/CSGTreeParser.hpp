@@ -77,9 +77,9 @@ class CSGTreeParser
         return max;
     }
 
-    static bool keep_tet(const CSGTree&                      csg_tree_with_ids,
-                         const int                           t_id,
-                         const std::vector<Eigen::VectorXd>& w);
+    static bool keep_tet(const CSGTree&               csg_tree_with_ids,
+                         const int                    t_id,
+                         const std::vector<VectorXd>& w);
 
     static void merge(const std::vector<std::vector<Vector3>>&  Vs,
                       const std::vector<std::vector<Vector3i>>& Fs,

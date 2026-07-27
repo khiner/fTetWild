@@ -53,6 +53,9 @@ set(SOURCES
 
 	Parameters.h
 
+	Matrix.hpp
+	Matrix.ipp
+
 	Types.hpp
 
 	Statistics.h
