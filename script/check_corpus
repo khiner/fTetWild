@@ -25,8 +25,8 @@ CorpusDir = RepoDir / "corpus"
 ListPath = RepoDir / "script" / "fast_corpus.txt"
 Timeout = 600
 
-# The .stl writer puts the output path in its solid header, so every run writes to the same place.
-Suffixes = [".msh", ".msh__sf.obj", ".msh__tracked_surface.stl"]
+# Every run writes to the same place, so nothing that embeds the output path can vary between runs.
+Suffixes = [".msh", ".msh__sf.obj", ".msh__tracked_surface.obj"]
 
 
 def read_list():

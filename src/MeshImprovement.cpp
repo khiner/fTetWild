@@ -1168,8 +1168,7 @@ int floatTetWild::get_max_p(const Mesh &mesh)
     return max_p;
 }
 
-#include <igl/writeOBJ.h>
-#include <igl/writeSTL.h>
+#include <floattetwild/writeOBJ.h>
 #include <floattetwild/Predicates.hpp>
 
 void floatTetWild::output_surface(Mesh& mesh, const std::string& filename) {
@@ -1214,7 +1213,7 @@ void floatTetWild::output_surface(Mesh& mesh, const std::string& filename) {
             }
         }
     }
-    igl::writeSTL(filename + ".stl", Eigen::MatrixXd(V_sf), Eigen::MatrixXi(F_sf));
+    writeOBJ(filename + ".obj", Eigen::MatrixXd(V_sf), Eigen::MatrixXi(F_sf));
 }
 
 //void floatTetWild::apply_sizingfield(const Eigen::VectorXd& V_in, const Eigen::VectorXi& T_in, const Eigen::VectorXd& values,
@@ -1381,7 +1380,7 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::
             }
         }
     }
-//    igl::writeSTL("before_bfs.stl", V_sf, F_sf);
+//    writeSTL("before_bfs.stl", V_sf, F_sf);
 
     if (true || mesh.params.correct_surface_orientation) {
         Eigen::MatrixXd V;
@@ -1392,7 +1391,7 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, Eigen::Matrix<Scalar, Eigen::
         F_sf.resize(0, 3);
         bfs_orient(F, F_sf, _1);
     }
-    igl::writeSTL(mesh.params.output_path + "_" + mesh.params.postfix + "_tracked_surface.stl", V_sf, F_sf);
+    writeOBJ(mesh.params.output_path + "_" + mesh.params.postfix + "_tracked_surface.obj", V_sf, F_sf);
 }
 
 void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree){

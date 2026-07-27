@@ -24,8 +24,6 @@
 #include <floattetwild/MeshImprovement.h>  //fortest
 
 #include <floattetwild/Timer.h>
-#include <igl/writeOFF.h>
-#include <igl/writeSTL.h>
 
 #include <oneapi/tbb.h>
 #include <oneapi/tbb/parallel_for.h>
@@ -530,7 +528,7 @@ void floatTetWild::insert_triangles_aux(const std::vector<Vector3>&  input_verti
     //        F.row(cnt) << input_faces[i][0], input_faces[i][1], input_faces[i][2];
     //        cnt++;
     //    }
-    //    igl::writeSTL(mesh.params.output_path+"_"+mesh.params.postfix+"_uninserted.stl", V, F);
+    //    writeSTL(mesh.params.output_path+"_"+mesh.params.postfix+"_uninserted.stl", V, F);
     //    //
     //    std::ofstream fout(mesh.params.output_path+"_"+mesh.params.postfix+"_b_es.obj");
     //    for(int i=0;i<tree.tmp_b_mesh.vertices.nb();i++){
@@ -1402,7 +1400,7 @@ void floatTetWild::find_cutting_tets(int                           f_id,
             //                            V.row(k) = mesh.tet_vertices[mesh.tets[t_id][k]].pos;
             //                            F.row(k) << (k + 1) % 4, (k + 2) % 4, (k + 3) % 4;
             //                        }
-            //                        igl::writeOFF("test_cut_t_ids1_"+std::to_string(t_id)+".off",
+            //                        writeOFF("test_cut_t_ids1_"+std::to_string(t_id)+".off",
             //                        V, F);
             //                    }
             //                }
@@ -1414,7 +1412,7 @@ void floatTetWild::find_cutting_tets(int                           f_id,
             //                            V.row(k) = mesh.tet_vertices[mesh.tets[t_id][k]].pos;
             //                            F.row(k) << (k + 1) % 4, (k + 2) % 4, (k + 3) % 4;
             //                        }
-            //                        igl::writeOFF("test_cut_t_ids1_"+std::to_string(t_id)+".off",
+            //                        writeOFF("test_cut_t_ids1_"+std::to_string(t_id)+".off",
             //                        V, F);
             //                    }
             //                    {
@@ -1423,7 +1421,7 @@ void floatTetWild::find_cutting_tets(int                           f_id,
             //                        for (int k = 0; k < 3; k++)
             //                            V.row(k) = input_vertices[input_faces[f_id][k]];
             //                        F.row(0) << 0, 1, 2;
-            //                        igl::writeOFF("test_cut_t_ids2_"+std::to_string(t_id)+".off",
+            //                        writeOFF("test_cut_t_ids2_"+std::to_string(t_id)+".off",
             //                        V, F);
             //                    }
             ////                    pausee();
@@ -2105,35 +2103,6 @@ bool floatTetWild::insert_boundary_edges(
     //    time_e4 = 0;
     Timer timer;
 
-    // fortest
-    auto check_corvered_area = [&](int I, const std::vector<std::array<int, 3>>& cut_fs) {
-        int f_id = b_edge_infos[I].second[0];
-        {
-            auto&           infos = cut_fs;
-            Eigen::MatrixXd V(infos.size() * 3, 3), C(infos.size() * 3, 3);
-            Eigen::MatrixXi F(infos.size(), 3);
-            for (int i = 0; i < infos.size(); i++) {
-                for (int j = 0; j < 3; j++) {
-                    V.row(i * 3 + j) = mesh.tet_vertices[infos[i][j]].pos;
-                    C.row(i * 3 + j) << 0, 0, 255;
-                }
-                F.row(i) << i * 3, i * 3 + 1, i * 3 + 2;
-            }
-            igl::writeOFF("_covered_tet_fs_" + std::to_string(f_id) + ".off", V, F, C);
-        }
-        {
-            Eigen::MatrixXd V(3, 3), C(3, 3);
-            Eigen::MatrixXi F(1, 3);
-            for (int j = 0; j < 3; j++) {
-                V.row(j) = input_vertices[input_faces[f_id][j]];
-                C.row(j) << 255, 0, 0;
-            }
-            F.row(0) << 0, 1, 2;
-            igl::writeOFF("_input_f_" + std::to_string(f_id) + ".off", V, F, C);
-        }
-        pausee();
-    };
-    // fortest
 
     auto mark_known_surface_fs = [&](const std::array<int, 3>& f, int tag) {
         std::vector<int> n_t_ids;
@@ -2697,7 +2666,7 @@ bool floatTetWild::insert_boundary_edges_get_intersecting_edges_and_points(
     //        }
     //        F.row(i) << i * 3, i * 3 + 1, i * 3 + 2;
     //    }
-    //    igl::writeOFF("test_f.off", V, F, C);
+    //    writeOFF("test_f.off", V, F, C);
     ////            Eigen::MatrixXd V(3, 3), C(3, 3);
     ////            Eigen::MatrixXi F(1, 3);
     ////            for (int j = 0; j < 3; j++) {
@@ -2705,7 +2674,7 @@ bool floatTetWild::insert_boundary_edges_get_intersecting_edges_and_points(
     ////                C.row(j) << 0, 0, 1;
     ////            }
     ////            F.row(i) << 0, 1, 2;
-    ////            igl::writeOFF("test_f.off", V, F, C);
+    ////            writeOFF("test_f.off", V, F, C);
     //    //
     //    std::ofstream fout("test_e.obj");
     //    fout << "v " << input_vertices[e[0]].transpose() << endl;
@@ -2898,14 +2867,14 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                 /// k++) { /                                    V.row(i * 3 + k) =
                 /// input_vertices[input_faces[f_ids[i]][k]]; / C.row(i * 3 + k) << 0, 0, 255; / } /
                 /// F.row(i) << i * 3, i * 3 + 1, i * 3 + 2; /                            } /
-                /// igl::writeOFF("_covered_input_fs_" + std::to_string(t_id) + ".off", V, F, C); /
+                /// writeOFF("_covered_input_fs_" + std::to_string(t_id) + ".off", V, F, C); /
                 /// } /                        { /                            Eigen::MatrixXd V(3,
                 /// 3), C(3, 3); /                            Eigen::MatrixXi F(1, 3); / for (int k
                 /// = 0; k < 3; k++) { /                                V.row(k) =
                 /// mesh.tet_vertices[mesh.tets[t_id][(j
                 ///+ 1 + k) % 4]].pos; /                                C.row(k) << 255, 0, 0; / }
                 ////                            F.row(0) << 0, 1, 2;
-                ////                            igl::writeOFF("_covered_tet_f_" +
+                ////                            writeOFF("_covered_tet_f_" +
                 /// std::to_string(t_id) + ".off", V, F, C); /                        } / pausee();
                 ////                    }
                 //                    //fortest
@@ -3122,7 +3091,7 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
     //            V.row(i * 3 + j) = mesh.tet_vertices[known_surface_fs[i][j]].pos;
     //        F.row(i) << i * 3, i * 3 + 1, i * 3 + 2;
     //    }
-    //    igl::writeOFF("known_surface_fs.off",V, F);
+    //    writeOFF("known_surface_fs.off",V, F);
     //    pausee("writing known_surface_fs.off");
 
     // b_edges
@@ -3486,40 +3455,6 @@ void floatTetWild::check_track_surface_fs(
             //        if (f_id != 3083)
             continue;
         cout << i << " f_id = " << f_id << endl;
-        // output input/tet triangles in different colors
-        {
-            auto&           infos = covered_fs_infos[f_id];
-            Eigen::MatrixXd V(infos.size() * 3, 3), C(infos.size() * 3, 3);
-            Eigen::MatrixXi F(infos.size(), 3);
-            for (int i = 0; i < infos.size(); i++) {
-                int t_id = infos[i].first;
-                int k    = infos[i].second;
-                for (int j = 0; j < 3; j++) {
-                    V.row(i * 3 + j) = mesh.tet_vertices[mesh.tets[t_id][(k + j + 1) % 4]].pos;
-                    C.row(i * 3 + j) << 0, 0, 255;
-                }
-                F.row(i) << i * 3, i * 3 + 1, i * 3 + 2;
-            }
-            igl::writeOFF(std::to_string(i) + "_covered_tet_fs_" + std::to_string(f_id) + "_" +
-                            std::to_string(is_inside) + ".off",
-                          V,
-                          F,
-                          C);
-        }
-        {
-            Eigen::MatrixXd V(3, 3), C(3, 3);
-            Eigen::MatrixXi F(1, 3);
-            for (int j = 0; j < 3; j++) {
-                V.row(j) = f_vs[j];
-                C.row(j) << 255, 0, 0;
-            }
-            F.row(0) << 0, 1, 2;
-            igl::writeOFF(std::to_string(i) + "_covered_input_f_" + std::to_string(f_id) + "_" +
-                            std::to_string(is_inside) + ".off",
-                          V,
-                          F,
-                          C);
-        }
         //        pausee();
     }
 }

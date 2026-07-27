@@ -119,7 +119,7 @@ The baseline goes to the gitignored `corpus/`, so record it per machine. On CMak
 
 The inputs of our software are triangle surface meshes in `.off/.obj/.stl/.ply` format.
 
-We support `.mesh/.msh` format output. The default output format is `.msh` with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). You can use `PyMesh::MshLoader` and `PyMesh::MshSaver` in `pymesh/` for read and write `.msh` meshes.
+The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). You can use `PyMesh::MshLoader` and `PyMesh::MshSaver` in `pymesh/` for read and write `.msh` meshes. Surface meshes are written in `.obj` format.
 
 
 ### Features

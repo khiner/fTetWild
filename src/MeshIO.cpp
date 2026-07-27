@@ -15,7 +15,7 @@
 #include <floattetwild/Timer.h>
 #include <igl/boundary_facets.h>
 #include <floattetwild/remove_unreferenced.h>
-#include <igl/write_triangle_mesh.h>
+#include <floattetwild/writeOBJ.h>
 
 #include <geogram/mesh/mesh_geometry.h>
 #include <geogram/mesh/mesh_io.h>
@@ -89,129 +89,76 @@ void write_mesh_aux(const std::string&              path,
                     const std::function<bool(int)>& skip_tet,
                     const std::function<bool(int)>& skip_vertex)
 {
-    std::string output_format = path.substr(path.size() - 4, 4);
+    assert(color.empty() || color.size() == mesh.tet_vertices.size() ||
+           color.size() == mesh.tets.size());
 
-    if (output_format == "mesh") {
-        if (binary)
-            logger().warn("Only non binary mesh supported, ignoring");
+    PyMesh::MshSaver mesh_saver(path, binary);
 
-        std::ofstream f(path);
-        f.precision(std::numeric_limits<Scalar>::digits10 + 1);
-
-        f << "MeshVersionFormatted 1" << std::endl;
-        f << "Dimension 3" << std::endl;
-
-        int                cnt_v = 0;
-        std::map<int, int> old_2_new;
-        for (int i = 0; i < mesh.tet_vertices.size(); i++) {
-            if (!skip_vertex(i)) {
-                old_2_new[i] = cnt_v;
-                cnt_v++;
-            }
+    std::map<int, int> old_2_new;
+    int                cnt_v = 0;
+    for (int i = 0; i < mesh.tet_vertices.size(); i++) {
+        if (!skip_vertex(i)) {
+            old_2_new[i] = cnt_v;
+            cnt_v++;
         }
-        int cnt_t = 0;
-        for (const int i : t_ids) {
-            if (!skip_tet(i))
-                cnt_t++;
-        }
-
-        f << "Vertices" << std::endl << cnt_v << std::endl;
-
-        for (size_t i = 0; i < mesh.tet_vertices.size(); i++) {
-            if (skip_vertex(i))
-                continue;
-            f << mesh.tet_vertices[i][0] << " " << mesh.tet_vertices[i][1] << " "
-              << mesh.tet_vertices[i][2] << " " << 0 << std::endl;
-        }
-
-        f << "Triangles" << std::endl << 0 << std::endl;
-        f << "Tetrahedra" << std::endl << cnt_t << std::endl;
-        const std::array<int, 4> new_indices = {{0, 1, 3, 2}};
-
-        for (const int i : t_ids) {
-            if (skip_tet(i))
-                continue;
-            for (int j = 0; j < 4; j++) {
-                f << old_2_new[mesh.tets[i][new_indices[j]]] + 1 << " ";
-            }
-            f << 0 << std::endl;
-        }
-
-        f << "End";
-        f.close();
     }
-    else {
-        assert(color.empty() || color.size() == mesh.tet_vertices.size() ||
-               color.size() == mesh.tets.size());
+    int cnt_t = 0;
+    for (const int i : t_ids) {
+        if (!skip_tet(i))
+            cnt_t++;
+    }
+    PyMesh::VectorF V_flat(cnt_v * 3);
+    PyMesh::VectorI T_flat(cnt_t * 4);
+    PyMesh::VectorI C_flat;
 
-        PyMesh::MshSaver mesh_saver(path, binary);
+    if(separate_components)
+        C_flat.resize(cnt_t);
 
-        std::map<int, int> old_2_new;
-        int                cnt_v = 0;
-        for (int i = 0; i < mesh.tet_vertices.size(); i++) {
-            if (!skip_vertex(i)) {
-                old_2_new[i] = cnt_v;
-                cnt_v++;
-            }
-        }
-        int cnt_t = 0;
-        for (const int i : t_ids) {
-            if (!skip_tet(i))
-                cnt_t++;
-        }
-        PyMesh::VectorF V_flat(cnt_v * 3);
-        PyMesh::VectorI T_flat(cnt_t * 4);
-        PyMesh::VectorI C_flat;
+    size_t index = 0;
+    for (size_t i = 0; i < mesh.tet_vertices.size(); ++i) {
+        if (skip_vertex(i))
+            continue;
+        for (int j = 0; j < 3; j++)
+            V_flat[index * 3 + j] = mesh.tet_vertices[i][j];
+        index++;
+    }
 
-        if(separate_components)
-            C_flat.resize(cnt_t);
+    index = 0;
+    for (const int i : t_ids) {
+        if (skip_tet(i))
+            continue;
+        T_flat[index * 4 + 0] = old_2_new[mesh.tets[i][0]];
+        T_flat[index * 4 + 1] = old_2_new[mesh.tets[i][1]];
+        T_flat[index * 4 + 2] = old_2_new[mesh.tets[i][3]];
+        T_flat[index * 4 + 3] = old_2_new[mesh.tets[i][2]];
 
-        size_t index = 0;
-        for (size_t i = 0; i < mesh.tet_vertices.size(); ++i) {
-            if (skip_vertex(i))
-                continue;
-            for (int j = 0; j < 3; j++)
-                V_flat[index * 3 + j] = mesh.tet_vertices[i][j];
-            index++;
-        }
+        if (separate_components)
+            C_flat[index] = mesh.tets[i].scalar;
 
+        index++;
+    }
+
+    mesh_saver.save_mesh(V_flat, T_flat, C_flat, 3, mesh_saver.TET);
+
+    if (color.size() == mesh.tets.size()) {
+        PyMesh::VectorF color_flat(cnt_t);
         index = 0;
         for (const int i : t_ids) {
             if (skip_tet(i))
                 continue;
-            T_flat[index * 4 + 0] = old_2_new[mesh.tets[i][0]];
-            T_flat[index * 4 + 1] = old_2_new[mesh.tets[i][1]];
-            T_flat[index * 4 + 2] = old_2_new[mesh.tets[i][3]];
-            T_flat[index * 4 + 3] = old_2_new[mesh.tets[i][2]];
-
-            if (separate_components)
-                C_flat[index] = mesh.tets[i].scalar;
-
-            index++;
+            color_flat[index++] = color[i];
         }
-
-        mesh_saver.save_mesh(V_flat, T_flat, C_flat, 3, mesh_saver.TET);
-
-        if (color.size() == mesh.tets.size()) {
-            PyMesh::VectorF color_flat(cnt_t);
-            index = 0;
-            for (const int i : t_ids) {
-                if (skip_tet(i))
-                    continue;
-                color_flat[index++] = color[i];
-            }
-            mesh_saver.save_elem_scalar_field("color", color_flat);
+        mesh_saver.save_elem_scalar_field("color", color_flat);
+    }
+    else if (color.size() == mesh.tet_vertices.size()) {
+        PyMesh::VectorF color_flat(cnt_v);
+        index = 0;
+        for (int i = 0; i < mesh.tet_vertices.size(); i++) {
+            if (skip_vertex(i))
+                continue;
+            color_flat[index++] = color[i];
         }
-        else if (color.size() == mesh.tet_vertices.size()) {
-            PyMesh::VectorF color_flat(cnt_v);
-            index = 0;
-            for (int i = 0; i < mesh.tet_vertices.size(); i++) {
-                if (skip_vertex(i))
-                    continue;
-                color_flat[index++] = color[i];
-            }
-            mesh_saver.save_scalar_field("color", color_flat);
-        }
+        mesh_saver.save_scalar_field("color", color_flat);
     }
 }
 }  // namespace
@@ -559,7 +506,7 @@ void MeshIO::write_surface_mesh(const std::string& path, const Mesh& mesh, const
         extract_surface_mesh(mesh, skip_tet, skip_vertex, V_sf, F_sf);
     }
 
-    igl::write_triangle_mesh(path, V_sf, F_sf);
+    writeOBJ(path, V_sf, F_sf);
 
     timer.stop();
     logger().info(" took {}s", timer.getElapsedTime());

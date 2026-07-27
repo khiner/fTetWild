@@ -29,7 +29,7 @@
 #include <floattetwild/Logger.hpp>
 
 #include <floattetwild/Timer.h>
-#include <igl/write_triangle_mesh.h>
+#include <floattetwild/writeOBJ.h>
 #include "igl/default_num_threads.h"
 
 
@@ -555,7 +555,7 @@ int main(int argc, char** argv)
 
             for (int i = 0; i <= max_id; ++i) {
                 get_tracked_surface(mesh, Vt, Ft, i);
-                igl::write_triangle_mesh(
+                writeOBJ(
                   params.output_path + "_" + params.postfix + "_" + std::to_string(i) + "_all.obj",
                   Vt,
                   Ft);
@@ -563,7 +563,7 @@ int main(int argc, char** argv)
         }
         else {
             get_tracked_surface(mesh, Vt, Ft);
-            igl::write_triangle_mesh(
+            writeOBJ(
               params.output_path + "_" + params.postfix + "_all.obj", Vt, Ft);
         }
         MeshIO::write_mesh(params.output_path + "_" + params.postfix + "_all.msh", mesh, false);
@@ -636,7 +636,7 @@ int main(int argc, char** argv)
     }
     // fortest
     MeshIO::write_mesh(output_mesh_name, mesh, false, colors, !nobinary, !csg_file.empty());
-    igl::write_triangle_mesh(params.output_path + "_" + params.postfix + "_sf.obj", V_sf, F_sf);
+    writeOBJ(params.output_path + "_" + params.postfix + "_sf.obj", V_sf, F_sf);
     //    MeshIO::write_surface_mesh(params.output_path + "_" + params.postfix + "_sf.obj", mesh,
     //    false);
 
@@ -655,8 +655,6 @@ int main(int argc, char** argv)
 }
 
 // #include <igl/readSTL.h>
-// #include <igl/writeSTL.h>
-// #include <igl/writeOFF.h>
 //  void connect_2_meshes(std::string m1, std::string m2, std::string m) {
 //     Eigen::MatrixXd v1, v2, _;
 //     Eigen::MatrixXi f1, f2;
@@ -675,8 +673,8 @@ int main(int argc, char** argv)
 //     MatrixXi F(f1.rows() + f2.rows(), f1.cols());
 //     F << f1, f2;
 //
-////    igl::writeOFF(m+".off", V, F);
-//    igl::writeSTL(m+".stl", V, F);
+////    writeOFF(m+".off", V, F);
+//    writeSTL(m+".stl", V, F);
 //    std::ofstream fout(m+"_tags.txt");
 //    for (int i = 0; i < f1.rows(); i++)
 //        fout << 1 << endl;

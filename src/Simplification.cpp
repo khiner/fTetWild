@@ -13,7 +13,7 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/remove_duplicate_vertices.h>
 #include <floattetwild/unique_rows.h>
-#include <igl/writeOFF.h>
+#include <floattetwild/writeOBJ.h>
 
 #ifdef FLOAT_TETWILD_USE_TBB
 #include <oneapi/tbb/concurrent_unordered_set.h>
@@ -113,7 +113,7 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
             F.row(i) = input_faces[i];
         }
         if (!params.output_path.empty()) {
-            igl::writeOFF(params.output_path + "_" + params.postfix + "_simplify.off", V, F);
+            writeOBJ(params.output_path + "_" + params.postfix + "_simplify.obj", V, F);
         }
     }
 
@@ -1028,5 +1028,5 @@ void floatTetWild::output_component(const std::vector<Vector3>&  input_vertices,
             F.row(cnt++) = input_faces[i];
     }
 
-    igl::writeOFF("comp.off", V, F);
+    writeOBJ("comp.obj", V, F);
 }

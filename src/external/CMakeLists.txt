@@ -30,6 +30,8 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 		remove_duplicate_vertices.h
 		remove_unreferenced.h
 
+		writeOBJ.h
+
 #			WindingNumber.h
 #		FastWindingNumber.hpp
 #		FastWindingNumber.cpp
@@ -67,6 +69,8 @@ else()
 			unique_rows.h
 			remove_duplicate_vertices.h
 			remove_unreferenced.h
+
+			writeOBJ.h
 
 			Rational.h
 			)
