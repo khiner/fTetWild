@@ -24,8 +24,7 @@
 #include <floattetwild/Logger.hpp>
 
 #include <floattetwild/Timer.h>
-#include <igl/winding_number.h>
-#include <igl/fast_winding_number.h>
+#include <floattetwild/fast_winding_number.h>
 
 #include <floattetwild/MshLoader.h>
 
@@ -1469,12 +1468,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, 
         for (int i = 0; i <= max_id; ++i) {
             get_tracked_surface(mesh, vs, fs, i);
 
-            if (!mesh.params.use_general_wn)
-                igl::fast_winding_number(
-                  Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
-            else
-                igl::winding_number(
-                  Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
+            fast_winding_number(
+              Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
         }
     }
     else {
@@ -1503,12 +1498,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, const json& csg_tree_with_ids, 
             for (int k = 0; k < fs.rows(); ++k)
                 fs.row(k) = Fs[i][k];
 
-            if (!mesh.params.use_general_wn)
-                igl::fast_winding_number(
-                  Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
-            else
-                igl::winding_number(
-                  Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
+            fast_winding_number(
+              Eigen::MatrixXd(vs.cast<double>()), Eigen::MatrixXi(fs), C, w[i]);
             }
         }
 
@@ -1570,13 +1561,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
     }
 
     Eigen::VectorXd w1, w2;
-    if(!mesh.params.use_general_wn) {
-        igl::fast_winding_number(Eigen::MatrixXd(v1.cast<double>()), Eigen::MatrixXi(f1), C, w1);
-        igl::fast_winding_number(Eigen::MatrixXd(v2.cast<double>()), Eigen::MatrixXi(f2), C, w2);
-    }else {
-        igl::winding_number(Eigen::MatrixXd(v1.cast<double>()), Eigen::MatrixXi(f1), C, w1);
-        igl::winding_number(Eigen::MatrixXd(v2.cast<double>()), Eigen::MatrixXi(f2), C, w2);
-    }
+    fast_winding_number(Eigen::MatrixXd(v1.cast<double>()), Eigen::MatrixXi(f1), C, w1);
+    fast_winding_number(Eigen::MatrixXd(v2.cast<double>()), Eigen::MatrixXi(f2), C, w2);
 
 
     int cnt = 0;
@@ -1627,10 +1613,7 @@ void floatTetWild::filter_outside(Mesh& mesh, bool invert_faces) {
         F.col(1) = F.col(2).eval();
         F.col(2) = tmp;
     }
-    if(!mesh.params.use_general_wn)
-        igl::fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
-    else
-        igl::winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -1704,10 +1687,7 @@ void floatTetWild::filter_outside(Mesh& mesh, const std::vector<Vector3> &input_
 //        F.col(1) = F.col(2).eval();
 //        F.col(2) = tmp;
 //    }
-    if(!mesh.params.use_general_wn)
-        igl::fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
-    else
-        igl::winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -1818,10 +1798,7 @@ void floatTetWild::mark_outside(Mesh& mesh, bool invert_faces){
         F.col(2) = tmp;
     }
     Eigen::VectorXd W;
-    if(!mesh.params.use_general_wn)
-        igl::fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
-    else
-        igl::winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
+    fast_winding_number(Eigen::MatrixXd(V.cast<double>()), Eigen::MatrixXi(F), C, W);
 
     index = 0;
     int n_tets = 0;
@@ -2635,7 +2612,6 @@ void floatTetWild::get_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& 
     }
 }
 
-#include <igl/is_vertex_manifold.h>
 void floatTetWild::manifold_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
@@ -2712,19 +2688,5 @@ void floatTetWild::manifold_surface(Mesh& mesh, Eigen::MatrixXd& V, Eigen::Matri
         }
         conn_f4v.push_back(f_group);
     }
-
-    //fortest
-    Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> B;
-    igl::is_vertex_manifold(F, B);
-    cout << B.rows() << endl;
-    int cnt = 0;
-    for (int i = 0; i < B.rows(); i++) {
-        if (!B(i, 0)) {
-            cnt++;
-//            cout << "non-manifold " << i << " " << V.row(i) << endl;
-        }
-    }
-    cout << cnt << endl;
-    //fortest
 
 }

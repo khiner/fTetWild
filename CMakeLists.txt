@@ -54,17 +54,6 @@ option(SANITIZE_MEMORY "Sanitize Memory" OFF)
 option(SANITIZE_THREAD "Sanitize Thread" OFF)
 option(SANITIZE_UNDEFINED "Sanitize Undefined" OFF)
 
-# Options for libigl modules
-option(LIBIGL_USE_STATIC_LIBRARY "Use libigl as static library" OFF)
-option(LIBIGL_WITH_COMISO "Use CoMiso" OFF)
-option(LIBIGL_WITH_EMBREE "Use Embree" OFF)
-option(LIBIGL_WITH_OPENGL "Use OpenGL" OFF)
-option(LIBIGL_WITH_OPENGL_GLFW "Use GLFW" OFF)
-option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui" OFF)
-option(LIBIGL_WITH_PNG "Use PNG" OFF)
-option(LIBIGL_WITH_TETGEN "Use Tetgen" OFF)
-option(LIBIGL_WITH_TRIANGLE "Use Triangle" OFF)
-option(LIBIGL_WITH_XML "Use XML" OFF)
 
 # Sanitizers
 if(FLOAT_TETWILD_WITH_SANITIZERS)
@@ -119,7 +108,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${GMP_INCLUDE_DIRS})
 
 target_link_libraries(
   ${PROJECT_NAME}
-  PUBLIC igl::core
+  PUBLIC Eigen3::Eigen
          geogram::geogram
          spdlog::spdlog
          Threads::Threads
@@ -149,11 +138,6 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT)
 
     target_link_libraries(${PROJECT_NAME}_bin PUBLIC ${PROJECT_NAME} CLI11::CLI11
                                                    warnings::all)
-
-    if(TARGET igl::tetgen)
-        target_link_libraries(${PROJECT_NAME} PUBLIC igl::tetgen)
-        target_compile_definitions(${PROJECT_NAME} PUBLIC -DLIBIGL_WITH_TETGEN)
-    endif()
 
     if(FLOAT_TETWILD_WITH_SANITIZERS)
         add_sanitizers(${PROJECT_NAME}_bin)

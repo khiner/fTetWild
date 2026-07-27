@@ -7,13 +7,13 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 
 #include <floattetwild/bfs_orient.h>
-#include <igl/orientable_patches.h>
+#include <floattetwild/orientable_patches.h>
 #include <Eigen/Sparse>
 #include <queue>
 
 void floatTetWild::bfs_orient(const Eigen::Matrix<int, Eigen::Dynamic, 3> &F, Eigen::Matrix<int, Eigen::Dynamic, 3> &FF, Eigen::VectorXi &C) {
     Eigen::SparseMatrix<int> A;
-    igl::orientable_patches(F, C, A);
+    orientable_patches(F, C, A);
 
     // number of faces
     const int m = F.rows();

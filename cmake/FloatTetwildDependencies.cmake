@@ -62,20 +62,26 @@ if(NOT TARGET spdlog::spdlog)
     FetchContent_MakeAvailable(spdlog)
 endif()
 
-# libigl
-if(NOT TARGET igl::core)
+# Eigen
+# libigl used to supply Eigen3::Eigen. Its recipe fetched tag 3.4.0 and wrapped
+# the headers in an INTERFACE target rather than configuring Eigen's own CMake
+# project, so keep both the version and that shape. SOURCE_SUBDIR points at a
+# directory with no CMakeLists.txt, which skips Eigen's project, and dropping
+# the recipe's FetchContent_Populate is what stops CMake 4.x rejecting it.
+if(NOT TARGET Eigen3::Eigen)
     FetchContent_Declare(
-        libigl
-        GIT_REPOSITORY https://github.com/libigl/libigl.git
-        GIT_TAG        v2.6.0   
+        eigen
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG        3.4.0
+        GIT_SHALLOW    TRUE
+        SOURCE_SUBDIR  cmake
     )
-    set(LIBIGL_BUILD_STATIC ON CACHE BOOL "" FORCE)
-    set(LIBIGL_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(libigl)
-endif()
+    FetchContent_MakeAvailable(eigen)
 
-# Import libigl targets - use FetchContent source directory
-list(APPEND CMAKE_MODULE_PATH "${libigl_SOURCE_DIR}/cmake")
+    add_library(Eigen3_Eigen INTERFACE)
+    add_library(Eigen3::Eigen ALIAS Eigen3_Eigen)
+    target_include_directories(Eigen3_Eigen SYSTEM INTERFACE ${eigen_SOURCE_DIR})
+endif()
 
 # Geogram
 if(NOT TARGET geogram::geogram)

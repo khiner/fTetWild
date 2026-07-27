@@ -13,8 +13,6 @@
 #include <floattetwild/Logger.hpp>
 
 #include <floattetwild/Timer.h>
-#include <igl/boundary_facets.h>
-#include <floattetwild/remove_unreferenced.h>
 #include <floattetwild/writeOBJ.h>
 
 #include <geogram/mesh/mesh_geometry.h>
@@ -62,21 +60,6 @@ void extract_volume_mesh(const Mesh&                     mesh,
         ++index;
     }
     T.conservativeResize(index, 4);
-}
-
-void extract_surface_mesh(const Mesh&                               mesh,
-                          const std::function<bool(int)>&           skip_tet,
-                          const std::function<bool(int)>&           skip_vertex,
-                          Eigen::Matrix<Scalar, Eigen::Dynamic, 3>& VS,
-                          Eigen::Matrix<int, Eigen::Dynamic, 3>&    FS)
-{
-    MatrixXs        VT;
-    Eigen::MatrixXi TT;
-    extract_volume_mesh(mesh, skip_tet, skip_vertex, VT, TT);
-
-    Eigen::VectorXi I;
-    igl::boundary_facets(TT, FS);
-    remove_unreferenced(VT, FS, VS, FS, I);
 }
 
 void write_mesh_aux(const std::string&              path,
@@ -481,31 +464,6 @@ void MeshIO::write_mesh(const std::string&         path,
         const auto skip_vertex = [&mesh](const int i) { return mesh.tet_vertices[i].is_removed; };
         write_mesh_aux(path, mesh, t_ids, color, binary, separate_components, skip_tet, skip_vertex);
     }
-
-    timer.stop();
-    logger().info(" took {}s", timer.getElapsedTime());
-}
-
-void MeshIO::write_surface_mesh(const std::string& path, const Mesh& mesh, const bool only_interior)
-{
-    logger().debug("Extracting and writing surface to {}...", path);
-    Timer timer;
-    timer.start();
-
-    Eigen::Matrix<Scalar, Eigen::Dynamic, 3> V_sf;
-    Eigen::Matrix<int, Eigen::Dynamic, 3>    F_sf;
-    if (only_interior) {
-        const auto skip_tet    = [&mesh](const int i) { return mesh.tets[i].is_outside; };
-        const auto skip_vertex = [&mesh](const int i) { return mesh.tet_vertices[i].is_outside; };
-        extract_surface_mesh(mesh, skip_tet, skip_vertex, V_sf, F_sf);
-    }
-    else {
-        const auto skip_tet    = [&mesh](const int i) { return mesh.tets[i].is_removed; };
-        const auto skip_vertex = [&mesh](const int i) { return mesh.tet_vertices[i].is_removed; };
-        extract_surface_mesh(mesh, skip_tet, skip_vertex, V_sf, F_sf);
-    }
-
-    writeOBJ(path, V_sf, F_sf);
 
     timer.stop();
     logger().info(" took {}s", timer.getElapsedTime());

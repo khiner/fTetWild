@@ -109,9 +109,7 @@ script/check_corpus --record    # before a change
 script/check_corpus             # after it, exit 1 lists what moved
 ```
 
-The baseline goes to the gitignored `corpus/`, so record it per machine. On CMake 4.x add
-`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` and patch libigl's eigen recipe, which still calls the removed
-`FetchContent_Populate`.
+The baseline goes to the gitignored `corpus/`, so record it per machine.
 
 ## Usage
 
@@ -181,7 +179,6 @@ Options:
   --csg TEXT:FILE             json file containg a csg tree
   --disable-filtering         Disable filtering out outside elements.
   --use-floodfill             Use flood-fill to extract interior volume.
-  --use-general-wn            Use general winding number.
   --use-input-for-wn          Use input surface for winding number.
   --bg-mesh TEXT:FILE         Background mesh for sizing field (.msh file).
   --epsr-tags TEXT:FILE       List of envelope size for each input faces.

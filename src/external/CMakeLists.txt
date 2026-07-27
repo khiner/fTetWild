@@ -29,9 +29,17 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 		sortrows.h
 		unique_rows.h
 		remove_duplicate_vertices.h
-		remove_unreferenced.h
 
 		writeOBJ.h
+
+		default_num_threads.h
+		parallel_for.h
+		FastWindingNumberForSoups.h
+		fast_winding_number.h
+
+		sort.h
+		vertex_components.h
+		orientable_patches.h
 
 #			WindingNumber.h
 #		FastWindingNumber.hpp
@@ -70,9 +78,17 @@ else()
 			sortrows.h
 			unique_rows.h
 			remove_duplicate_vertices.h
-			remove_unreferenced.h
 
 			writeOBJ.h
+
+			default_num_threads.h
+			parallel_for.h
+			FastWindingNumberForSoups.h
+			fast_winding_number.h
+
+			sort.h
+			vertex_components.h
+			orientable_patches.h
 
 			Rational.h
 			)

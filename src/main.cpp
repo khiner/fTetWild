@@ -30,12 +30,8 @@
 
 #include <floattetwild/Timer.h>
 #include <floattetwild/writeOBJ.h>
-#include "igl/default_num_threads.h"
+#include <floattetwild/default_num_threads.h>
 
-
-#ifdef LIBIGL_WITH_TETGEN
-#include <igl/copyleft/tetgen/tetrahedralize.h>
-#endif
 
 #include <geogram/basic/command_line.h>
 #include <geogram/basic/command_line_args.h>
@@ -164,7 +160,6 @@ int main(int argc, char** argv)
     GEO::CmdLine::import_arg_group("pre");
     GEO::CmdLine::import_arg_group("algo");
 
-    bool run_tet_gen   = false;
     bool skip_simplify = false;
     bool nobinary      = false;
     bool nocolor       = false;
@@ -244,7 +239,6 @@ int main(int argc, char** argv)
       "--disable-filtering", params.disable_filtering, "Disable filtering out outside elements.");
     command_line.add_flag(
       "--use-floodfill", params.use_floodfill, "Use flood-fill to extract interior volume.");
-    command_line.add_flag("--use-general-wn", params.use_general_wn, "Use general winding number.");
     command_line.add_flag(
       "--use-input-for-wn", params.use_input_for_wn, "Use input surface for winding number.");
 
@@ -260,9 +254,6 @@ int main(int argc, char** argv)
       ->check(CLI::ExistingFile);
 #endif
 
-#ifdef LIBIGL_WITH_TETGEN
-    command_line.add_flag("--tetgen", run_tet_gen, "run tetgen too. (optional)");
-#endif
     unsigned int max_threads = std::numeric_limits<unsigned int>::max();
 #ifdef FLOAT_TETWILD_USE_TBB
     command_line.add_option("--max-threads", max_threads, "Maximum number of threads used");
@@ -284,9 +275,9 @@ int main(int argc, char** argv)
     std::cout << "TBB threads " << num_threads << std::endl;
     tbb::global_control parallelism_limit(tbb::global_control::max_allowed_parallelism, num_threads);
     tbb::global_control stack_size_limit(tbb::global_control::thread_stack_size, stack_size);
-    // IGL has issues with a nested for loop and oversubscription, see
+    // Nested for loops oversubscribe otherwise, see
     // https://github.com/libigl/libigl/issues/2412
-    igl::default_num_threads(std::ceil(std::sqrt(num_threads)));
+    floatTetWild::default_num_threads(std::ceil(std::sqrt(num_threads)));
 #endif
 
     //    if(params.is_quiet){
@@ -431,48 +422,6 @@ int main(int argc, char** argv)
           input_vertices, input_faces, params.input_epsr_tags, params.bbox_diag_length);
     else
         tree.init_sf_tree(input_vertices, input_faces, params.eps);
-#endif
-
-#ifdef LIBIGL_WITH_TETGEN
-    if (run_tet_gen) {
-        Eigen::MatrixXd tetgen_pts(input_vertices.size(), 3);
-        Eigen::MatrixXi tetgen_faces(input_faces.size(), 3);
-
-        for (size_t i = 0; i < input_vertices.size(); ++i) {
-            tetgen_pts.row(i) = input_vertices[i].cast<double>();
-        }
-
-        for (size_t i = 0; i < input_faces.size(); ++i) {
-            tetgen_faces.row(i) = input_faces[i];
-        }
-
-        std::stringstream buf;
-        buf.precision(100);
-        buf.setf(std::ios::fixed, std::ios::floatfield);
-        buf << "Qpq2.0a"
-            << params.ideal_edge_length * params.ideal_edge_length * params.ideal_edge_length *
-                 sqrt(2.) / 12.;
-
-        Eigen::MatrixXi tetgen_generated_tets;
-        Eigen::MatrixXd tetgen_generated_points;
-        Eigen::MatrixXi tetgen_generated_faces;
-
-        timer.start();
-        igl::copyleft::tetgen::tetrahedralize(tetgen_pts,
-                                              tetgen_faces,
-                                              buf.str(),
-                                              tetgen_generated_points,
-                                              tetgen_generated_tets,
-                                              tetgen_generated_faces);
-        timer.stop();
-        logger().info("Tetgen time {}s", timer.getElapsedTimeInSec());
-        stats().record(StateInfo::tetgen_id,
-                       timer.getElapsedTimeInSec(),
-                       tetgen_generated_points.rows(),
-                       tetgen_generated_tets.rows(),
-                       0,
-                       0);
-    }
 #endif
 
     stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
@@ -636,8 +585,6 @@ int main(int argc, char** argv)
     // fortest
     MeshIO::write_mesh(output_mesh_name, mesh, false, colors, !nobinary, !csg_file.empty());
     writeOBJ(params.output_path + "_" + params.postfix + "_sf.obj", V_sf, F_sf);
-    //    MeshIO::write_surface_mesh(params.output_path + "_" + params.postfix + "_sf.obj", mesh,
-    //    false);
 
     std::ofstream fout(params.log_path + "_" + params.postfix + ".csv");
     if (fout.good())

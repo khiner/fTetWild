@@ -37,7 +37,6 @@ namespace floatTetWild {
         bool manifold_surface = false;
         bool disable_filtering = false;
         bool use_floodfill = false;
-        bool use_general_wn = false;
         bool use_input_for_wn = false;
         bool coarsen = false;
 
