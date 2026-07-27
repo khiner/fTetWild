@@ -1,6 +1,7 @@
 if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 	set(SOURCES
-	#	predicates.c
+	predicates.c
+	predicates.h
 		Predicates.cpp
 		Predicates.hpp
 
@@ -40,7 +41,8 @@ if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
 	)
 else()
 	set(SOURCES
-#			predicates.c
+			predicates.c
+			predicates.h
 			Predicates.cpp
 			Predicates.hpp
 

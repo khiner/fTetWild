@@ -64,7 +64,6 @@ option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui" OFF)
 option(LIBIGL_WITH_PNG "Use PNG" OFF)
 option(LIBIGL_WITH_TETGEN "Use Tetgen" OFF)
 option(LIBIGL_WITH_TRIANGLE "Use Triangle" OFF)
-option(LIBIGL_WITH_PREDICATES "Use exact predicates" ON)
 option(LIBIGL_WITH_XML "Use XML" OFF)
 
 # Sanitizers
@@ -75,7 +74,6 @@ endif()
 
 # Setup dependencies
 include(FloatTetwildDependencies)
-igl_include(predicates)
 
 # ##############################################################################
 # FloatTetwild library
@@ -122,7 +120,6 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${GMP_INCLUDE_DIRS})
 target_link_libraries(
   ${PROJECT_NAME}
   PUBLIC igl::core
-         igl::predicates
          geogram::geogram
          spdlog::spdlog
          Threads::Threads
