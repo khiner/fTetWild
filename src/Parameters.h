@@ -44,10 +44,6 @@ namespace floatTetWild {
         VectorXd values_sizing_field;
         std::function<double(const Vector3&)> get_sizing_field_value;//get sizing field value for an point
 
-#ifdef NEW_ENVELOPE
-        std::vector<double> input_epsr_tags;//same length as the list of input faces
-#endif
-
         // it decides the scale of the box, presents the deviation of the box from the model
         //( in % of  max((xmax-xmin), (ymax-ymin), (zmax-zmin)) of the input points)
         Scalar box_scale = 1 / 15.0;
@@ -65,11 +61,7 @@ namespace floatTetWild {
         int max_its = 80;
         Scalar stop_energy = 10;
 
-#ifdef NEW_ENVELOPE
-        int stage = 1;
-#else
         int stage = 2;
-#endif
 
         unsigned int num_threads = std::numeric_limits<unsigned int>::max();
 
@@ -117,15 +109,12 @@ namespace floatTetWild {
             dd = eps_input;// / stage;
             dd /= 1.5;
 
-#ifdef NEW_ENVELOPE
-            double eps_usable = eps_input;
-            eps_delta = eps_usable * 0.1;
-            eps = eps_usable - eps_delta * (stage - 1);
-#else
+            // The sampled envelope check is conservative by the sampling error bound, the
+            // circumradius dd/sqrt(3) of the triangle the samples sit on, so that budget comes
+            // out of the epsilon the user asked for.
             double eps_usable = eps_input - dd / std::sqrt(3);
             eps_delta = eps_usable * 0.1;
             eps = eps_usable - eps_delta * (stage - 1);
-#endif
 
 //        dd /= 1.6;
 //        eps_delta = dd / std::sqrt(3);

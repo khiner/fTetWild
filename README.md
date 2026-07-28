@@ -109,7 +109,7 @@ Our software is quite easy to use. Basically, users only need to provide a surfa
 
 - Envelope of size *epsilon*
 
-Using smaller envelope preserves features better but also takes longer time (Users can enable [Fast Envelope](https://github.com/wangbolun300/fast-envelope) by turning on [this cmake flag](https://github.com/wildmeshing/fTetWild/blob/master/CMakeLists.txt#L46) to reduce the running time). The default value of *epsilon* is *b/1000*, where *b* is the length of the diagonal of the bounding box.
+Using smaller envelope preserves features better but also takes longer time. The default value of *epsilon* is *b/1000*, where *b* is the length of the diagonal of the bounding box.
 
 - Ideal edge length
 
@@ -164,7 +164,6 @@ Options:
   --use-floodfill             Use flood-fill to extract interior volume.
   --use-input-for-wn          Use input surface for winding number.
   --bg-mesh TEXT:FILE         Background mesh for sizing field (.msh file).
-  --epsr-tags TEXT:FILE       List of envelope size for each input faces.
   --max-threads UINT          Maximum number of threads used
 ```
 

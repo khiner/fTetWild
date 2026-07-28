@@ -63,11 +63,3 @@ find_package(Threads REQUIRED)
 # target_include_directories(fast_winding_number PUBLIC
 # "${FLOAT_TETWILD_EXTERNAL}/")
 
-if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE)
-    FetchContent_Declare(
-        exact_envelope
-        GIT_REPOSITORY https://github.com/wangbolun300/fast-envelope
-        GIT_TAG        520ee04b6c69a802db31d1fd3a3e6e382d10ef98
-    )
-    FetchContent_MakeAvailable(exact_envelope)
-endif()

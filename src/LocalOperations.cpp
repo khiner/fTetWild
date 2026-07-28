@@ -248,18 +248,6 @@ bool floatTetWild::is_boundary_edge(const Mesh& mesh, int v1_id, int v2_id, cons
     if (!mesh.tet_vertices[v1_id].is_on_boundary || !mesh.tet_vertices[v2_id].is_on_boundary)
         return false;
 
-#ifdef NEW_ENVELOPE
-    if (!mesh.is_input_all_inserted) {
-        return !tree.is_out_tmp_b_envelope_exact({{mesh.tet_vertices[v1_id].pos,
-                                                   mesh.tet_vertices[v2_id].pos,
-                                                   mesh.tet_vertices[v2_id].pos}});
-    }
-    else {
-        return !tree.is_out_b_envelope_exact({{mesh.tet_vertices[v1_id].pos,
-                                               mesh.tet_vertices[v2_id].pos,
-                                               mesh.tet_vertices[v2_id].pos}});
-    }
-#else
     std::vector<geo::vec3> ps;
     ps.push_back(geo::vec3(mesh.tet_vertices[v1_id].pos[0],
                            mesh.tet_vertices[v1_id].pos[1],
@@ -280,7 +268,6 @@ bool floatTetWild::is_boundary_edge(const Mesh& mesh, int v1_id, int v2_id, cons
     else {
         return !tree.is_out_b_envelope(ps, mesh.params.eps_2);
     }
-#endif
 
     //    if(!mesh.is_input_all_inserted)
     //        return true;
@@ -352,12 +339,8 @@ bool floatTetWild::is_point_out_envelope(const Mesh&        mesh,
                                          const Vector3&     p,
                                          const AABBWrapper& tree)
 {
-#ifdef NEW_ENVELOPE
-    return tree.is_out_sf_envelope_exact(p);
-#else
     geo::index_t prev_facet;
     return tree.is_out_sf_envelope(p, mesh.params.eps_2, prev_facet);
-#endif
     //    geo::vec3 geo_p(p[0], p[1], p[2]);
     //    if (sf_tree.squared_distance(geo_p) > mesh.params.eps_2)
     //        return true;
@@ -679,14 +662,9 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
                                    const Vector3&     new_pos,
                                    const AABBWrapper& tree)
 {
-#ifdef NEW_ENVELOPE
-    if (tree.is_out_sf_envelope_exact(new_pos))
-        return true;
-#else
     geo::index_t prev_facet;
     if (tree.is_out_sf_envelope(new_pos, mesh.params.eps_2, prev_facet))
         return true;
-#endif
 
     std::vector<geo::vec3> ps;
     for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
@@ -699,11 +677,6 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
                     else
                         vs[k] = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 1 + k)]].pos;
                 }
-#ifdef NEW_ENVELOPE
-                bool is_out = tree.is_out_sf_envelope_exact(vs);
-                if (is_out)
-                    return true;
-#else
 #ifdef STORE_SAMPLE_POINTS
                 ps.clear();
                 sample_triangle(vs, ps, mesh.params.dd);
@@ -714,7 +687,6 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
 #endif
                 if (is_out)
                     return true;
-#endif
 
                 //                int cnt = 0;
                 //                const unsigned int ps_size = ps.size();

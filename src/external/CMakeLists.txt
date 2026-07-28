@@ -1,86 +1,41 @@
-if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE )
-	set(SOURCES
+set(SOURCES
 	predicates.c
 	predicates.h
-		Predicates.cpp
-		Predicates.hpp
+	Predicates.cpp
+	Predicates.hpp
 
-		mesh_AABB.h
-		mesh_AABB.cpp
+	mesh_AABB.h
+	mesh_AABB.cpp
 
 
 
-		triangle_triangle_intersection.cpp
+	triangle_triangle_intersection.cpp
 
-		getRSS.c
-		get_mem.h
-		get_mem.cpp
+	getRSS.c
+	get_mem.h
+	get_mem.cpp
 
-		bfs_orient.h
-		bfs_orient.cpp
+	bfs_orient.h
+	bfs_orient.cpp
 
-		Timer.h
-		round.h
-		sortrows.h
-		unique_rows.h
-		remove_duplicate_vertices.h
+	Timer.h
+	round.h
+	sortrows.h
+	unique_rows.h
+	remove_duplicate_vertices.h
 
-		writeOBJ.h
+	writeOBJ.h
 
-		default_num_threads.h
-		parallel_for.h
-		FastWindingNumberForSoups.h
-		fast_winding_number.h
+	default_num_threads.h
+	parallel_for.h
+	FastWindingNumberForSoups.h
+	fast_winding_number.h
 
-		sort.h
-		vertex_components.h
-		orientable_patches.h
-
-#			WindingNumber.h
-#		FastWindingNumber.hpp
-#		FastWindingNumber.cpp
+	sort.h
+	vertex_components.h
+	orientable_patches.h
 
 	)
-else()
-	set(SOURCES
-			predicates.c
-			predicates.h
-			Predicates.cpp
-			Predicates.hpp
-
-			mesh_AABB.h
-			mesh_AABB.cpp
-
-
-
-			triangle_triangle_intersection.cpp
-
-			getRSS.c
-			get_mem.h
-			get_mem.cpp
-
-			bfs_orient.h
-			bfs_orient.cpp
-
-			Timer.h
-			round.h
-			sortrows.h
-			unique_rows.h
-			remove_duplicate_vertices.h
-
-			writeOBJ.h
-
-			default_num_threads.h
-			parallel_for.h
-			FastWindingNumberForSoups.h
-			fast_winding_number.h
-
-			sort.h
-			vertex_components.h
-			orientable_patches.h
-
-			)
-endif()
 
 prepend_current_path(SOURCES)
 float_tetwild_copy_headers(${SOURCES})

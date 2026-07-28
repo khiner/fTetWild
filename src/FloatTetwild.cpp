@@ -34,13 +34,6 @@ int tetrahedralization(AABBWrapper&           tree,
     if (!params.init(tree.get_sf_diag()))
         return EXIT_FAILURE;
 
-#ifdef NEW_ENVELOPE
-    if (!params.input_epsr_tags.empty())
-        tree.init_sf_tree(
-          input_vertices, input_faces, params.input_epsr_tags, params.bbox_diag_length);
-    else
-        tree.init_sf_tree(input_vertices, input_faces, params.eps);
-#endif
 
     stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
 

@@ -45,7 +45,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # FloatTetwild options
 option(FLOAT_TETWILD_USE_FLOAT "Use floats instead of double" OFF)
 option(FLOAT_TETWILD_WITH_SANITIZERS "Use sanitizers" OFF)
-option(FLOAT_TETWILD_WITH_EXACT_ENVELOPE "Use exact envelope" OFF)
 
 # Sanitizer options
 option(SANITIZE_ADDRESS "Sanitize Address" OFF)
@@ -103,11 +102,6 @@ target_link_libraries(
   PUBLIC Threads::Threads
          # fast_winding_number
 )
-if(FLOAT_TETWILD_WITH_EXACT_ENVELOPE)
-    target_link_libraries(${PROJECT_NAME} PUBLIC FastEnvelope)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC NEW_ENVELOPE)
-endif()
-
 # ##############################################################################
 # FloatTetwild binary
 # ##############################################################################

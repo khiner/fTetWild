@@ -198,9 +198,6 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
                     cnt_increase_epsilon--;
                     cout << "enlarge envelope, eps = " << mesh.params.eps << endl;
 //                    pausee();
-#ifdef NEW_ENVELOPE
-                    tree.sf_tree_exact.init(input_vertices, input_faces, mesh.params.eps);
-#endif
                 }
             }
         } else
@@ -518,18 +515,11 @@ void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const s
                         continue;
                     if (!mesh.tet_vertices[v_id].is_on_boundary)
                         continue;
-#ifdef NEW_ENVELOPE
-                    if (tree.is_out_tmp_b_envelope_exact(mesh.tet_vertices[v_id].pos)) {
-                        mesh.tet_vertices[v_id].is_on_boundary = false;
-                        mesh.tet_vertices[v_id].is_on_cut = false;
-                    }
-#else
                     geo::index_t prev_facet;
                     if (tree.is_out_tmp_b_envelope(mesh.tet_vertices[v_id].pos, mesh.params.eps_2, prev_facet)) {
                         mesh.tet_vertices[v_id].is_on_boundary = false;
                         mesh.tet_vertices[v_id].is_on_cut = false;
                     }
-#endif
                 }
             }
         }

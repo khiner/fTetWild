@@ -187,13 +187,6 @@ int main(int argc, char** argv)
       .add_option("--bg-mesh", background_mesh, "Background mesh for sizing field (.msh file).")
       ->check(CLI::ExistingFile);
 
-#ifdef NEW_ENVELOPE
-    std::string epsr_tags;
-    command_line
-      .add_option("--epsr-tags", epsr_tags, "List of envelope size for each input faces.")
-      ->check(CLI::ExistingFile);
-#endif
-
     unsigned int max_threads = std::numeric_limits<unsigned int>::max();
     command_line.add_option("--max-threads", max_threads, "Maximum number of threads used");
 
@@ -276,17 +269,6 @@ int main(int argc, char** argv)
         }
     }
 
-#ifdef NEW_ENVELOPE
-    if (!epsr_tags.empty()) {
-        std::ifstream fin(epsr_tags);
-        std::string   line;
-        while (std::getline(fin, line)) {
-            params.input_epsr_tags.push_back(std::stod(line));
-        }
-        fin.close();
-    }
-#endif
-
     /// set envelope
     Timer               timer;
     geo::Mesh                sf_mesh;
@@ -328,17 +310,8 @@ int main(int argc, char** argv)
         // To disable the recent modification of using input for wn, use meshes.clear();
     }
     else {
-#ifdef NEW_ENVELOPE
-        if (!MeshIO::load_mesh(params.input_path,
-                               input_vertices,
-                               input_faces,
-                               sf_mesh,
-                               input_tags,
-                               params.input_epsr_tags)) {
-#else
         if (!MeshIO::load_mesh(
               params.input_path, input_vertices, input_faces, sf_mesh, input_tags)) {
-#endif
             logger().error("Unable to load mesh at {}", params.input_path);
             MeshIO::write_mesh(output_mesh_name, mesh, false);
             return EXIT_FAILURE;
