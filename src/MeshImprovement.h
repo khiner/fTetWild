@@ -49,7 +49,6 @@ namespace floatTetWild {
     void manifold_edges(Mesh& mesh);
     void manifold_vertices(Mesh& mesh);
 
-//    void apply_sizingfield(const Eigen::VectorXd& V_in, const Eigen::VectorXi& T_in, const Eigen::VectorXd& values, Mesh& mesh, AABBWrapper& tree);
     void apply_sizingfield(Mesh& mesh, AABBWrapper& tree);
     void apply_coarsening(Mesh& mesh, AABBWrapper& tree);
 

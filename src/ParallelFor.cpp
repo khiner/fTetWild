@@ -203,7 +203,6 @@ ThreadPool& get_pool()
     return *pool;
 }
 
-// Chunk c of k covers [begin + c*n/k, begin + (c+1)*n/k).
 std::vector<Range> make_chunks(size_t begin, size_t end, size_t k)
 {
     const size_t       n = end - begin;

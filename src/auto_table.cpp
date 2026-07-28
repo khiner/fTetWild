@@ -1578,7 +1578,6 @@ namespace floatTetWild {
 			{}
 		}};
 
-		//assert(!table[idx].empty());
 		return table[idx];
 	}
 

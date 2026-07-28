@@ -39,68 +39,6 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
         if (!find_new_pos(mesh, v_id, p))
             return;
 
-        //        for (int t_id: tet_vertices[v_id].conn_tets) {
-        ////            if (is_inverted(mesh, t_id)) {
-        //            int j = mesh.tets[t_id].find(v_id);
-        //            if(is_inverted(mesh, t_id, j, p)){
-        //                cout << "smoothing " << v_id << endl;
-        //                cout << t_id << endl;
-        //                cout<<tet_vertices[v_id].is_on_surface<<endl;
-        //                cout<<tet_vertices[v_id].is_on_boundary<<endl;
-        //                //pausee();
-        //
-        //
-        //                std::vector<std::array<Scalar, 12>> Ts;
-        //                std::vector<int> js;
-        //                for (int t_id:tet_vertices[v_id].conn_tets) {
-        //                    int j = tets[t_id].find(v_id);
-        //
-        //                    bool is_inv = false;
-        //                    if (is_inverted(tet_vertices[tets[t_id][j]],
-        //                    tet_vertices[tets[t_id][(j + 1) % 4]],
-        //                                    tet_vertices[tets[t_id][(j + 2) % 4]],
-        //                                    tet_vertices[tets[t_id][(j + 3) % 4]])) {
-        //                        is_inv = true;
-        //                    }
-        //
-        //                    cout<<t_id<<" "<<j<<endl;
-        //                    cout<<tets[t_id][0]<<" "<<tets[t_id][1]<<" "<<tets[t_id][2]<<"
-        //                    "<<tets[t_id][3]<<endl; if(is_inv) {
-        //                        if (is_inverted(tet_vertices[tets[t_id][j]],
-        //                        tet_vertices[tets[t_id][(j + 1) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 3) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 2) % 4]])) {
-        //                            cout << "is_inverted 0" << endl;
-        //                        }
-        //                        if (is_inverted(p, tet_vertices[tets[t_id][(j + 1) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 3) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 2) % 4]])) {
-        //                            cout<<"is_inverted 1"<<endl;
-        //                        }
-        //                        if (is_inverted(mesh, t_id, j, p)) {
-        //                            cout<<"is_inverted 2"<<endl;
-        //                        }
-        //                    } else {
-        //                        if (is_inverted(tet_vertices[tets[t_id][j]],
-        //                        tet_vertices[tets[t_id][(j + 1) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 2) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 3) % 4]])) {
-        //                            cout << "is_inverted 0" << endl;
-        //                        }
-        //                        if (is_inverted(p, tet_vertices[tets[t_id][(j + 1) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 2) % 4]],
-        //                                        tet_vertices[tets[t_id][(j + 3) % 4]])) {
-        //                            cout<<"is_inverted 1"<<endl;
-        //                        }
-        //                        if (is_inverted(mesh, t_id, j, p)) {
-        //                            cout<<"is_inverted 2"<<endl;
-        //                        }
-        //                    }
-        //                }
-        //
-        //                //pausee();
-        //            }
-        //        }
 
         ////check
         // envelope
@@ -170,12 +108,6 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
             tree.project_to_tmp_b(p);
     }
 
-    //    geo::vec3 np_;
-    //    double _;
-    //    tree.nearest_facet(geo::vec3(p[0], p[1], p[2]), np_, _);
-    //    np[0] = np_[0];
-    //    np[1] = np_[1];
-    //    np[2] = np_[2];
 
     // check inversion & quality
     double max_q = 0;
@@ -238,8 +170,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
     Vector3 J;
     Matrix3 H;
 
-    //    Scalar f_old, f_new;
-    //    int it;
     for (int newton_it = 0; newton_it < max_newton_it; newton_it++) {
         if (newton_it > 0) {
             for (auto& T : Ts) {
@@ -255,12 +185,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             f += AMIPS_energy(T);
         }
 
-        //        if(newton_it == 0)
-        //            f_old = f;
-        //        f_new = f;
-        //        it = newton_it;
-        //        cout<<it<<": "<<f_old<<" "<<f_new<<endl;
-        //        //pausee();
 
         // J
         J << 0, 0, 0;
@@ -317,7 +241,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             for (auto& T : Ts) {
                 f_next += AMIPS_energy(T);
             }
-            //            cout<<i<<" "<<f_next<<endl;
             if (f_next >= f) {
                 a /= 2;
                 continue;

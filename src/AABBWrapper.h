@@ -197,7 +197,6 @@ namespace floatTetWild {
         }
 
 
-        //fortest
         inline Scalar dist_sf_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
                                        geo::index_t prev_facet = geo::NO_FACET) const {///only used for checking correctness
             geo::vec3 nearest_point;
@@ -217,7 +216,6 @@ namespace floatTetWild {
 
             return 0;
         }
-        //fortest
 
     };
 

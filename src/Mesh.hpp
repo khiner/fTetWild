@@ -69,7 +69,6 @@ public:
         MeshVertex() {}
 
         Vector3 pos;
-        //Vector3 input_pos;
 
         inline Scalar &operator[](const int index) {
             assert(index >= 0 && index < 3);
@@ -81,7 +80,6 @@ public:
             return pos[index];
         }
 
-//        std::unordered_set<int> conn_tets;
         std::vector<int> conn_tets;
 
         bool is_on_surface = false;
@@ -119,7 +117,6 @@ public:
             is_outside = false;
         }
 
-        inline const Vector4i &pts_indices() const { return indices; }
 
         inline int &operator[](const int index) {
             assert(index >= 0 && index < 4);
@@ -134,13 +131,6 @@ public:
         inline int find(int ele) const {
             for (int j = 0; j < 4; j++)
                 if (indices[j] == ele)
-                    return j;
-            return -1;
-        }
-
-        inline int find_opp(int v0_id, int v1_id, int v2_id) const {
-            for (int j = 0; j < 4; j++)
-                if (indices[j] != v0_id && indices[j] != v1_id && indices[j] != v2_id)
                     return j;
             return -1;
         }
@@ -163,8 +153,6 @@ public:
     class Mesh {
     public:
 // #ifdef FLOAT_TETWILD_USE_TBB
-//             tbb::concurrent_vector<MeshVertex> tet_vertices;
-//             tbb::concurrent_vector<MeshTet> tets;
 // #else
         std::vector<MeshVertex> tet_vertices;
         std::vector<MeshTet> tets;
@@ -184,8 +172,6 @@ public:
 
         void one_ring_vertex_sets(const int threshold, std::vector<std::vector<int>> &concurrent_sets,
                                   std::vector<int> &serial_set) const;
-
-        // void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, std::vector<int> &safe_set) const;
 
 
         static void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char> &v_is_removed,

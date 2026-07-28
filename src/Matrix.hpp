@@ -91,12 +91,6 @@ struct Vector
         for (int i = 0; i < N; i++) r.v[i] = T(0);
         return r;
     }
-    static Vector Constant(T x)
-    {
-        Vector r;
-        for (int i = 0; i < N; i++) r.v[i] = x;
-        return r;
-    }
 
     T&       operator()(int i) { return v[i]; }
     const T& operator()(int i) const { return v[i]; }
@@ -118,10 +112,6 @@ struct Vector
     void setZero()
     {
         for (int i = 0; i < N; i++) v[i] = T(0);
-    }
-    void setConstant(T x)
-    {
-        for (int i = 0; i < N; i++) v[i] = x;
     }
 
     Vector& operator+=(const Vector& o)
@@ -153,7 +143,6 @@ struct Vector
         return r;
     }
 
-    // Eigen's operator== on matrices is all-of, not coefficient-wise.
     bool operator==(const Vector& o) const
     {
         for (int i = 0; i < N; i++)
@@ -199,12 +188,6 @@ struct Vector
     {
         T m = v[0];
         for (int i = 1; i < N; i++) m = m < v[i] ? v[i] : m;
-        return m;
-    }
-    T minCoeff() const
-    {
-        T m = v[0];
-        for (int i = 1; i < N; i++) m = v[i] < m ? v[i] : m;
         return m;
     }
 
@@ -264,7 +247,6 @@ inline Vector<T, N> operator/(const Vector<T, N>& a, typename matrix_detail::ide
     return r;
 }
 
-// Comma initializer, so `v << 0, 0, 0` keeps working.
 template <typename T, int N>
 struct VectorCommaInit
 {

@@ -446,7 +446,6 @@ bool CSGTreeParser::keep_tet(const CSGTree&                      csg_tree_with_i
     if (op == "difference")
         return left_inside && !right_inside;
 
-    // parse() rejects anything else, so a tree in hand always has a known operation.
     assert(false);
     return false;
 }

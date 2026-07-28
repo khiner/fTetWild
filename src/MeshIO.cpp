@@ -167,9 +167,7 @@ bool MeshIO::load_mesh(const std::string&     path,
     }
 
     // #ifdef FLOAT_TETWILD_USE_FLOAT
-    // 		input.vertices.set_single_precision();
     // #else
-    // 		input.vertices.set_double_precision();
     // #endif
 
     geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);

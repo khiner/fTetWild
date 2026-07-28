@@ -51,7 +51,6 @@ void add_polygon(geo::Mesh& mesh, const std::vector<geo::index_t>& vertices)
     }
 }
 
-/// .stl ///////////////////////////////////////////////////////////////////////////////////////
 
 // A binary STL is 80 header bytes, a uint32 triangle count and 50 bytes per triangle. Many
 // binary files still start with "solid", so the size is what decides, as in geogram.
@@ -147,7 +146,6 @@ bool load_stl(const std::string& path, geo::Mesh& mesh)
                                              : load_stl_ascii(path, mesh);
 }
 
-/// .off ///////////////////////////////////////////////////////////////////////////////////////
 
 bool load_off(const std::string& path, geo::Mesh& mesh)
 {
@@ -208,7 +206,6 @@ bool load_off(const std::string& path, geo::Mesh& mesh)
     return true;
 }
 
-/// .obj ///////////////////////////////////////////////////////////////////////////////////////
 
 bool load_obj(const std::string& path, geo::Mesh& mesh)
 {
@@ -250,7 +247,6 @@ bool load_obj(const std::string& path, geo::Mesh& mesh)
     return true;
 }
 
-/// .ply ///////////////////////////////////////////////////////////////////////////////////////
 
 // Only what a surface mesh needs: the x, y and z properties of the vertex element and the
 // vertex-index list of the face element. Other elements and properties are skipped by size.

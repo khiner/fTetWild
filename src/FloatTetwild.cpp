@@ -39,9 +39,6 @@ int tetrahedralization(AABBWrapper&           tree,
 
     Timer timer;
 
-    /////////////////////////////////////////////////
-    // STEP 1: Preprocessing (mesh simplification) //
-    /////////////////////////////////////////////////
 
     timer.start();
     simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);

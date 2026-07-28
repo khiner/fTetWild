@@ -27,7 +27,6 @@ namespace floatTetWild {
 
 
         bool not_sort_input = false;
-        bool correct_surface_orientation = false;
         bool is_quiet = false;
         int log_level = 3;//2;
 
@@ -71,13 +70,11 @@ namespace floatTetWild {
         Vector3 bbox_max;
         Scalar bbox_diag_length;
         Scalar ideal_edge_length;
-        Scalar ideal_edge_length_2;
         Scalar eps_input;
         Scalar eps;
         Scalar eps_delta;
         Scalar eps_2;
         Scalar dd;
-        Scalar min_edge_length;
 
         Scalar split_threshold;
         Scalar collapse_threshold;
@@ -103,7 +100,6 @@ namespace floatTetWild {
             else {
                 ideal_edge_length = bbox_diag_length * ideal_edge_length_rel;
             }
-            ideal_edge_length_2 = ideal_edge_length * ideal_edge_length;
 
             eps_input = bbox_diag_length * eps_rel;
             dd = eps_input;// / stage;
@@ -116,10 +112,6 @@ namespace floatTetWild {
             eps_delta = eps_usable * 0.1;
             eps = eps_usable - eps_delta * (stage - 1);
 
-//        dd /= 1.6;
-//        eps_delta = dd / std::sqrt(3);
-//        eps       = eps_input - eps_delta * stage;
-//        dd /= 1.2;
             eps_2 = eps * eps;
 
             eps_coplanar = eps * 0.2;  // better to set it as eps-related
@@ -130,11 +122,9 @@ namespace floatTetWild {
             eps_simplification = eps * 0.8;
             eps_2_simplification = eps_simplification * eps_simplification;
             dd_simplification = dd / eps * eps_simplification;
-            //            dd_simplification = dd;
 
             if (min_edge_len_rel < 0)
                 min_edge_len_rel = eps_rel;
-            min_edge_length = bbox_diag_length * min_edge_len_rel;
 
             split_threshold = ideal_edge_length * (4 / 3.0);
             collapse_threshold = ideal_edge_length * (4 / 5.0);

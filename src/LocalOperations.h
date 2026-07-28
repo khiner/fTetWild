@@ -15,7 +15,6 @@
 namespace floatTetWild {
     extern bool use_old_energy;
 
-    // void init_b_tree(const std::vector<Vector3>& input_vertices, const std::vector<Vector3i>& input_faces, geo::Mesh& b_mesh);
 
     int get_opp_t_id(const Mesh& mesh, int t_id, int j);
     void set_opp_t_id(Mesh& mesh, int t_id, int j);
@@ -87,12 +86,6 @@ namespace floatTetWild {
         return true;
     }
     template<typename T>
-    void vector_print(const std::vector<T>& v, std::string s = " "){
-        for(auto i: v)
-            cout<<i<<s;
-        cout<<endl;
-    }
-    template<typename T>
     bool vector_contains(const std::vector<T>& v, const T& t){
         if(v.empty())
             return false;
@@ -109,32 +102,18 @@ namespace floatTetWild {
     void set_intersection_sorted(const std::vector<int>& s1, const std::vector<int>& s2, const std::vector<int>& s3, std::vector<int>& v);
 
     inline int mod4(int j) {
-//        assert(j >= 0 && j < 7);
-//        static const std::array<int, 8> a = {{0, 1, 2, 3, 0, 1, 2, 3}};
-//        assert(a[j] == j % 4);
-//        return a[j];
 
-//        return j >= 4 ? j % 4 : j;
         return j%4;
     }
 
     inline int mod3(int j) {
-//        assert(j >= 0 && j < 5);
-//        static const std::array<int, 6> a = {{0, 1, 2, 0, 1, 2}};
-//        assert(a[j] == j % 3);
-//        return a[j];
         return j%3;
     }
 
     inline int mod2(int j) {
-//        assert(j >= 0 && j < 3);
-//        static const std::array<int, 4> a = {{0, 1, 0, 1}};
-//        assert(a[j] == j % 2);
-//        return a[j];
         return j%2;
     }
 
-    void pausee(std::string msg = "");
 
     ///////////////
     class ElementInQueue{

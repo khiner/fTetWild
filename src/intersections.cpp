@@ -31,15 +31,12 @@ bool floatTetWild::seg_line_intersection_2d(const std::array<Vector2, 2> &seg, c
     if(d1 == 0)
         return false;
     t_seg = n1 / d1;
-//    Scalar n2 = (y1 - y2) * (x1 - x3) + (x2 - x1) * (y1 - y3);
     Scalar d2 = (x4 - x3) * (y1 - y2) - (x1 - x2) * (y4 - y3);
     if(d2 == 0) {
-//        cout<<"d2==0"<<endl;
         return false;
     }
 
     if (t_seg < 0 || t_seg > 1){
-//        cout<<"t_seg = "<<t_seg<<endl;
         return false;
     }
 
@@ -125,16 +122,13 @@ bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, 
     Scalar D = n.dot(u);
     d1 = -n.dot(w);
 
-//    if (fabs(D) <= SCALAR_ZERO) {// segment is parallel to plane
     Scalar t;
     if (fabs(D) == 0) {// segment is parallel to plane
         if (d1 == 0)// segment lies in plane
             t = INT_MAX;
         else
             t = INT_MIN;
-//            return 2;
 //        else // no intersection
-//            return 0;
         return false;
     }
 
@@ -194,17 +188,15 @@ int floatTetWild::is_tri_tri_cutted(const std::array<Vector3, 3> &f_tri, const s
     std::array<int, 3> oris_tet;
     int cnt_pos1 = 0;
     int cnt_neg1 = 0;
-    int cnt_zero1 = 0;
     for (int j = 0; j < 3; j++) {
         oris_tet[j] = Predicates::orient_3d(f_tet[0], f_tet[1], f_tet[2], f_tri[j]);
-        if (oris_tet[j] == Predicates::ORI_ZERO)
-            cnt_zero1++;
-        else if (oris_tet[j] == Predicates::ORI_POSITIVE)
-            cnt_pos1++;
-        else
-            cnt_neg1++;
+        if (oris_tet[j] != Predicates::ORI_ZERO) {
+            if (oris_tet[j] == Predicates::ORI_POSITIVE)
+                cnt_pos1++;
+            else
+                cnt_neg1++;
+        }
     }
-//    if(cnt_pos1 == 3 || cnt_neg1 == 3)
     if(cnt_pos1 == 0 || cnt_neg1 == 0)
         return CUT_EMPTY;
 
@@ -379,7 +371,6 @@ bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2
         else if (ori == Predicates::ORI_NEGATIVE)
             cnt_neg++;
     }
-//    if(cnt_neg==0 || cnt_pos==0)
     if (cnt_neg == 3 || cnt_pos == 3) //strict inside
         return true;
     return false;
@@ -392,7 +383,6 @@ int floatTetWild::get_t(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2)
     Scalar max = 0;
     int t = 0;
     for (int i = 0; i < 3; i++) {
-//        Scalar cos_a = abs(n.dot(ns[i]));
         Scalar cos_a = abs(n[i]);
         if (cos_a > max) {
             max = cos_a;
@@ -401,14 +391,6 @@ int floatTetWild::get_t(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2)
     }
     return t;
 
-//    int t = 2;
-//    for (int k = 0; k < 3; k++) {
-//        if (p2[k] == p0[k] && p0[k] == p1[k]) {
-//            t = k;
-//            break;
-//        }
-//    }
-//    return t;
 }
 
 floatTetWild::Vector2 floatTetWild::to_2d(const Vector3 &p, int t) {
@@ -427,7 +409,6 @@ bool floatTetWild::is_crossing(int s1, int s2) {
         return true;
     return false;
 }
-
 
 
 extern "C++" int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatTetWild::Scalar q1[3], floatTetWild::Scalar r1[3],
@@ -496,20 +477,8 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
     }
 
     if(hint == CUT_COPLANAR){
-//        if(tri_tri_overlap_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0]))
-//            return CUT_COPLANAR;
 
         //todo: to2d
-//        auto to_2d = [](const Vector3& v, int t) {
-//            return Vector2(v[(t + 1) % 3], v[(t + 2) % 3]);
-//        };
-//        int t = 2;
-//        for (int k = 0; k < 3; k++) {
-//            if (p3[k] == p1[k] && p1[k] == p2[k]) {
-//                t = k;
-//                break;
-//            }
-//        }
 
         int t = get_t(p1, p2, p3);
 
@@ -519,41 +488,6 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
     }
 
     if(is_debug){
-//        p_1 = {{22, -27.478179999999998, 3.5}};
-//        q_1 = {{25.5, -27.478179999999998, 0}};
-//        r_1 = {{-25.5, -27.478179999999998, 0}};
-//        p_2 = {{28.050000000000001, -30.028179999999999, -2.5500000000000003}};
-//        q_2 = {{25.5, -13.183373550207467, 0}};
-//        r_2 = {{25.5, -19.059304172821577, 0}};
-//
-//        cout<<"res = "<<tri_tri_intersection_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0], &coplanar, &s[0], &t[0])<<endl;
-//        cout<<std::setprecision(17);
-//        cout<<"s"<<endl;
-//        cout<<s[0]<<" "<<s[1]<<" "<<s[2]<<endl;
-//        cout<<"t"<<endl;
-//        cout<<t[0]<<" "<<t[1]<<" "<<t[2]<<endl;
-//        cout<<"coplanar = "<<coplanar<<endl;
-//        cout<<"pqr 1"<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<p_1[j]<<" ";
-//        cout<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<q_1[j]<<" ";
-//        cout<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<r_1[j]<<" ";
-//        cout<<endl;
-//        cout<<"pqr 2"<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<p_2[j]<<" ";
-//        cout<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<q_2[j]<<" ";
-//        cout<<endl;
-//        for(int j=0;j<3;j++)
-//            cout<<r_2[j]<<" ";
-//        cout<<endl;
-        //pausee();
     }
 
     int result = tri_tri_intersection_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0], &coplanar, &s[0], &t[0]);
@@ -561,23 +495,12 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
         cout<<">>result = "<<result<<endl;
     }
     if (result != 1) {
-//        if (coplanar != 0) {
-//            cout<<"CUT_EMPTY "<<result<<endl;
-//            //pausee();
-//        }
         return CUT_EMPTY;
     }
-//    if (coplanar != 0) {
-//        cout<<"NOT CUT_EMPTY "<<coplanar<<" "<<result<<endl;
-//        //pausee();
-//    }
 
     if (std::abs(s[0] - t[0]) <= SCALAR_ZERO && std::abs(s[1] - t[1]) <= SCALAR_ZERO && std::abs(s[2] - t[2]) <= SCALAR_ZERO)
         return CUT_EMPTY;
 
-//    cout<<"s"<<s[0]<<" "<<s[1]<<" "<<s[2]<<endl;
-//    cout<<"t"<<t[0]<<" "<<t[1]<<" "<<t[2]<<endl;
-//    cout<<(s[0]-t[0])<<" "<<(s[1]-t[1])<<" "<<(s[2]-t[2])<<endl;
 
     if (hint == CUT_EDGE_0)
         return CUT_EDGE_0;

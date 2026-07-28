@@ -64,9 +64,7 @@ namespace floatTetWild {
         bool check();
     };
 
-    //fortest
     void print_times1();
-    //fortest
 }
 
 

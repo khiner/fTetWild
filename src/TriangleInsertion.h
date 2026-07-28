@@ -114,11 +114,7 @@ namespace floatTetWild {
 
     int get_opp_t_id(int t_id, int j, const Mesh &mesh);
 
-    void myassert(bool b, const std::string &s);
 
-    void check_track_surface_fs(Mesh &mesh, std::vector<std::array<std::vector<int>, 4>> &track_surface_fs,
-                                const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
-                                const std::vector<int> &sorted_f_ids);
     Vector3 get_normal(const Vector3& a, const Vector3& b, const Vector3& c);
 }
 

@@ -87,7 +87,6 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
     input_faces = new_input_faces;
     input_tags  = new_input_tags;
 
-    //    flattening(input_vertices, input_faces, tree, params);
 
     remove_duplicates(input_vertices, input_faces, input_tags, params);
 
@@ -96,16 +95,7 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
 
     //    ////////////////////////
     //    //check
-    //    auto tmp = input_vertices;
-    //    std::sort(tmp.begin(), tmp.end(), [](const Vector3& a, const Vector3& b){
     //       return std::tuple<Scalar, Scalar, Scalar>(a[0], a[1], a[2]) < std::tuple<Scalar,
-    //       Scalar, Scalar>(b[0], b[1], b[2]);
-    //    });
-    //    for(int i=0;i<tmp.size()-1;i++){
-    //        if(tmp[i]==tmp[i+1]){
-    //            cout<<"find duplicates! "<<i<<endl;
-    //        }
-    //    }
 }
 
 bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
@@ -113,23 +103,12 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
                                      std::vector<int>&      input_tags,
                                      const Parameters&      params)
 {
-    //    std::vector<size_t> indices(input_vertices.size());
-    //    for(size_t i=0;i<input_vertices.size();i++)
-    //        indices[i] = i;
-    //
-    //    std::sort(indices.begin(), indices.end(), [&input_vertices](size_t i1, size_t i2) {
     //        return std::make_tuple(input_vertices[i1][0], input_vertices[i1][1],
     //        input_vertices[i1][2])
     //               < std::make_tuple(input_vertices[i2][0], input_vertices[i2][1],
-    //               input_vertices[i2][2]);
-    //    });
     //    indices.erase(std::unique(indices.begin(), indices.end(), [&input_vertices](size_t i1,
-    //    size_t i2) {
     //        return std::make_tuple(input_vertices[i1][0], input_vertices[i1][1],
     //        input_vertices[i1][2])
-    //               == std::make_tuple(input_vertices[i2][0], input_vertices[i2][1],
-    //               input_vertices[i2][2]);
-    //    }), indices.end());
 
     MatrixXs V_tmp(input_vertices.size(), 3), V_in;
     MatrixXi F_tmp(input_faces.size(), 3), F_in;
@@ -260,7 +239,6 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         if (!is_onering_clean(v1_id) || !is_onering_clean(v2_id))
             return FAIL_CLEAN;
 
-        //        std::unordered_set<int> new_f_ids;
         std::vector<int> new_f_ids;
         for (int f_id : conn_fs[v1_id]) {
             if (f_id != n12_f_ids[0] && f_id != n12_f_ids[1])
@@ -275,13 +253,6 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         // compute new point
         Vector3 p = (input_vertices[v1_id] + input_vertices[v2_id]) / 2;
         tree.project_to_sf(p);
-        // geo::vec3 geo_p(p[0], p[1], p[2]);
-        // geo::vec3 nearest_p;
-        // double _;
-        // tree.nearest_facet(geo_p, nearest_p, _);
-        // p[0] = nearest_p[0];
-        // p[1] = nearest_p[1];
-        // p[2] = nearest_p[2];
 
         // computing normal for checking flipping
         for (int f_id : new_f_ids) {
@@ -320,7 +291,6 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         }
 
         // real update
-        //        std::unordered_set<int> n_v_ids;//get this info before real update for later usage
         std::vector<int> n_v_ids;  // get this info before real update for later usage
         for (int f_id : new_f_ids) {
             for (int j = 0; j < 3; j++) {
@@ -394,7 +364,6 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         cnt_suc += cnt;
     } while (cnt > stopping);
 
-    //    std::cout<<"#v: "<<build_time<<std::endl;
     logger().debug("{}  faces are collapsed!!", cnt_suc);
 }
 
@@ -490,18 +459,6 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
         if (std::min(cos_a0_new, cos_a1_new) <= std::min(cos_a0, cos_a1))
             continue;
 
-        // check envelope
-        //        bool is_valid = true;
-        //        for(int v_id: n_v_ids) {
-        //            if (is_out_envelope({{input_vertices[v_id], input_vertices[v1_id],
-        //            input_vertices[v2_id]}},
-        //                                tree, params)) {
-        //                is_valid = false;
-        //                break;
-        //            }
-        //        }
-        //        if(!is_valid)
-        //            continue;
         if (is_out_envelope(
               {{input_vertices[v1_id], input_vertices[n_v_ids[0]], input_vertices[n_v_ids[1]]}},
               tree,
@@ -526,9 +483,6 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
         conn_fs[n_v_ids[1]].insert(n12_f_ids[0]);
         cnt++;
 
-        //        cout << v1_id << " " << v2_id << endl;
-        //        cout << "neighbors " << n_v_ids[0] << " " << n_v_ids[1] << endl;
-        //        check_surface(input_vertices, input_faces, f_is_removed, tree, params);
     }
 
     logger().debug("{}  faces are swapped!!", cnt);
@@ -575,7 +529,6 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
                 old_nvs[f] = ((b - c).cross(a - c)).normalized();
             }
             if (cos_a > -0.999) {
-                //                continue;
                 if (old_nvs[0].dot(old_nvs[1]) < 1 - 1e-6)  // not coplanar
                     continue;
             }
@@ -721,12 +674,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
 
         auto& n1 = ns[n_f_ids[0]];
         auto& n2 = ns[n_f_ids[1]];
-        //        if(n_f_ids[0] == 61 && n_f_ids[0] == 62 || n_f_ids[0] == 62 && n_f_ids[0] == 61){
-        //            cout<<n1<<endl;
-        //            cout<<n2<<endl;
-        //            cout<<n1.dot(n2)<<endl;
-        //            pausee();
-        //        }
         std::vector<int> n_v_ids;
         for (int f_id : n_f_ids) {
             for (int j = 0; j < 3; j++) {
@@ -738,7 +685,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
         }
         assert(n_v_ids.size() == 2 && n_v_ids[0] != n_v_ids[1]);
         Vector3 n = (n1 + n2) / 2;
-        //        Vector3 p = (input_vertices[e[0]] + input_vertices[e[1]]) / 2;
         Vector3 p = (input_vertices[n_v_ids[0]] + input_vertices[n_v_ids[1]]) / 2;
 
         std::array<Vector3, 2> old_ps;
@@ -746,7 +692,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
             old_ps[j] = input_vertices[e[j]];
             input_vertices[e[j]] -= n.dot(input_vertices[e[j]] - p) * n;
         }
-        //        cout<<"ok1"<<endl;
 
         is_valid = true;
         for (int f_id : all_f_ids) {
@@ -762,7 +707,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
             for (int j = 0; j < 2; j++)
                 input_vertices[e[j]] = old_ps[j];
         }
-        //        cout<<"ok2"<<endl;
 
         /// update
         //
@@ -770,32 +714,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
         ns[n_f_ids[1]] = n;
         //
         ts++;
-        //        for (int f_id: all_f_ids)
-        //            f_tss[f_id] = ts;
-        //
-        //        std::vector<std::array<int, 2>> new_edges;
-        //        for (int f_id: all_f_ids) {
-        //            for (int j = 0; j < 3; j++) {
-        //                if (input_faces[f_id][j] < input_faces[f_id][(j + 1) % 3])
-        //                    new_edges.push_back({{input_faces[f_id][j], input_faces[f_id][(j + 1)
-        //                    % 3]}});
-        //                else
-        //                    new_edges.push_back({{input_faces[f_id][(j + 1) % 3],
-        //                    input_faces[f_id][j]}});
-        //            }
-        //        }
-        //        vector_unique(new_edges);
-        //        for(auto& new_e: new_edges){
-        //            if(new_e == e)
-        //                continue;
-        //            std::vector<int> new_n_f_ids;
-        //            set_intersection(conn_fs[new_e[0]], conn_fs[new_e[1]], new_n_f_ids);
-        //            if (new_n_f_ids.size() != 2)
-        //                continue;
-        //            if (!needs_flattening(ns[new_n_f_ids[0]], ns[new_n_f_ids[1]]))
-        //                continue;
-        //            edge_queue.push({{new_e[0], new_e[1], new_n_f_ids[0], new_n_f_ids[1], ts}});
-        //        }
     }
 
     cout << "flattening " << ts << " faces" << endl;
@@ -829,31 +747,7 @@ bool floatTetWild::is_out_envelope(const std::array<Vector3, 3>& vs,
       vs, params.dd_simplification, params.eps_2_simplification, tree, prev_facet);
 #endif
 
-    // geo::vec3 init_point(vs[0][0], vs[0][1], vs[0][2]);
-    // geo::vec3 nearest_point;
-    // double sq_distg;
-    // geo::index_t prev_facet = tree.nearest_facet(init_point, nearest_point, sq_distg);
-    // Scalar sq_dist = sq_distg;
-    // if (sq_dist > params.eps_2_simplification)
-    //     return true;
 
-    // std::vector<geo::vec3> ps;
-    // sample_triangle(vs, ps, params.dd_simplification);
-    // int cnt = 0;
-    // const unsigned int ps_size = ps.size();
-    // for (unsigned int i = ps_size / 2;; i = (i + 1) % ps_size) {//check from the middle
-    //     geo::vec3 &current_point = ps[i];
-    //     sq_distg = current_point.distance2(nearest_point);
-    //     tree.nearest_facet_with_hint(current_point, prev_facet, nearest_point, sq_distg);
-    //     sq_dist = sq_distg;
-    //     if (sq_dist > params.eps_2_simplification)
-    //         return true;
-    //     cnt++;
-    //     if (cnt >= ps_size)
-    //         break;
-    // }
-
-    // return false;
 }
 
 void floatTetWild::check_surface(std::vector<Vector3>&    input_vertices,
@@ -863,7 +757,6 @@ void floatTetWild::check_surface(std::vector<Vector3>&    input_vertices,
                                  const Parameters&        params)
 {
     cout << "checking surface" << endl;
-    bool is_valid = true;
     for (int i = 0; i < input_faces.size(); i++) {
         if (f_is_removed[i])
             continue;
@@ -876,16 +769,9 @@ void floatTetWild::check_surface(std::vector<Vector3>&    input_vertices,
         Scalar dist = tree.dist_sf_envelope(ps, params.eps_2);
         if (dist > 0) {
             cout << "is_out_sf_envelope!!" << endl;
-            is_valid = false;
-            //            cout<<input_vertices[input_faces[i][0]].transpose()<<endl;
-            //            cout<<input_vertices[input_faces[i][1]].transpose()<<endl;
-            //            cout<<input_vertices[input_faces[i][2]].transpose()<<endl;
             cout << input_faces[i][0] << " " << input_faces[i][1] << " " << input_faces[i][2]
                  << endl;
             cout << dist << endl;
-            //            //pausee();
         }
     }
-    // if(!is_valid)
-    //     pausee();
 }
