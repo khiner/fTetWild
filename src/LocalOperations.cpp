@@ -583,7 +583,6 @@ void floatTetWild::sample_triangle(const std::array<Vector3, 3>& vs,
     if (N > 1) {
         if (N == int(N))
             N -= 1;
-        geo::vec3 n_v1v2 = geo::normalize(v2 - v1);
         for (int n = 1; n <= N; n++) {
             ps.push_back(v1 + n_v1v2 * sampling_dist * n);
         }
@@ -685,7 +684,6 @@ bool floatTetWild::sample_triangle_and_check_is_out(const std::array<Vector3, 3>
     if (N > 1) {
         if (N == int(N))
             N -= 1;
-        geo::vec3 n_v1v2 = geo::normalize(v2 - v1);
         for (int n = 1; n <= N; n++) {
             if (tree.is_out_sf_envelope(
                   v1 + n_v1v2 * sampling_dist * n, eps_2, prev_facet, sq_dist, nearest_point))

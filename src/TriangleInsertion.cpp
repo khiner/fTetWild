@@ -2063,8 +2063,8 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
             int opp_ori =
               Predicates::orient_3d(fv1, fv2, fv3, mesh.tet_vertices[mesh.tets[opp_t_id][k]].pos);
             //
-            if (ori == Predicates::ORI_POSITIVE && opp_ori == Predicates::ORI_NEGATIVE ||
-                ori == Predicates::ORI_NEGATIVE && opp_ori == Predicates::ORI_POSITIVE) {
+            if ((ori == Predicates::ORI_POSITIVE && opp_ori == Predicates::ORI_NEGATIVE) ||
+                (ori == Predicates::ORI_NEGATIVE && opp_ori == Predicates::ORI_POSITIVE)) {
                 mesh.tets[t_id].is_surface_fs[j]     = ori;
                 mesh.tets[opp_t_id].is_surface_fs[k] = opp_ori;
                 continue;

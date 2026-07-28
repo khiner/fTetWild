@@ -293,9 +293,9 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
 
     // tets
     // update quality
-    int i = 0;
+    int q_i = 0;
     for (int t_id : n1_t_ids) {
-        tets[t_id].quality = new_qs[i++];
+        tets[t_id].quality = new_qs[q_i++];
     }
 
     // n_v_id for repush

@@ -42,6 +42,18 @@ float_tetwild_copy_headers(${SOURCES})
 float_tetwild_set_source_group(${SOURCES})
 target_sources(FloatTetwild PRIVATE ${SOURCES})
 
+# Third-party code we do not edit. TARGET_DIRECTORY because the targets are defined one level up.
+if(NOT MSVC)
+	set_source_files_properties(
+		${CMAKE_CURRENT_SOURCE_DIR}/predicates.c
+		${CMAKE_CURRENT_SOURCE_DIR}/getRSS.c
+		${CMAKE_CURRENT_SOURCE_DIR}/mesh_AABB.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/MshSaver.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/geo/geo_mesh_reorder.cpp
+		TARGET_DIRECTORY FloatTetwild PROPERTIES COMPILE_OPTIONS
+		"-Wno-cast-qual;-Wno-deprecated-non-prototype;-Wno-strict-prototypes;-Wno-switch-default;-Wno-unused-function")
+endif()
+
 add_subdirectory(geo)
 
 # PyMesh .msh reader and writer, used only by MeshIO and by main.cpp for --bg-mesh, so they

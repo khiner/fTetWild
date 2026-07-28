@@ -71,8 +71,8 @@ bool floatTetWild::CutMesh::snap_to_plane() {
             continue;
         }
         to_plane_dists[lv_id] = get_to_plane_dist(mesh.tet_vertices[v_id].pos);
-        if (ori == Predicates::ORI_POSITIVE && to_plane_dists[lv_id] > 0
-            || ori == Predicates::ORI_NEGATIVE && to_plane_dists[lv_id] < 0){
+        if ((ori == Predicates::ORI_POSITIVE && to_plane_dists[lv_id] > 0)
+            || (ori == Predicates::ORI_NEGATIVE && to_plane_dists[lv_id] < 0)){
             to_plane_dists[lv_id] = -to_plane_dists[lv_id];
         }
 
@@ -302,35 +302,35 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
                 }
                 if (cnt < 3)
                     continue;
-                    int cnt_pos = 0;
-                    int cnt_neg = 0;
-                    for (int j = 0; j < 4; j++) {
-                        int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2],
-                                                        mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
-                        if (ori == Predicates::ORI_POSITIVE)
-                            cnt_pos++;
-                        else if (ori == Predicates::ORI_NEGATIVE)
-                            cnt_neg++;
-                    }
-                    if (cnt_neg == 0 || cnt_pos == 0)
-                        continue;
+                int cnt_pos = 0;
+                int cnt_neg = 0;
+                for (int j = 0; j < 4; j++) {
+                    int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2],
+                                                    mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
+                    if (ori == Predicates::ORI_POSITIVE)
+                        cnt_pos++;
+                    else if (ori == Predicates::ORI_NEGATIVE)
+                        cnt_neg++;
+                }
+                if (cnt_neg == 0 || cnt_pos == 0)
+                    continue;
 
-                    bool is_overlapped = false;
-                    std::array<Vector2, 4> tet_2d;
-                    for (int j = 0; j < 4; j++) {
-                        Scalar dist = get_to_plane_dist(mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
-                        Vector3 proj_p = mesh.tet_vertices[mesh.tets[gt_id][j]].pos - dist * p_n;
-                        tet_2d[j] = to_2d(proj_p, t);
+                bool is_overlapped = false;
+                std::array<Vector2, 4> tet_2d;
+                for (int j = 0; j < 4; j++) {
+                    Scalar dist = get_to_plane_dist(mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
+                    Vector3 proj_p = mesh.tet_vertices[mesh.tets[gt_id][j]].pos - dist * p_n;
+                    tet_2d[j] = to_2d(proj_p, t);
+                }
+                for(int j=0;j<4;j++) {
+                    if (is_tri_tri_cutted_2d({{tet_2d[(j + 1) % 4], tet_2d[(j + 2) % 4], tet_2d[(j + 3) % 4]}},
+                                             tri_2d)) {
+                        is_overlapped = true;
+                        break;
                     }
-                    for(int j=0;j<4;j++) {
-                        if (is_tri_tri_cutted_2d({{tet_2d[(j + 1) % 4], tet_2d[(j + 2) % 4], tet_2d[(j + 3) % 4]}},
-                                                 tri_2d)) {
-                            is_overlapped = true;
-                            break;
-                        }
-                    }
-                    if(!is_overlapped)
-                        continue;
+                }
+                if(!is_overlapped)
+                    continue;
 
                 ///
                 cut_t_ids.push_back(gt_id);
@@ -338,7 +338,7 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
 
                 ///
                 tets.emplace_back();
-                auto &t = tets.back();
+                auto &new_t = tets.back();
                 for (int j = 0; j < 4; j++) {
                     int new_gv_id = mesh.tets[gt_id][j];
                     int new_lv_id;
@@ -366,7 +366,7 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
                         is_projected.push_back(false);
                     } else
                         new_lv_id = map_v_ids[new_gv_id];
-                    t[j] = new_lv_id;
+                    new_t[j] = new_lv_id;
                 }
             }
             if (is_in)

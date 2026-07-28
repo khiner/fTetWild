@@ -47,7 +47,7 @@ namespace floatTetWild {
                   Scalar _max_energy,
                   Scalar _avg_energy,
                   int _cnt_fail_inserted_face = -1)
-                : id(_id), time(_time), v_num(_v_num), t_num(_t_num), max_energy(_max_energy), avg_energy(_avg_energy),
+                : id(_id), v_num(_v_num), t_num(_t_num), time(_time), avg_energy(_avg_energy), max_energy(_max_energy),
                   cnt_fail_inserted_face(_cnt_fail_inserted_face) {}
     };
 

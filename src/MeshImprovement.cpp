@@ -1060,6 +1060,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
                 if(w1(cnt)<=0.5 || w2(cnt)>0.5)
                     t.is_removed = true;
                 break;
+            default:
+                break;
         }
         cnt++;
     }
@@ -1773,8 +1775,8 @@ void floatTetWild::manifold_edges(Mesh& mesh) {
             }
         }
         vector_unique(new_edges);
-        for (auto &e : new_edges)
-            edge_queue.push(e);
+        for (auto &ne : new_edges)
+            edge_queue.push(ne);
     }
 }
 

@@ -11,7 +11,19 @@
 #ifndef FLOATTETWILD_FAST_WINDING_NUMBER_H
 #define FLOATTETWILD_FAST_WINDING_NUMBER_H
 
+// Third-party header, so there is no source file to put compile options on. The first two lines
+// let each compiler skip the other's warning names.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wgnu-anonymous-struct"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#pragma GCC diagnostic ignored "-Wshadow"
 #include <floattetwild/FastWindingNumberForSoups.h>
+#pragma GCC diagnostic pop
+
 #include <floattetwild/parallel_for.h>
 
 #include <floattetwild/Types.hpp>

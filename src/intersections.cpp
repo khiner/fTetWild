@@ -205,8 +205,8 @@ int floatTetWild::is_tri_tri_cutted(const std::array<Vector3, 3> &f_tri, const s
         Vector3 n = ((f2[1] - f2[2]).cross(f2[0] - f2[2])).normalized();
         int t = get_t(f2[0], f2[1], f2[2]);
         for(int j=0;j<3;j++) {
-            if (oris[j] == Predicates::ORI_NEGATIVE && oris[(j + 1) % 3] == Predicates::ORI_POSITIVE
-                || oris[(j + 1) % 3] == Predicates::ORI_NEGATIVE && oris[j] == Predicates::ORI_POSITIVE) {
+            if ((oris[j] == Predicates::ORI_NEGATIVE && oris[(j + 1) % 3] == Predicates::ORI_POSITIVE)
+                || (oris[(j + 1) % 3] == Predicates::ORI_NEGATIVE && oris[j] == Predicates::ORI_POSITIVE)) {
                 Vector3 p;
                 Scalar _;
                 if (seg_plane_intersection(f1[j], f1[(j + 1) % 3], n, f2[0], p, _)
@@ -404,8 +404,8 @@ floatTetWild::Vector2 floatTetWild::to_2d(const Vector3 &p, const Vector3& n, co
 }
 
 bool floatTetWild::is_crossing(int s1, int s2) {
-    if (s1 == Predicates::ORI_POSITIVE && s2 == Predicates::ORI_NEGATIVE
-        || s2 == Predicates::ORI_POSITIVE && s1 == Predicates::ORI_NEGATIVE)
+    if ((s1 == Predicates::ORI_POSITIVE && s2 == Predicates::ORI_NEGATIVE)
+        || (s2 == Predicates::ORI_POSITIVE && s1 == Predicates::ORI_NEGATIVE))
         return true;
     return false;
 }
@@ -480,9 +480,9 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
 
         //todo: to2d
 
-        int t = get_t(p1, p2, p3);
+        int axis = get_t(p1, p2, p3);
 
-        if(is_tri_tri_cutted_2d({{to_2d(p1, t), to_2d(p2, t), to_2d(p3, t)}}, {{to_2d(q1, t), to_2d(q2, t), to_2d(q3, t)}}))
+        if(is_tri_tri_cutted_2d({{to_2d(p1, axis), to_2d(p2, axis), to_2d(p3, axis)}}, {{to_2d(q1, axis), to_2d(q2, axis), to_2d(q3, axis)}}))
             return CUT_COPLANAR;
         return CUT_EMPTY;
     }

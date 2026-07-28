@@ -109,8 +109,8 @@ bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std
             v_ids[cnt++] = tets[old_t_ids[0]][i];
         }
     }
-    int i = tets[old_t_ids[1]].find(v_ids[0]);
-    if(i>=0){
+    int found_j = tets[old_t_ids[1]].find(v_ids[0]);
+    if(found_j>=0){
         new_tets.push_back(tets[old_t_ids[1]]);
         new_tets.push_back(tets[old_t_ids[2]]);
         t_ids = {{old_t_ids[1], old_t_ids[2]}};
@@ -119,10 +119,10 @@ bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std
         new_tets.push_back(tets[old_t_ids[1]]);
         t_ids = {{old_t_ids[2], old_t_ids[1]}};
     }
-    i = new_tets[0].find(v1_id);
-    new_tets[0][i] = v_ids[1];
-    i = new_tets[1].find(v2_id);
-    new_tets[1][i] = v_ids[0];
+    found_j = new_tets[0].find(v1_id);
+    new_tets[0][found_j] = v_ids[1];
+    found_j = new_tets[1].find(v2_id);
+    new_tets[1][found_j] = v_ids[0];
 
     ////check
     for(auto& t:new_tets) {
@@ -498,9 +498,9 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         new_tets[i] = std::array<Vector4i, 2>({{new_ts[0], new_ts[1]}});
 
         std::vector<Scalar> qs;
-        for (auto &t: new_ts) {
+        for (auto &nt: new_ts) {
             qs.emplace_back(
-                    get_quality(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]));
+                    get_quality(tet_vertices[nt[0]], tet_vertices[nt[1]], tet_vertices[nt[2]], tet_vertices[nt[3]]));
         }
         tet_qs[i] = std::array<Scalar, 2>({{qs[0], qs[1]}});
     }
@@ -528,8 +528,8 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         new_ts.push_back(t.indices);
 
         std::vector<Scalar> qs;
-        for (auto &t:new_ts) {
-            qs.push_back(get_quality(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]));
+        for (auto &nt:new_ts) {
+            qs.push_back(get_quality(tet_vertices[nt[0]], tet_vertices[nt[1]], tet_vertices[nt[2]], tet_vertices[nt[3]]));
         }
         for (int j = 0; j < 2; j++) {
             qs.push_back(tet_qs[(i + 1) % 5][j]);
