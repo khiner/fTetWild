@@ -39,8 +39,6 @@ using namespace floatTetWild;
 
 #include <floattetwild/MshLoader.h>
 
-void connect_2_meshes(std::string m1, std::string m2, std::string m);
-
 int main(int argc, char** argv)
 {
 #ifdef STORE_SAMPLE_POINTS
@@ -117,7 +115,7 @@ int main(int argc, char** argv)
     command_line.add_flag(
       "--manifold-surface", params.manifold_surface, "Force the output to be manifold.");
     command_line.add_flag("--coarsen", params.coarsen, "Coarsen the output as much as possible.");
-    command_line.add_option("--csg", csg_file, "json file containg a csg tree")
+    command_line.add_option("--csg", csg_file, "File containing a csg tree.")
       ->check(CLI::ExistingFile);
 
     command_line.add_flag(

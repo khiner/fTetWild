@@ -12,12 +12,8 @@ list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 
 set(test_sources
 	main.cpp
-	tests.cpp
 	test_predicates.cpp
 	test_table.cpp
-	# test_subdivision.cpp
-	# test_tree.cpp
-    # test_envelope.cpp
 )
 
 add_executable(unit_tests ${test_sources})
@@ -27,9 +23,6 @@ foreach(source IN ITEMS ${test_sources})
 endforeach()
 
 target_link_libraries(unit_tests PUBLIC FloatTetwild Catch2::Catch2WithMain warnings::all)
-
-# set(DATA_DIR "${THIRD_PARTY_DIR}/data/")
-# target_compile_definitions(unit_tests PUBLIC -DDATA_DIR=\"${DATA_DIR}\")
 
 # Register tests
 set(PARSE_CATCH_TESTS_ADD_TO_CONFIGURE_DEPENDS ON)

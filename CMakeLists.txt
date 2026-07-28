@@ -24,19 +24,9 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGU
                  Debug Release RelWithDebInfo MinSizeRel)
 endif()
 
-if(INPUT_THIRD_PARTY_DIR)
-    set(FLOAT_TETWILD_EXTERNAL
-      ${CMAKE_CURRENT_SOURCE_DIR}/${INPUT_THIRD_PARTY_DIR}/)
-else()
-    set(FLOAT_TETWILD_EXTERNAL ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
-endif()
-
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# Color output
-include(UseColors)
 
 # Prepend function
 include(PrependCurrentPath)
@@ -57,15 +47,31 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # FloatTetwild options
 option(FLOAT_TETWILD_USE_FLOAT "Use floats instead of double" OFF)
-# Setup dependencies
-include(FloatTetwildDependencies)
+
+# ##############################################################################
+# Dependencies
+# ##############################################################################
+
+# The in-tree thread pool.
+find_package(Threads REQUIRED)
+
+# Argument parsing in main.cpp, so only the binary needs it.
+if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT TARGET CLI11::CLI11)
+    include(FetchContent)
+    FetchContent_Declare(
+        cli11
+        GIT_REPOSITORY https://github.com/CLIUtils/CLI11
+        GIT_TAG v2.5.0
+    )
+    FetchContent_MakeAvailable(cli11)
+endif()
 
 # ##############################################################################
 # FloatTetwild library
 # ##############################################################################
 
-# add_library() can only be called without any source since CMake 3.11 ...
-add_library(${PROJECT_NAME} src/Logger.cpp)
+# Sources are attached by src/CMakeLists.txt via target_sources().
+add_library(${PROJECT_NAME})
 
 # Public include directory for FloatTetwild
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR}/include)
@@ -78,24 +84,13 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
-# if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-# target_compile_options(${PROJECT_NAME} PUBLIC "/Zc:__cplusplus") endif()
-# target_compile_definitions(${PROJECT_NAME} PUBLIC
-# -DEIGEN_STACK_ALLOCATION_LIMIT=8388608)
-
-# ##############################################################################
-# Required libraries
-# ##############################################################################
 
 if(FLOAT_TETWILD_USE_FLOAT)
     target_compile_definitions(${PROJECT_NAME} PUBLIC -DFLOAT_TETWILD_USE_FLOAT)
 endif()
 
-target_link_libraries(
-  ${PROJECT_NAME}
-  PUBLIC Threads::Threads
-         # fast_winding_number
-)
+target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
+
 # ##############################################################################
 # FloatTetwild binary
 # ##############################################################################
@@ -108,10 +103,8 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT)
     target_link_libraries(${PROJECT_NAME}_bin PUBLIC ${PROJECT_NAME} CLI11::CLI11
                                                    warnings::all)
 
-    if(NOT (${CMAKE_VERSION} VERSION_LESS "3.6.0"))
-        set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                  PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME}_bin)
-    endif()
 endif()
 
 # ##############################################################################

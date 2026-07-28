@@ -1,8 +1,7 @@
 # ##############################################################################
-cmake_minimum_required(VERSION 3.10)
-# ##############################################################################
-# See comments and discussions here:
-# http://stackoverflow.com/questions/5088460/flags-to-enable-thorough-and-verbose-g-warnings
+# An INTERFACE target carrying the project's warning flags. Every flag is probed with
+# check_cxx_compiler_flag first, so compiler-specific ones simply drop out where they are not
+# understood.
 # ##############################################################################
 
 if(TARGET warnings::all)
@@ -13,9 +12,6 @@ set(MY_FLAGS
         -Wall
         -Wextra
         -pedantic
-
-        # -Wconversion
-        #-Wunsafe-loop-optimizations # broken with C++11 loops
         -Wunused
 
         -Wno-long-long
@@ -30,11 +26,7 @@ set(MY_FLAGS
         -Wno-unused-variable
         -Wunused-but-set-variable
         -Wno-unused-parameter
-
-        #-Weffc++
         -Wno-old-style-cast
-        # -Wno-sign-conversion
-        #-Wsign-conversion
 
         -Wshadow
 
@@ -50,9 +42,7 @@ set(MY_FLAGS
 
         -Wcast-align
         -Wdisabled-optimization
-        #-Winline # produces warning on default implicit destructor
         -Winvalid-pch
-        # -Wmissing-include-dirs
         -Wpacked
         -Wno-padded
         -Wstrict-overflow
@@ -61,66 +51,19 @@ set(MY_FLAGS
         -Wctor-dtor-privacy
         -Wlogical-op
         -Wnoexcept
-        -Woverloaded-virtual
-        # -Wundef
 
         -Wnon-virtual-dtor
         -Wdelete-non-virtual-dtor
 
         -Wno-sign-compare
 
-        ###########
-        # GCC 6.1 #
-        ###########
-
         -Wno-error=stringop-overflow
-
         -Wnull-dereference
         -fdelete-null-pointer-checks
         -Wduplicated-cond
         -Wmisleading-indentation
 
-        #-Weverything
-
-        ###########################
-        # Enabled by -Weverything #
-        ###########################
-
-        #-Wdocumentation
-        #-Wdocumentation-unknown-command
-        #-Wfloat-equal
-        #-Wcovered-switch-default
-
-        #-Wglobal-constructors
-        #-Wexit-time-destructors
-        #-Wmissing-variable-declarations
-        #-Wextra-semi
-        #-Wweak-vtables
-        #-Wno-source-uses-openmp
-        #-Wdeprecated
-        #-Wnewline-eof
-        #-Wmissing-prototypes
-
-        #-Wno-c++98-compat
-        #-Wno-c++98-compat-pedantic
-
-        ###########################
-        # Need to check if those are still valid today
-        ###########################
-
-        #-Wimplicit-atomic-properties
-        #-Wmissing-declarations
-        #-Wmissing-prototypes
-        #-Wstrict-selector-match
-        #-Wundeclared-selector
-        #-Wunreachable-code
-
-        # Not a warning, but enable link-time-optimization
-        # TODO: Check out modern CMake version of setting this flag
-        # https://cmake.org/cmake/help/latest/module/CheckIPOSupported.html
-        #-flto
-
-        # Gives meaningful stack traces
+        # Not warnings: these keep stack traces meaningful.
         -fno-omit-frame-pointer
         -fno-optimize-sibling-calls
 )

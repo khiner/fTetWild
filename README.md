@@ -100,7 +100,7 @@ The baseline goes to the gitignored `corpus/`, so record it per machine.
 
 The inputs of our software are triangle surface meshes in `.off/.obj/.stl/.ply` format.
 
-The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). You can use `PyMesh::MshLoader` and `PyMesh::MshSaver` in `pymesh/` for read and write `.msh` meshes. Surface meshes are written in `.obj` format.
+The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). `PyMesh::MshLoader` and `PyMesh::MshSaver` in `src/external/` read and write `.msh` meshes. Surface meshes are written in `.obj` format.
 
 
 ### Features
@@ -138,7 +138,6 @@ Our method can fill gaps and holes but the tetmesh faces on those parts could be
 Our software supports usage via command line or via a C++ function wrapper. Here is an overview of all command line switches:
 
 ```
-RobustTetMeshing
 Usage: ./FloatTetwild_bin [OPTIONS]
 Options:
   -h,--help                   Print this help message and exit
@@ -149,17 +148,24 @@ Options:
   -a,--la FLOAT               Ideal edge length not scaled by diag_of_bbox. Excludes: --lr. (double, optional)
   -l,--lr FLOAT               ideal_edge_length = diag_of_bbox * L. Excludes: --la. (double, optional, default: 0.05)
   -e,--epsr FLOAT             epsilon = diag_of_bbox * EPS. (double, optional, default: 1e-3)
+  --max-its INT               (for debugging usage only)
   --stop-energy FLOAT         Stop optimization when max energy is lower than this.
+  --stage INT                 (for debugging usage only)
+  --stop-p INT                (for debugging usage only)
+  --postfix TEXT              (for debugging usage only)
   --log TEXT                  Log info to given file.
   --level INT                 Log level (0 = most verbose, 6 = off).
   -q,--is-quiet               Mute console output. (optional)
   --skip-simplify             skip preprocessing.
   --no-binary                 export meshes as ascii
   --no-color                  don't export color
+  --not-sort-input            (for debugging usage only)
   --smooth-open-boundary      Smooth the open boundary.
+  --export-raw                Export raw output.
   --manifold-surface          Force the output to be manifold.
   --coarsen                   Coarsen the output as much as possible.
-  --csg TEXT:FILE             json file containg a csg tree
+  --csg TEXT:FILE             File containing a csg tree.
+  --use-old-energy            (for debugging usage only)
   --disable-filtering         Disable filtering out outside elements.
   --use-floodfill             Use flood-fill to extract interior volume.
   --use-input-for-wn          Use input surface for winding number.
@@ -169,8 +175,11 @@ Options:
 
 ## Acknowledgements
 
-We used several useful libraries in our implement, testing, and rendering listed as follows. We would like to especially thank their authors for their great work and publishing the code.
-
-- [PyMesh](https://github.com/qnzhou/PyMesh)
-- [PyRenderer](https://github.com/qnzhou/PyRenderer)
-- [CLI11](https://github.com/CLIUtils/CLI11)
+Two libraries are still fetched at configure time: [CLI11](https://github.com/CLIUtils/CLI11) for
+argument parsing in the binary and [Catch2](https://github.com/catchorg/Catch2) for the unit tests.
+Everything else the algorithm needs is in the tree. `src/external/` carries the parts that came from
+other projects, each with its provenance in the file header: the `.msh` reader and writer from
+[PyMesh](https://github.com/qnzhou/PyMesh), Shewchuk's exact predicates, the fast winding number for
+soups, and the mesh, kd-tree, Delaunay and multi-precision code from
+[geogram](https://github.com/BrunoLevy/geogram). We would like to thank their authors for their great
+work and publishing the code.
