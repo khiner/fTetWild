@@ -16,18 +16,6 @@ set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 # Required libraries
 # ##############################################################################
 
-# Sanitizers
-if(FLOAT_TETWILD_WITH_SANITIZERS)
-    FetchContent_Declare(
-        sanitizers-cmake
-        GIT_REPOSITORY https://github.com/arsenm/sanitizers-cmake.git
-        GIT_TAG        6947cff3a9c9305eb9c16135dd81da3feb4bf87f
-    )
-    FetchContent_MakeAvailable(sanitizers-cmake)
-    list(APPEND CMAKE_MODULE_PATH ${sanitizers-cmake_SOURCE_DIR}/cmake)
-    find_package(Sanitizers)
-endif()
-
 # CLI11
 if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT TARGET CLI11::CLI11)
     FetchContent_Declare(

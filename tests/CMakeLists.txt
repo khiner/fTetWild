@@ -31,10 +31,6 @@ target_link_libraries(unit_tests PUBLIC FloatTetwild Catch2::Catch2WithMain warn
 # set(DATA_DIR "${THIRD_PARTY_DIR}/data/")
 # target_compile_definitions(unit_tests PUBLIC -DDATA_DIR=\"${DATA_DIR}\")
 
-if(FLOAT_TETWILD_WITH_SANITIZERS)
-	add_sanitizers(unit_tests)
-endif()
-
 # Register tests
 set(PARSE_CATCH_TESTS_ADD_TO_CONFIGURE_DEPENDS ON)
 include(Catch)

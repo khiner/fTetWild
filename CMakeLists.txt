@@ -11,6 +11,19 @@ else()
     set(FLOAT_TETWILD_TOPLEVEL_PROJECT ON)
 endif()
 
+# Release unless asked for something else. With no build type CMake passes no optimisation flags
+# at all, which is not just slower: the arithmetic differs, so script/check_corpus fails against a
+# baseline recorded from an optimised build. An explicit -DCMAKE_BUILD_TYPE still wins, and
+# multi-config generators pick their configuration at build time so they are left alone.
+if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    # FORCE because project() has already created the cache entry, empty, and a plain set()
+    # against an existing entry does nothing. The guard above is what keeps this from stomping
+    # a build type the user asked for.
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+                 Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
 if(INPUT_THIRD_PARTY_DIR)
     set(FLOAT_TETWILD_EXTERNAL
       ${CMAKE_CURRENT_SOURCE_DIR}/${INPUT_THIRD_PARTY_DIR}/)
@@ -44,21 +57,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # FloatTetwild options
 option(FLOAT_TETWILD_USE_FLOAT "Use floats instead of double" OFF)
-option(FLOAT_TETWILD_WITH_SANITIZERS "Use sanitizers" OFF)
-
-# Sanitizer options
-option(SANITIZE_ADDRESS "Sanitize Address" OFF)
-option(SANITIZE_MEMORY "Sanitize Memory" OFF)
-option(SANITIZE_THREAD "Sanitize Thread" OFF)
-option(SANITIZE_UNDEFINED "Sanitize Undefined" OFF)
-
-
-# Sanitizers
-if(FLOAT_TETWILD_WITH_SANITIZERS)
-    list(APPEND CMAKE_MODULE_PATH
-       ${FLOAT_TETWILD_EXTERNAL}/sanitizers-cmake/cmake)
-endif()
-
 # Setup dependencies
 include(FloatTetwildDependencies)
 
@@ -85,10 +83,6 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
 # target_compile_definitions(${PROJECT_NAME} PUBLIC
 # -DEIGEN_STACK_ALLOCATION_LIMIT=8388608)
 
-if(FLOAT_TETWILD_WITH_SANITIZERS)
-    add_sanitizers(${PROJECT_NAME})
-endif()
-
 # ##############################################################################
 # Required libraries
 # ##############################################################################
@@ -113,10 +107,6 @@ if(FLOAT_TETWILD_TOPLEVEL_PROJECT)
 
     target_link_libraries(${PROJECT_NAME}_bin PUBLIC ${PROJECT_NAME} CLI11::CLI11
                                                    warnings::all)
-
-    if(FLOAT_TETWILD_WITH_SANITIZERS)
-        add_sanitizers(${PROJECT_NAME}_bin)
-    endif()
 
     if(NOT (${CMAKE_VERSION} VERSION_LESS "3.6.0"))
         set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
