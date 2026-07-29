@@ -22,10 +22,8 @@ namespace floatTetWild {
     int is_tri_tri_cutted(const std::array<Vector3, 3> &f_tri, const std::array<Vector3, 3> &f_tet,
                           const std::array<int, 3>& oris_tri);
 
-    Scalar seg_seg_squared_dist_3d(const std::array<Vector3, 2> &s1, const std::array<Vector3, 2> &s2);
 
     Scalar p_seg_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
-    Scalar p_line_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
 
     bool is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri);
     bool is_seg_tri_cutted_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 3> &tri);
@@ -53,8 +51,6 @@ namespace floatTetWild {
 
     bool is_bbox_intersected(const Vector3& min1, const Vector3& max1, const Vector3& min2, const Vector3& max2);
 
-    bool is_tri_inside_tet(const std::array<Vector3, 3>& ps,
-                           const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t);
     bool is_point_inside_tet(const Vector3& p, const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t);
 }
 

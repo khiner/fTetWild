@@ -648,13 +648,6 @@ void floatTetWild::boolean_operation(Mesh&                                     m
     boolean_operation(mesh, csg_tree_with_ids, w);
 }
 
-void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids){
-    boolean_operation(mesh,
-                      csg_tree_with_ids,
-                      std::vector<std::vector<Vector3>>(),
-                      std::vector<std::vector<Vector3i>>());
-}
-
 void floatTetWild::boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<VectorXd> &w)
 {
     int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
@@ -1079,15 +1072,6 @@ void floatTetWild::untangle(Mesh &mesh) {
 void floatTetWild::smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree) {
     mark_outside(mesh);
     smooth_open_boundary_aux(mesh, tree);
-
-    return;
-    for(int i=0;i<10;i++) {
-        mark_outside(mesh);
-        smooth_open_boundary_aux(mesh, tree);
-        for(auto& t: mesh.tets)
-            t.is_outside = false;
-    }
-    mark_outside(mesh);
 }
 
 void floatTetWild::smooth_open_boundary_aux(Mesh& mesh, const AABBWrapper& tree) {

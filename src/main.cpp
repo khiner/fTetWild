@@ -40,9 +40,6 @@ using namespace floatTetWild;
 
 int main(int argc, char** argv)
 {
-#ifdef STORE_SAMPLE_POINTS
-    cout << "STORE_SAMPLE_POINTS defined" << endl;
-#endif
 
 
     std::vector<int> indices(20);

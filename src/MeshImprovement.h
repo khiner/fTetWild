@@ -35,7 +35,6 @@ namespace floatTetWild {
                            const std::vector<std::vector<Vector3>>& Vs,
                            const std::vector<std::vector<Vector3i>>& Fs);
     void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids, const std::vector<VectorXd> &w);
-    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids);
     void filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
     // V and F are the tracked surface, from get_tracked_surface. The caller supplies it so
     // it is computed once even when it is also wanted for output.

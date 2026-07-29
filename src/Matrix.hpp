@@ -85,13 +85,6 @@ struct Vector
         v[3] = w;
     }
 
-    static Vector Zero()
-    {
-        Vector r;
-        for (int i = 0; i < N; i++) r.v[i] = T(0);
-        return r;
-    }
-
     T&       operator()(int i) { return v[i]; }
     const T& operator()(int i) const { return v[i]; }
     T&       operator[](int i) { return v[i]; }
@@ -280,13 +273,6 @@ struct Matrix33
 
     Matrix33() {}
 
-    static Matrix33 Zero()
-    {
-        Matrix33 r;
-        for (int i = 0; i < 9; i++) r.m[i] = T(0);
-        return r;
-    }
-
     T&       operator()(int i, int j) { return m[i * 3 + j]; }
     const T& operator()(int i, int j) const { return m[i * 3 + j]; }
 
@@ -307,8 +293,6 @@ struct Matrix33
             if (!std::isfinite(m[i])) return false;
         return true;
     }
-
-    Vector<T, 3> col(int j) const { return Vector<T, 3>(m[j], m[3 + j], m[6 + j]); }
 };
 
 template <typename T>
@@ -508,6 +492,14 @@ struct MatrixX
 
     T        coeff(int i, int j) const { return a[size_t(i) * ncols + j]; }
 
+    MatrixX segment(int start, int n) const
+    {
+        assert(ncols == 1);
+        MatrixX r(n);
+        for (int i = 0; i < n; i++) r.a[i] = a[start + i];
+        return r;
+    }
+
     T*       data() { return a.data(); }
     const T* data() const { return a.data(); }
 
@@ -515,14 +507,6 @@ struct MatrixX
     RowRefBase<T, true>  row(int i) const
     {
         return RowRefBase<T, true>{a.data() + size_t(i) * ncols, ncols};
-    }
-
-    MatrixX segment(int start, int n) const
-    {
-        assert(ncols == 1);
-        MatrixX r(n);
-        for (int i = 0; i < n; i++) r.a[i] = a[start + i];
-        return r;
     }
 
     template <typename U>

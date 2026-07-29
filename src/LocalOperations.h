@@ -17,7 +17,6 @@ namespace floatTetWild {
 
 
     int get_opp_t_id(const Mesh& mesh, int t_id, int j);
-    void set_opp_t_id(Mesh& mesh, int t_id, int j);
     inline int get_local_f_id(int t_id, int v1_id, int v2_id, int v3_id, Mesh &mesh) {
         for (int j = 0; j < 4; j++) {
             if (mesh.tets[t_id][j] != v1_id && mesh.tets[t_id][j] != v2_id && mesh.tets[t_id][j] != v3_id)
@@ -42,7 +41,6 @@ namespace floatTetWild {
     Scalar get_quality(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     Scalar get_quality(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
     void get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scalar& avg_energy);
-    Scalar get_mid_energy(const Mesh& mesh);
 
     bool is_inverted(const Mesh& mesh, int t_id);
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
@@ -140,7 +138,6 @@ namespace floatTetWild {
     };
 
     Scalar AMIPS_energy_aux(const std::array<Scalar, 12>& T);
-    bool is_energy_unstable(const std::array<Scalar, 12>& T, Scalar res);
     Scalar AMIPS_energy(const std::array<Scalar, 12>& T);
     void AMIPS_jacobian(const std::array<Scalar, 12>& T, Vector3& result_0);
     void AMIPS_hessian(const std::array<Scalar, 12>& T, Matrix3& result_0);

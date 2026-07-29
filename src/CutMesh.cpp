@@ -19,21 +19,6 @@
 
 #include <floattetwild/Timer.h>
 
-double time_cut_mesh11 = 0;
-double time_cut_mesh12 = 0;
-double time_cut_mesh13 = 0;
-double time_cut_mesh14 = 0;
-double time_get_intersecting_edges_and_points1 = 0;
-double time_get_intersecting_edges_and_points2 = 0;
-double time_get_intersecting_edges_and_points3 = 0;
-double time_get_intersecting_edges_and_points4 = 0;
-
-void floatTetWild::print_times1(){
-    logger().debug("\t\t- time_get_intersecting_edges_and_points1 = {}s", time_get_intersecting_edges_and_points1);
-    logger().debug("\t\t- time_get_intersecting_edges_and_points2 = {}s", time_get_intersecting_edges_and_points2);
-    logger().debug("\t\t- time_get_intersecting_edges_and_points3 = {}s", time_get_intersecting_edges_and_points3);
-    logger().debug("\t\t- time_get_intersecting_edges_and_points4 = {}s", time_get_intersecting_edges_and_points4);
-}
 
 void floatTetWild::CutMesh::construct(const std::vector<int>& cut_t_ids) {
     v_ids.reserve(cut_t_ids.size() * 4);

@@ -83,26 +83,6 @@ namespace floatTetWild {
         }
 
         //// envelope check - triangle
-        inline bool is_out_sf_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
-                                       geo::index_t prev_facet = geo::NO_FACET) const {
-            geo::vec3 nearest_point;
-            double sq_dist = std::numeric_limits<double>::max();
-
-            for (const geo::vec3 &current_point : ps) {
-                if (prev_facet != geo::NO_FACET) {
-                    get_point_facet_nearest_point(sf_mesh, current_point, prev_facet, nearest_point, sq_dist);
-                }
-                if (Scalar(sq_dist) > eps_2) {
-                    sf_tree.facet_in_envelope_with_hint(current_point, eps_2, prev_facet, nearest_point, sq_dist);
-                }
-                if (Scalar(sq_dist) > eps_2) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         inline bool is_out_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
                                       geo::index_t prev_facet = geo::NO_FACET) const {
             geo::vec3 nearest_point;
@@ -196,26 +176,6 @@ namespace floatTetWild {
             return false;
         }
 
-
-        inline Scalar dist_sf_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
-                                       geo::index_t prev_facet = geo::NO_FACET) const {///only used for checking correctness
-            geo::vec3 nearest_point;
-            double sq_dist = std::numeric_limits<double>::max();
-
-            for (const geo::vec3 &current_point : ps) {
-                if (prev_facet != geo::NO_FACET) {
-                    get_point_facet_nearest_point(sf_mesh, current_point, prev_facet, nearest_point, sq_dist);
-                }
-                if (Scalar(sq_dist) > eps_2) {
-                    sf_tree.facet_in_envelope_with_hint(current_point, eps_2, prev_facet, nearest_point, sq_dist);
-                }
-                if (Scalar(sq_dist) > eps_2) {
-                    return sq_dist;
-                }
-            }
-
-            return 0;
-        }
 
     };
 

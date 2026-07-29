@@ -45,9 +45,6 @@ class Logger
     void set_level(int level);
 
     template<typename... Args>
-    void trace(const char* fmt, const Args&... args)
-    { log(Trace, fmt, args...); }
-    template<typename... Args>
     void debug(const char* fmt, const Args&... args)
     { log(Debug, fmt, args...); }
     template<typename... Args>
@@ -59,9 +56,6 @@ class Logger
     template<typename... Args>
     void error(const char* fmt, const Args&... args)
     { log(Error, fmt, args...); }
-    template<typename... Args>
-    void critical(const char* fmt, const Args&... args)
-    { log(Critical, fmt, args...); }
 
   private:
     template<typename... Args>

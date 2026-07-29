@@ -25,8 +25,6 @@ namespace floatTetWild {
 #define SCALAR_ZERO_3 1e-24
 #endif
 
-//#define STORE_SAMPLE_POINTS
-
     typedef MatrixX<Scalar> MatrixXs;
     typedef MatrixX<double> MatrixXd;
     typedef MatrixX<int>    MatrixXi;

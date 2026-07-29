@@ -12,7 +12,6 @@
 #include <floattetwild/MeshImprovement.h>
 
 namespace floatTetWild {
-    bool is_es_check = false;
 }
 
 void floatTetWild::edge_swapping(Mesh& mesh) {

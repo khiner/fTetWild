@@ -40,34 +40,6 @@ int floatTetWild::get_opp_t_id(const Mesh& mesh, int t_id, int j)
     return OPP_T_ID_BOUNDARY;
 }
 
-void floatTetWild::set_opp_t_id(Mesh& mesh, int t_id, int j)
-{
-    auto& t = mesh.tets[t_id];
-    const int jp1 = mod4(j + 1);
-    const int jp2 = mod4(j + 2);
-    const int jp3 = mod4(j + 3);
-    assert((j + 1) % 4 == jp1);
-    assert((j + 2) % 4 == jp2);
-    assert((j + 3) % 4 == jp3);
-    static std::vector<int> pair;
-    pair.clear();
-    set_intersection(mesh.tet_vertices[t[jp1]].conn_tets,
-                     mesh.tet_vertices[t[jp2]].conn_tets,
-                     mesh.tet_vertices[t[jp3]].conn_tets,
-                     pair);
-    if (pair.size() == 2) {
-        int opp_t_id   = pair[0] == t_id ? pair[1] : pair[0];
-        t.opp_t_ids[j] = opp_t_id;
-        auto& opp_t    = mesh.tets[opp_t_id];
-        for (int k = 0; k < 4; k++) {
-            if (opp_t[k] != t[jp1] && opp_t[k] != t[jp2] && opp_t[k] != t[jp3]) {
-                opp_t.opp_t_ids[k] = t_id;
-                break;
-            }
-        }
-    }
-}
-
 void floatTetWild::get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges)
 {
     edges = parallel_collect<std::array<int, 2>>(
@@ -326,18 +298,6 @@ void floatTetWild::get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scal
     avg_energy /= cnt;
 }
 
-Scalar floatTetWild::get_mid_energy(const Mesh& mesh)
-{
-    std::vector<Scalar> tmp;
-    for (auto& t : mesh.tets) {
-        if (t.is_removed)
-            continue;
-        tmp.push_back(t.quality);
-    }
-    std::sort(tmp.begin(), tmp.end());
-    return tmp[tmp.size() / 2];
-}
-
 bool floatTetWild::is_inverted(const Mesh& mesh, int t_id)
 {
     if (Predicates::orient_3d(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
@@ -491,14 +451,8 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
                     else
                         vs[k] = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 1 + k)]].pos;
                 }
-#ifdef STORE_SAMPLE_POINTS
-                ps.clear();
-                sample_triangle(vs, ps, mesh.params.dd);
-                bool is_out = tree.is_out_sf_envelope(ps, mesh.params.eps_2, prev_facet);
-#else
                 bool is_out = sample_triangle_and_check_is_out(
                   vs, mesh.params.dd, mesh.params.eps_2, tree, prev_facet);
-#endif
                 if (is_out)
                     return true;
 
@@ -825,35 +779,6 @@ void floatTetWild::set_intersection_sorted(const std::vector<int>& s1,
     std::set_intersection(s1.begin(), s1.end(), s2.begin(), s2.end(), std::back_inserter(v));
     auto it = std::set_intersection(v.begin(), v.end(), s3.begin(), s3.end(), v.begin());
     v.resize(it - v.begin());
-}
-
-bool floatTetWild::is_energy_unstable(const std::array<Scalar, 12>& T, Scalar res)
-{
-    static const std::vector<std::array<int, 4>> combs = {
-      {{0, 1, 3, 2}}, {{0, 2, 1, 3}}, {{0, 2, 3, 1}}, {{0, 3, 1, 2}}, {{0, 3, 2, 1}},
-      {{1, 0, 2, 3}}, {{1, 0, 3, 2}}, {{1, 2, 0, 3}}, {{1, 2, 3, 0}}, {{1, 3, 0, 2}},
-      {{1, 3, 2, 0}}, {{2, 0, 1, 3}}, {{2, 0, 3, 1}}, {{2, 1, 0, 3}}, {{2, 1, 3, 0}},
-      {{2, 3, 0, 1}}, {{2, 3, 1, 0}}, {{3, 0, 1, 2}}, {{3, 0, 2, 1}}, {{3, 1, 0, 2}},
-      {{3, 1, 2, 0}}, {{3, 2, 0, 1}}, {{3, 2, 1, 0}}};
-    Scalar res0;
-    if (std::isinf(res))
-        return true;
-
-    for (int i = 0; i < combs.size(); i++) {
-        std::array<Scalar, 12> tmp_T;
-        for (int j = 0; j < 4; j++) {
-            for (int k = 0; k < 3; k++)
-                tmp_T[j * 3 + k] = T[combs[i][j] * 3 + k];
-        }
-        Scalar res1 = AMIPS_energy_aux(tmp_T);
-        if (std::isinf(res1))
-            continue;
-        if (res0 == 0)
-            res0 = res1;
-        if (abs(res1 - res0) / res0 > 0.01)
-            return true;
-    }
-    return false;
 }
 
 int cnt_stable = 0;

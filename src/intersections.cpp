@@ -75,33 +75,6 @@ bool floatTetWild::seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, c
     return true;
 }
 
-floatTetWild::Scalar floatTetWild::seg_seg_squared_dist_3d(const std::array<Vector3, 2> &s1, const std::array<Vector3, 2> &s2) {
-    Vector3 w0 = s1[0] - s2[0];
-    Vector3 u = (s1[1] - s1[0]).normalized();
-    Vector3 v = (s2[1] - s2[0]).normalized();
-    Scalar a = u.dot(u);
-    Scalar b = u.dot(v);
-    Scalar c = v.dot(v);
-    Scalar d = u.dot(w0);
-    Scalar e = v.dot(w0);
-
-    Scalar dd = a * c - b * b;
-    Scalar t1, t2;
-    if (dd == 0) {
-        t1 = 0;
-        t2 = d / b;
-    } else {
-        t1 = (b * e - c * d) / dd;
-        t2 = (a * e - b * d) / dd;
-    }
-
-    return (((1 - t1) * s1[0] + t1 * s1[1]) - ((1 - t2) * s2[0] + t2 * s2[1])).squaredNorm();
-}
-
-floatTetWild::Scalar floatTetWild::p_line_squared_dist_3d(const Vector3 &v, const Vector3 &a, const Vector3 &b) {
-    return ((b - a).cross(a - v)).squaredNorm() / (b - a).squaredNorm();
-}
-
 floatTetWild::Scalar floatTetWild::p_seg_squared_dist_3d(const Vector3 &v, const Vector3 &a, const Vector3 &b){
     Vector3 av = v-a;
     Vector3 ab = b-a;
@@ -563,43 +536,6 @@ bool floatTetWild::is_bbox_intersected(const Vector3& min1, const Vector3& max1,
             return false;
     }
     return true;
-}
-
-bool floatTetWild::is_tri_inside_tet(const std::array<Vector3, 3>& ps,
-        const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t) {
-    int cnt_pos = 0;
-    int cnt_neg = 0;
-
-    for (int i = 0; i < 3; i++) {
-        int ori = Predicates::orient_3d(ps[i], p1t, p2t, p3t);
-        if (ori == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
-
-        ori = Predicates::orient_3d(p0t, ps[i], p2t, p3t);
-        if (ori == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
-
-        ori = Predicates::orient_3d(p0t, p1t, ps[i], p3t);
-        if (ori == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
-
-        ori = Predicates::orient_3d(p0t, p1t, p2t, ps[i]);
-        if (ori == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
-    }
-
-    if(cnt_pos == 0 || cnt_neg == 0)
-        return true;
-
-    return false;
 }
 
 bool floatTetWild::is_point_inside_tet(const Vector3& p, const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t) {///inside or on
