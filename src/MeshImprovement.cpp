@@ -155,10 +155,6 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
         apply_coarsening(mesh, tree);
     }
 
-    if(mesh.params.apply_sizing_field){
-        apply_sizingfield(mesh, tree);
-    }
-
 }
 
 void floatTetWild::cleanup_empty_slots(Mesh &mesh, double percentage) {
@@ -482,38 +478,6 @@ int floatTetWild::get_max_p(const Mesh &mesh)
 }
 
 #include <floattetwild/Predicates.hpp>
-
-//void floatTetWild::apply_sizingfield(const Eigen::VectorXd& V_in, const Eigen::VectorXi& T_in, const Eigen::VectorXd& values,
-//        //compute barycenter
-//            && max_energy < mesh.params.stop_energy) //refinement and quality enough
-
-void floatTetWild::apply_sizingfield(Mesh& mesh, AABBWrapper& tree) {
-    logger().debug("Applying sizing field...");
-
-    auto &tet_vertices = mesh.tet_vertices;
-    auto &tets = mesh.tets;
-
-    for (auto &p: tet_vertices) {
-        if (p.is_removed)
-            continue;
-        p.sizing_scalar = 1; //reset
-        double value = mesh.params.get_sizing_field_value(p.pos);
-        if (value > 0) {
-            p.sizing_scalar = value / mesh.params.ideal_edge_length;
-        }
-    }
-
-    int num_tets = mesh.get_t_num();
-    for (int i = 0; i < 20; i++) {
-        operation(mesh, tree);
-        double tmp_num_tets = mesh.get_t_num();
-        double max_energy = mesh.get_max_energy();
-        if ((tmp_num_tets - num_tets) / num_tets < 0.02
-            && max_energy < mesh.params.stop_energy) //refinement and quality enough
-            break;
-        num_tets = tmp_num_tets;
-    }
-}
 
 void floatTetWild::apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
     mesh.is_coarsening = true;

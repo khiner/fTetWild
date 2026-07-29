@@ -100,7 +100,7 @@ The baseline goes to the gitignored `corpus/`, so record it per machine.
 
 The inputs of our software are triangle surface meshes in `.off/.obj/.stl/.ply` format.
 
-The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). `PyMesh::MshLoader` and `PyMesh::MshSaver` in `src/external/` read and write `.msh` meshes. Surface meshes are written in `.obj` format.
+The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). `PyMesh::MshSaver` in `src/external/` writes `.msh` meshes. Surface meshes are written in `.obj` format.
 
 
 ### Features
@@ -124,11 +124,6 @@ Our mesher stops optimizing the mesh when maximum energy is smaller than filteri
 - Maximum number of optimization passes
 
 Our mesher stops optimizing the mesh when the maximum number of passes is reached. The default number is 80.
-
-- Sizing field
-Users can provide a background tetmesh in .msh format with vertex scalar field values stored. The scalar field values is used for controlling edge length. The scalars inside an element of the background mesh are linearly interpolated.
-
-💡 [Here](https://drive.google.com/file/d/1qp0iAnfGGj-NK-zkVVsvfvkG7JcZ1vNU/view?usp=sharing) is an example including input surface mesh, background mesh and output tetmeshes with/without sizing control.
 
 - Smoothing open regions
 
@@ -169,7 +164,6 @@ Options:
   --disable-filtering         Disable filtering out outside elements.
   --use-floodfill             Use flood-fill to extract interior volume.
   --use-input-for-wn          Use input surface for winding number.
-  --bg-mesh TEXT:FILE         Background mesh for sizing field (.msh file).
   --max-threads UINT          Maximum number of threads used
 ```
 

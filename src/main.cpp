@@ -37,7 +37,6 @@ using namespace floatTetWild;
 
 #include <floattetwild/Predicates.hpp>
 
-#include <floattetwild/MshLoader.h>
 
 int main(int argc, char** argv)
 {
@@ -128,11 +127,6 @@ int main(int argc, char** argv)
     command_line.add_flag(
       "--use-input-for-wn", params.use_input_for_wn, "Use input surface for winding number.");
 
-    std::string background_mesh = "";
-    command_line
-      .add_option("--bg-mesh", background_mesh, "Background mesh for sizing field (.msh file).")
-      ->check(CLI::ExistingFile);
-
     unsigned int max_threads = std::numeric_limits<unsigned int>::max();
     command_line.add_option("--max-threads", max_threads, "Maximum number of threads used");
 
@@ -173,25 +167,6 @@ int main(int argc, char** argv)
         output_mesh_name = params.output_path;
     else
         output_mesh_name = params.output_path + "_" + params.postfix + ".msh";
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// set sizing field
-    VectorXd V_in;
-    VectorXi T_in;
-    VectorXd values;
-    if (!background_mesh.empty()) {
-        PyMesh::MshLoader mshLoader(background_mesh);
-        V_in   = mshLoader.get_nodes();
-        T_in   = mshLoader.get_elements();
-        values = mshLoader.get_node_field("values");
-    }
-    if (V_in.rows() != 0 && T_in.rows() != 0 && values.rows() != 0) {
-        params.apply_sizing_field = true;
-
-        params.V_sizing_field      = V_in;
-        params.T_sizing_field      = T_in;
-        params.values_sizing_field = values;
-    }
 
     /// set input tage
     std::vector<Vector3>  input_vertices;

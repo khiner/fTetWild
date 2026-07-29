@@ -37,12 +37,6 @@ namespace floatTetWild {
         bool use_input_for_wn = false;
         bool coarsen = false;
 
-        bool apply_sizing_field = false;
-        VectorXd V_sizing_field;
-        VectorXi T_sizing_field;
-        VectorXd values_sizing_field;
-        std::function<double(const Vector3&)> get_sizing_field_value;//get sizing field value for an point
-
         // it decides the scale of the box, presents the deviation of the box from the model
         //( in % of  max((xmax-xmin), (ymax-ymin), (zmax-zmin)) of the input points)
         Scalar box_scale = 1 / 15.0;

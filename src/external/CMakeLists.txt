@@ -56,13 +56,11 @@ endif()
 
 add_subdirectory(geo)
 
-# PyMesh .msh reader and writer, used only by MeshIO and by main.cpp for --bg-mesh, so they
-# belong with the binary rather than the core library.
+# The PyMesh .msh writer, used only by MeshIO, so it belongs with the binary rather than the
+# core library.
 set(IO_SOURCES
 	MshSaver.h
 	MshSaver.cpp
-	MshLoader.h
-	MshLoader.cpp
 	Exception.h
 )
 prepend_current_path(IO_SOURCES)
