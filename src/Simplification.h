@@ -25,9 +25,6 @@ namespace floatTetWild {
                     bool is_out_envelope(const std::array<Vector3, 3>& vs, const AABBWrapper& tree, const Parameters& params);
     Scalar get_angle_cos(const Vector3& p, const Vector3& p1, const Vector3& p2);
 
-    void check_surface(std::vector<Vector3>& input_vertices, std::vector<Vector3i>& input_faces, const std::vector<char>& is_f_removed,
-                       const AABBWrapper& tree, const Parameters& params);
-
 }
 
 #endif //FLOATTETWILD_SIMPLIFICATION_H

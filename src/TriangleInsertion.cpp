@@ -500,12 +500,8 @@ bool floatTetWild::insert_one_triangle(
     std::vector<int> cut_t_ids;
     find_cutting_tets(insert_f_id, input_vertices, input_faces, vs, mesh, cut_t_ids, is_again);
 
-    if (cut_t_ids.empty()) {
-        cout << get_area(vs[0], vs[1], vs[2]) << endl;
-        cout << "f" << insert_f_id << ": " << input_faces[insert_f_id][0] << " "
-             << input_faces[insert_f_id][1] << " " << input_faces[insert_f_id][2] << endl;
+    if (cut_t_ids.empty())
         return false;
-    }
 
     CutMesh cut_mesh(mesh, n, vs);
     cut_mesh.construct(cut_t_ids);
@@ -1032,9 +1028,6 @@ bool floatTetWild::subdivide_tets(
                             cnt_on++;
                         }
                     }
-                    if (cnt_on == 4) {
-                        cout << "cnt_on==4!!" << endl;
-                    }
 
                     if (cnt_on == 3) {
                         new_tets.push_back(mesh.tets[t_id]);
@@ -1321,8 +1314,6 @@ void floatTetWild::find_boundary_edges(
     }
     vector_unique(edges);
 
-    int cnt1 = 0;
-    int cnt2 = 0;
     for (const auto& e : edges) {
         std::vector<int> n12_f_ids;
         std::set_intersection(conn_tris[e[0]].begin(),
@@ -1354,7 +1345,6 @@ void floatTetWild::find_boundary_edges(
                 else
                     is_on_cut_edges.push_back(false);
             }
-            cnt1++;
         }
         else {
             int f_id = n12_f_ids[0];
@@ -1415,7 +1405,6 @@ void floatTetWild::find_boundary_edges(
             if (is_fine)
                 continue;
 
-            cnt2++;
             b_edges.push_back(e);
             if (needs_preserve) {
                 b_edge_infos.push_back(std::make_pair(e, n12_f_ids));
@@ -1427,8 +1416,6 @@ void floatTetWild::find_boundary_edges(
         }
     }
 
-    cout << "#boundary_e1 = " << cnt1 << endl;
-    cout << "#boundary_e2 = " << cnt2 << endl;
 }
 
 bool floatTetWild::insert_boundary_edges(
@@ -2123,8 +2110,6 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
         }
     }
 
-    cout << "known_surface_fs.size = " << known_surface_fs.size() << endl;
-    cout << "known_not_surface_fs.size = " << known_not_surface_fs.size() << endl;
     if (known_surface_fs.empty() && known_not_surface_fs.empty())
         return;
 
@@ -2225,7 +2210,6 @@ bool floatTetWild::is_uninserted_face_covered(int                          unins
             return false;
     }
 
-    cout << "covered!!!!!!!" << endl;
     return true;
 }
 

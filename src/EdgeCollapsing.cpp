@@ -31,9 +31,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-    int counter         = 0;
-    int suc_counter     = 0;
-    int suc_counter_env = 0;
+    int suc_counter = 0;
 
     ////init
     std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ec_queue;
@@ -55,9 +53,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
     tet_tss.assign(tets.size(), 0);
 
     do {
-        counter         = 0;
-        suc_counter     = 0;
-        suc_counter_env = 0;
+        suc_counter = 0;
         while (!ec_queue.empty()) {
             std::array<int, 2> v_ids      = ec_queue.top().v_ids;
             Scalar             old_weight = ec_queue.top().weight;
@@ -89,8 +85,6 @@ void edge_collapsing_aux(Mesh&                            mesh,
             std::vector<std::array<int, 2>> new_edges;
             int result = collapse_an_edge(mesh, v_ids[0], v_ids[1], tree, new_edges, ts, tet_tss);
             if (result == EC_SUCCESS || result == EC_SUCCESS_ENVELOPE) {
-                if (result == EC_SUCCESS_ENVELOPE)
-                    suc_counter_env++;
                 suc_counter++;
 
                 for (auto& e : new_edges) {
@@ -113,12 +107,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
                 inf_e_tss.push_back(ts);
             }
 #endif
-
-            counter++;
         }
-
-        cout << "success(env) = " << suc_counter_env << endl;
-        cout << "success = " << suc_counter << "(" << counter << ")" << endl;
 
 #if EC_POSTPROCESS
         if (suc_counter == 0)

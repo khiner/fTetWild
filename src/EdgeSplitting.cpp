@@ -17,8 +17,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
 
-    int counter = 0;
-    int suc_counter = 0;
 
     ////init
     mesh.reset_t_empty_start();
@@ -70,9 +68,7 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
             continue;
 
         std::vector<std::array<int, 2>> new_edges;
-        if (split_an_edge(mesh, v_ids[0], v_ids[1], is_repush, new_edges, is_splittable, tree))
-            suc_counter++;
-        else
+        if (!split_an_edge(mesh, v_ids[0], v_ids[1], is_repush, new_edges, is_splittable, tree))
             is_repush = false;
 
         for (auto &e:new_edges) {
@@ -82,8 +78,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
                 es_queue.push(ElementInQueue(e, l_2));
             }
         }
-
-        counter++;
 
         if (budget > 0) {
             budget--;
@@ -100,8 +94,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
             t.scalar = 0;
         }
     }
-
-    cout<<"success = "<<suc_counter<<"("<<counter<<")"<<endl;
 }
 
 bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repush,

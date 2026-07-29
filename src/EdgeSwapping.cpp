@@ -19,11 +19,6 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
 
-    int counter = 0;
-    int suc_counter3 = 0;
-    int suc_counter4 = 0;
-    int suc_counter5 = 0;
-
     mesh.reset_t_empty_start();
     mesh.reset_v_empty_start();
 
@@ -69,27 +64,17 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
         }
 
         std::vector<std::array<int, 2>> new_edges;
-        if (n12_t_ids.size() == 3 && remove_an_edge_32(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges)) {
-            suc_counter3++;
-        }
-        if (n12_t_ids.size() == 4 && remove_an_edge_44(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges)) {
-            suc_counter4++;
-        }
-        if (n12_t_ids.size() == 5 && remove_an_edge_56(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges)) {
-            suc_counter5++;
-        }
+        if (n12_t_ids.size() == 3)
+            remove_an_edge_32(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
+        if (n12_t_ids.size() == 4)
+            remove_an_edge_44(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
+        if (n12_t_ids.size() == 5)
+            remove_an_edge_56(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
 
         for (auto &e:new_edges) {
             es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
         }
-
-        counter++;
     }
-
-    cout << "success3 = " << suc_counter3 << endl;
-    cout << "success4 = " << suc_counter4 << endl;
-    cout << "success5 = " << suc_counter5 << endl;
-    cout << "success = " << (suc_counter3 + suc_counter4 + suc_counter5) << "(" << counter << ")" << endl;
 }
 
 bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges){

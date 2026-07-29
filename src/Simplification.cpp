@@ -38,11 +38,9 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
     Timer timer;
     timer.start();
     collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
-    std::cout << "collapsing " << timer.getElapsedTime() << std::endl;
 
     timer.start();
     swapping(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
-    std::cout << "swapping " << timer.getElapsedTime() << std::endl;
 
     // clean up vs, fs
     // v
@@ -624,19 +622,7 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
     }
     vector_unique(edges);
 
-    auto needs_flattening = [](const Vector3& n1, const Vector3& n2) {
-        if (n1.dot(n2) > 0.98) {
-            cout << std::setprecision(17) << n1.dot(n2) << endl;
-            cout << n1.norm() << " " << n2.norm() << endl;
-        }
-        return true;
-
-        double d = std::abs(n1.dot(n2) - 1);
-        cout << n1.dot(n2) << endl;
-        if (d > 1e-15 && d < 1e-5)
-            return true;
-        return false;
-    };
+    auto needs_flattening = [](const Vector3&, const Vector3&) { return true; };
 
     std::vector<int>               f_tss(input_faces.size(), 0);
     int                            ts = 0;
@@ -716,7 +702,6 @@ void floatTetWild::flattening(std::vector<Vector3>&  input_vertices,
         ts++;
     }
 
-    cout << "flattening " << ts << " faces" << endl;
 }
 
 floatTetWild::Scalar floatTetWild::get_angle_cos(const Vector3& p,
@@ -748,30 +733,4 @@ bool floatTetWild::is_out_envelope(const std::array<Vector3, 3>& vs,
 #endif
 
 
-}
-
-void floatTetWild::check_surface(std::vector<Vector3>&    input_vertices,
-                                 std::vector<Vector3i>&   input_faces,
-                                 const std::vector<char>& f_is_removed,
-                                 const AABBWrapper&       tree,
-                                 const Parameters&        params)
-{
-    cout << "checking surface" << endl;
-    for (int i = 0; i < input_faces.size(); i++) {
-        if (f_is_removed[i])
-            continue;
-        std::vector<geo::vec3> ps;
-        sample_triangle({{input_vertices[input_faces[i][0]],
-                          input_vertices[input_faces[i][1]],
-                          input_vertices[input_faces[i][2]]}},
-                        ps,
-                        params.dd_simplification);
-        Scalar dist = tree.dist_sf_envelope(ps, params.eps_2);
-        if (dist > 0) {
-            cout << "is_out_sf_envelope!!" << endl;
-            cout << input_faces[i][0] << " " << input_faces[i][1] << " " << input_faces[i][2]
-                 << endl;
-            cout << dist << endl;
-        }
-    }
 }

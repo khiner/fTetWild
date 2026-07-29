@@ -19,12 +19,6 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-    // smooth_one runs under a parallel_for, so these have to be atomic even though they only feed
-    // the log line below.
-    std::atomic<int> counter{0};
-    std::atomic<int> suc_counter{0};
-    std::atomic<int> suc_counter_sf{0};
-
     const auto smooth_one = [&](const int v_id) {
         if (tet_vertices[v_id].is_removed)
             return;
@@ -32,7 +26,6 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
             return;
         if (tet_vertices[v_id].is_on_bbox)
             return;
-        counter++;
 
         ////newton
         Vector3 p;
@@ -50,16 +43,13 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
                 return;
             else if (is_out_envelope(mesh, v_id, p, tree))
                 return;
-            suc_counter_sf++;
         }
         else if (tet_vertices[v_id].is_on_surface) {
             if (!project_and_check(mesh, v_id, p, tree, true, new_qs))
                 return;
             if (is_out_envelope(mesh, v_id, p, tree))
                 return;
-            suc_counter_sf++;
         }
-        suc_counter++;
 
         ////real update
         tet_vertices[v_id].pos = p;
@@ -88,7 +78,6 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
     for (size_t v_id : serial_set)
         smooth_one(v_id);
 
-    cout << "success = " << suc_counter << "(" << counter << ")" << endl;
 }
 
 bool floatTetWild::project_and_check(Mesh&                mesh,
