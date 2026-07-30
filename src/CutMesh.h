@@ -14,7 +14,10 @@
 #define FLOATTETWILD_CUTMESH_H
 
 #include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
+
+#include <array>
+#include <map>
+#include <vector>
 
 namespace floatTetWild {
     class CutMesh {
@@ -38,7 +41,6 @@ namespace floatTetWild {
 
         bool snap_to_plane();
 
-        void expand(std::vector<int> &cut_t_ids);
         void expand_new(std::vector<int> &cut_t_ids);
 
         int project_to_plane(int input_vertices_size);

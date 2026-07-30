@@ -64,13 +64,6 @@ namespace geo {
      * \param[in] dimension number of vertices coordinates
      * \param[in] stride number of doubles between two consecutive vertices
      */
-    void compute_Hilbert_order(
-        index_t total_nb_vertices, const double* vertices,
-        vector<index_t>& sorted_indices,
-        index_t first,
-        index_t last,
-        index_t dimension, index_t stride = 3
-    );
 
     /**
      * \brief Computes the BRIO order for a set of 3D points.

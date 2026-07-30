@@ -26,25 +26,7 @@ namespace geo {
          */
         enum SOSMode { SOS_ADDRESS, SOS_LEXICO };
 
-        /**
-         * \brief Sets the current mode for handling symbolic perturbations
-         *  (SOS for Simulation Of Simplicity).
-         * \param[in] m one of SOS_ADDRESS, SOS_LEXICO
-         * \details If SOS_ADDRESS mode is used, then points are supposed
-         *  to be allocated in a fixed array, and the same point always
-         *  designated by the same address. If SOS_LEXICO is used then points
-         *  are sorted in lexicographic order for computing the symbolic
-         *  perturbation. SOS_LEXICO works for points that are generated
-         *  dynamically (with no fixed address).
-         */
-        void set_SOS_mode(SOSMode m);
 
-        /**
-         * \brief Gets the current mode for handling symbolic perturbations.
-         * \return one of SOS_ADDRESS, SOS_LEXICO
-         * \see set_SOS_mode()
-         */
-        SOSMode get_SOS_mode();
 
         /**
          * \brief Tests whether a point is in the circumscribed sphere of
@@ -177,15 +159,7 @@ namespace geo {
             const double* p3
         );
 
-        /**
-         * \brief Needs to be called before using any predicate.
-         */
-        void initialize();
 
-        /**
-         * \brief Needs to be called at the end of the program.
-         */
-        void terminate();
     }
 }
 }

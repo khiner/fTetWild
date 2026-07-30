@@ -70,9 +70,6 @@ namespace geo {
             return std::numeric_limits<float32>::max();
         }
 
-        inline float32 min_float32() {
-            return -max_float32();
-        }
 
         inline float64 max_float64() {
             return std::numeric_limits<float64>::max();
@@ -132,20 +129,6 @@ namespace geo {
             (void)x;
         }
 
-        /**
-         * \brief Compares two rational numbers given as separate numerators and denominators.
-         */
-        template <class T> inline Sign ratio_compare(
-            const T& a_num, const T& a_denom, const T& b_num, const T& b_denom
-        ) {
-            if(a_denom == b_denom) {
-                return Sign(geo_cmp(a_num,b_num)*geo_sgn(a_denom));
-            }
-            return Sign(
-                geo_cmp(a_num*b_denom, b_num*a_denom) *
-                geo_sgn(a_denom) * geo_sgn(b_denom)
-            );
-        }
     }
 
     /**
@@ -156,17 +139,6 @@ namespace geo {
         return x * x;
     }
 
-    /**
-     * \brief Clamps a value to a range
-     */
-    template <class T>
-    inline void geo_clamp(T& x, T min, T max) {
-        if(x < min) {
-            x = min;
-        } else if(x > max) {
-            x = max;
-        }
-    }
 
     /** \brief The type for storing and manipulating indices. */
     typedef uint32_t index_t;
@@ -178,13 +150,7 @@ namespace geo {
     /** \brief The type for storing and manipulating index differences. */
     typedef int32_t signed_index_t;
 
-    inline signed_index_t max_signed_index_t() {
-        return std::numeric_limits<signed_index_t>::max();
-    }
 
-    inline signed_index_t min_signed_index_t() {
-        return std::numeric_limits<signed_index_t>::min();
-    }
 
     /** \brief The type for storing coordinate indices. */
     typedef uint8_t coord_index_t;

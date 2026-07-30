@@ -9,7 +9,6 @@
 #include <floattetwild/EdgeSplitting.h>
 #include <floattetwild/LocalOperations.h>
 
-#include <floattetwild/MeshImprovement.h>
 
 #define TET_MODIFIED 100
 

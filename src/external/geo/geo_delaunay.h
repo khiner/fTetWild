@@ -100,17 +100,7 @@ namespace geo {
             do_reorder_ = x;
         }
 
-        /**
-         * \brief Specifies whether the infinite vertex and the infinite simplices incident to it
-         *  should be kept.
-         */
-        virtual void set_keeps_infinite(bool x) {
-            keep_infinite_ = x;
-        }
 
-        bool keeps_infinite() const {
-            return keep_infinite_;
-        }
 
     protected:
         explicit Delaunay(coord_index_t dimension) {

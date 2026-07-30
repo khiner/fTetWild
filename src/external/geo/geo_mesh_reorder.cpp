@@ -809,32 +809,6 @@ namespace geo {
 #endif
 
 
-    void compute_Hilbert_order(
-        index_t total_nb_vertices, const double* vertices,
-        vector<index_t>& sorted_indices,
-        index_t first,
-        index_t last,
-        index_t dimension, index_t stride
-    ) {
-        geo_debug_assert(last > first);
-        if(last - first <= 1) {
-            return;
-        }
-        VertexMesh M(total_nb_vertices, vertices, stride);
-        if(dimension == 3) {
-            HilbertSort3d<Hilbert_vcmp, VertexMesh>(
-                M, sorted_indices.begin() + int(first),
-                sorted_indices.begin() + int(last)
-            );
-        } else if(dimension == 2) {
-            HilbertSort2d<Hilbert_vcmp, VertexMesh>(
-                M, sorted_indices.begin() + int(first),
-                sorted_indices.begin() + int(last)
-            );
-        } else {
-            geo_assert_not_reached;
-        }
-    }
 
     void compute_BRIO_order(
         index_t nb_vertices, const double* vertices,

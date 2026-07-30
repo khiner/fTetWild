@@ -9,7 +9,6 @@
 #include <floattetwild/EdgeCollapsing.h>
 #include <floattetwild/LocalOperations.h>
 
-#include <floattetwild/MeshImprovement.h>  //todo: tmp
 
 #define EC_FAIL_INVERSION -1
 #define EC_FAIL_QUALITY -2

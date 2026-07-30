@@ -114,90 +114,6 @@ bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, 
     return true;
 }
 
-int floatTetWild::is_tri_tri_cutted(const std::array<Vector3, 3> &f_tri, const std::array<Vector3, 3> &f_tet,
-                                    const std::array<int, 3>& oris_tri) {
-    int cnt_pos = 0;
-    int cnt_neg = 0;
-    int cnt_zero = 0;
-    for (int j = 0; j < 3; j++) {
-        if (oris_tri[j] == Predicates::ORI_ZERO)
-            cnt_zero++;
-        else if (oris_tri[j] == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else
-            cnt_neg++;
-    }
-    if(cnt_pos == 3 || cnt_neg == 3)
-        return CUT_EMPTY;
-
-    if (cnt_zero == 3) {
-        int t = get_t(f_tri[0], f_tri[1], f_tri[2]);
-        if (is_tri_tri_cutted_2d({{to_2d(f_tri[0], t), to_2d(f_tri[1], t), to_2d(f_tri[2], t)}},
-                                 {{to_2d(f_tet[0], t), to_2d(f_tet[1], t), to_2d(f_tet[2], t)}}))
-            return CUT_COPLANAR;
-        return CUT_EMPTY;
-    }
-
-    if(cnt_zero == 2) {
-        int t = get_t(f_tri[0], f_tri[1], f_tri[2]);
-        for (int j = 0; j < 3; j++) {
-            if (oris_tri[j] == oris_tri[(j + 1) % 3]
-                && is_seg_tri_cutted_2d({{to_2d(f_tet[j], t), to_2d(f_tet[(j + 1) % 3], t)}},
-                                        {{to_2d(f_tri[0], t), to_2d(f_tri[1], t), to_2d(f_tri[2], t)}})) {
-                if(j==0)
-                    return CUT_EDGE_0;
-                if(j==1)
-                    return CUT_EDGE_1;
-                if(j==2)
-                    return CUT_EDGE_2;
-            }
-        }
-        return CUT_EMPTY;
-    }
-
-    if(cnt_pos == 0 || cnt_neg == 0)
-        return CUT_EMPTY;
-
-    std::array<int, 3> oris_tet;
-    int cnt_pos1 = 0;
-    int cnt_neg1 = 0;
-    for (int j = 0; j < 3; j++) {
-        oris_tet[j] = Predicates::orient_3d(f_tet[0], f_tet[1], f_tet[2], f_tri[j]);
-        if (oris_tet[j] != Predicates::ORI_ZERO) {
-            if (oris_tet[j] == Predicates::ORI_POSITIVE)
-                cnt_pos1++;
-            else
-                cnt_neg1++;
-        }
-    }
-    if(cnt_pos1 == 0 || cnt_neg1 == 0)
-        return CUT_EMPTY;
-
-    auto is_f1_cut_f2 = [](const std::array<Vector3, 3> &f1, const std::array<Vector3, 3> &f2,
-                           const std::array<int, 3>& oris){//check f2 plane
-        Vector3 n = ((f2[1] - f2[2]).cross(f2[0] - f2[2])).normalized();
-        int t = get_t(f2[0], f2[1], f2[2]);
-        for(int j=0;j<3;j++) {
-            if ((oris[j] == Predicates::ORI_NEGATIVE && oris[(j + 1) % 3] == Predicates::ORI_POSITIVE)
-                || (oris[(j + 1) % 3] == Predicates::ORI_NEGATIVE && oris[j] == Predicates::ORI_POSITIVE)) {
-                Vector3 p;
-                Scalar _;
-                if (seg_plane_intersection(f1[j], f1[(j + 1) % 3], n, f2[0], p, _)
-                    && is_p_inside_tri_2d(to_2d(p, t), {{to_2d(f2[0], t), to_2d(f2[1], t), to_2d(f2[2], t)}}))
-                    return true;
-            }
-        }
-        return false;
-    };
-    //check tri plane
-    if(is_f1_cut_f2(f_tet, f_tri, oris_tri))
-        return CUT_FACE;
-    //check tet plane
-    if(is_f1_cut_f2(f_tri, f_tet, oris_tet))
-        return CUT_FACE;
-
-    return CUT_EMPTY;
-}
 
 bool floatTetWild::is_tri_tri_cutted_2d(const std::array<Vector2, 3>& vs_tet, const std::array<Vector2, 3>& vs_tri) {
     std::array<int, 9> tri_tet;
@@ -271,67 +187,6 @@ bool floatTetWild::is_tri_tri_cutted_2d(const std::array<Vector2, 3>& vs_tet, co
     return false;
 }
 
-bool floatTetWild::is_seg_tri_cutted_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 3> &tri) {
-    std::vector<Vector2> ps;
-    for(int i=0;i<3;i++){
-        Scalar t2;
-        if(seg_seg_intersection_2d(seg, {{tri[i], tri[(i+1)%3]}}, t2)){
-            ps.push_back(t2 * tri[i] + (1-t2) * tri[(i+1)%3]);//todo double check
-        }
-    }
-    if(ps.size()<2)
-        return false;
-    for(int i=0;i<ps.size();i++) {
-        Vector2 v = ps[i] - ps[(i + 1) % ps.size()];
-        if (v[0] < SCALAR_ZERO && v[1] < SCALAR_ZERO) {
-            ps.erase(ps.begin() + i);
-            i--;
-        }
-    }
-    assert(ps.size()<3);
-    if(ps.size()<2)
-        return false;
-
-    return true;
-
-    //////////
-
-    std::array<int, 3> tri_seg;
-    for (int i = 0; i < 3; i++) {
-        tri_seg[i] = Predicates::orient_2d(seg[0], seg[1], tri[i]);
-    }
-    if (std::find(tri_seg.begin(), tri_seg.end(), Predicates::ORI_NEGATIVE) == tri_seg.end()
-        || std::find(tri_seg.begin(), tri_seg.end(), Predicates::ORI_POSITIVE) == tri_seg.end())
-        return false; //tri on the same side of seg
-
-    std::array<int, 6> seg_tri;
-    int cnt_pos0 = 0;
-    int cnt_neg0 = 0;
-    int cnt_pos1 = 0;
-    int cnt_neg1 = 0;
-    for (int i = 0; i < 3; i++) {
-        seg_tri[i * 2] = Predicates::orient_2d(tri[i], tri[(i + 1) % 3], seg[0]);
-        if(seg_tri[i * 2] == Predicates::ORI_POSITIVE)
-            cnt_pos0++;
-        else if(seg_tri[i * 2] == Predicates::ORI_NEGATIVE)
-            cnt_neg0++;
-        seg_tri[i * 2 + 1] = Predicates::orient_2d(tri[i], tri[(i + 1) % 3], seg[1]);
-        if(seg_tri[i * 2 + 1] == Predicates::ORI_POSITIVE)
-            cnt_pos1++;
-        else if(seg_tri[i * 2 + 1] == Predicates::ORI_NEGATIVE)
-            cnt_neg1++;
-    }
-    if (cnt_neg0 == 3 || cnt_pos0 == 3 || cnt_neg1 == 3 || cnt_pos1 == 3) // one of the endpoints is contained inside tri
-        return true;
-
-    for (int tri_e_id = 0; tri_e_id < 3; tri_e_id++) {
-        if (is_crossing(seg_tri[tri_e_id], seg_tri[(tri_e_id + 1) % 3])
-            && is_crossing(tri_seg[tri_e_id], tri_seg[(tri_e_id + 1) % 3]))
-            return true;
-    }
-
-    return false;
-}
 
 bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri) {
     int cnt_pos = 0;
@@ -389,49 +244,6 @@ extern "C++" int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatT
                                              int * coplanar,
                                              floatTetWild::Scalar source[3], floatTetWild::Scalar target[3]);
 
-int floatTetWild::is_tri_tri_cutted(const Vector3& p1, const Vector3& p2, const Vector3& p3,
-                                    const Vector3& q1, const Vector3& q2, const Vector3& q3) {
-    std::array<Scalar, 3> p_1 = {{0, 0, 0}}, q_1 = {{0, 0, 0}}, r_1 = {{0, 0, 0}};
-    std::array<Scalar, 3> p_2 = {{0, 0, 0}}, q_2 = {{0, 0, 0}}, r_2 = {{0, 0, 0}};
-    int coplanar = 0;
-    std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
-    for (int j = 0; j < 3; j++) {
-        p_1[j] = p1[j];
-        q_1[j] = p2[j];
-        r_1[j] = p3[j];
-        p_2[j] = q1[j];
-        q_2[j] = q2[j];
-        r_2[j] = q3[j];
-    }
-
-    if (!tri_tri_intersection_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0], &coplanar, &s[0], &t[0]))
-        return CUT_EMPTY;
-
-    if(coplanar == 1) {
-        // if(tri_tri_overlap_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0])) //TODO?
-            return CUT_COPLANAR;
-    }
-
-    if (s[0] == t[0] && s[1] == t[1] && s[2] == t[2])
-        return CUT_EMPTY;
-
-    auto is_collinear = [&](const Vector3 &st, const Vector3 &q12) {
-        Vector3 cross = st.cross(q12);
-        if (cross[0] <= SCALAR_ZERO && cross[1] <= SCALAR_ZERO && cross[2] <= SCALAR_ZERO)
-            return true;
-        return false;
-    };
-
-    Vector3 st(t[0] - s[0], t[1] - s[1], t[2] - s[2]);
-    if (is_collinear(st, q1 - q2))
-        return CUT_EDGE_0;
-    if (is_collinear(st, q2 - q3))
-        return CUT_EDGE_1;
-    if (is_collinear(st, q3 - q1))
-        return CUT_EDGE_2;
-
-    return CUT_FACE;
-}
 
 int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, const Vector3& p3,
                                          const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint, bool is_debug) {

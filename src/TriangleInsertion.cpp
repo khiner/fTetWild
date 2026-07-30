@@ -19,7 +19,6 @@
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/intersections.h>
 #include <floattetwild/Logger.hpp>
-#include <floattetwild/MeshIO.hpp>
 #include <floattetwild/Predicates.hpp>
 #include <floattetwild/auto_table.hpp>
 
@@ -29,8 +28,7 @@
 #include <floattetwild/Timer.h>
 
 #include <bitset>
-#include <numeric>
-#include <unordered_map>
+#include <floattetwild/EdgeCollapsing.h>
 
 #define III -1
 
@@ -452,7 +450,6 @@ void floatTetWild::push_new_tets(Mesh&                                         m
     modified_t_ids.clear();
 }
 
-#include <floattetwild/EdgeCollapsing.h>
 void floatTetWild::simplify_subdivision_result(
   int                                           insert_f_id,
   int                                           input_v_size,

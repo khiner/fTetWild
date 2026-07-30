@@ -12,7 +12,6 @@
 #include "Logger.hpp"
 
 #include <chrono>
-#include <cstdio>
 #include <ctime>
 #include <iomanip>
 #include <iostream>

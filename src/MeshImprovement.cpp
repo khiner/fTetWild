@@ -14,7 +14,6 @@
 #include <floattetwild/EdgeSwapping.h>
 #include <floattetwild/VertexSmoothing.h>
 #include <floattetwild/Parameters.h>
-#include <floattetwild/MeshIO.hpp>
 #include <floattetwild/CSGTreeParser.hpp>
 
 //#include <floattetwild/FloatTetCutting.h>
@@ -25,6 +24,11 @@
 
 #include <floattetwild/Timer.h>
 #include <floattetwild/fast_winding_number.h>
+#include <floattetwild/geo_kd_tree.h>
+#include <floattetwild/Predicates.hpp>
+#include <floattetwild/bfs_orient.h>
+#include <floattetwild/unique_rows.h>
+#include <floattetwild/remove_duplicate_vertices.h>
 
 
 //#define USE_FWN true
@@ -310,7 +314,6 @@ void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const s
     }
 }
 
-#include <floattetwild/geo_kd_tree.h>
 bool floatTetWild::update_scaling_field(Mesh &mesh, Scalar max_energy) {
 
     bool is_hit_min_edge_length = false;
@@ -477,7 +480,6 @@ int floatTetWild::get_max_p(const Mesh &mesh)
     return max_p;
 }
 
-#include <floattetwild/Predicates.hpp>
 
 void floatTetWild::apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
     mesh.is_coarsening = true;
@@ -501,10 +503,6 @@ void floatTetWild::apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
     mesh.is_coarsening = false;
 }
 
-#include <floattetwild/bfs_orient.h>
-#include <floattetwild/unique_rows.h>
-#include <floattetwild/remove_duplicate_vertices.h>
-#include <floattetwild/TriangleInsertion.h>
 void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_sf, int c_id) {
 #define SF_CONDITION t.is_surface_fs[j]<=0&&t.surface_tags[j]==c_id
 

@@ -10,7 +10,6 @@
 #include <floattetwild/Predicates.hpp>
 
 #include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/Timer.h>
 #include <floattetwild/geo_multi_precision.h>
 
 namespace floatTetWild {
@@ -430,7 +429,6 @@ bool floatTetWild::is_out_boundary_envelope(const Mesh&        mesh,
     //        ps.push_back(
 }
 
-#include <sstream>
 bool floatTetWild::is_out_envelope(Mesh&              mesh,
                                    int                v_id,
                                    const Vector3&     new_pos,

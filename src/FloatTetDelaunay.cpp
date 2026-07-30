@@ -10,17 +10,12 @@
 
 #include <floattetwild/Logger.hpp>
 
-#include <floattetwild/Timer.h>
 
-#include <iterator>
 #include <algorithm>
-#include <bitset>
 
-#include <floattetwild/Predicates.hpp>
 
 #include <floattetwild/LocalOperations.h>
-#include <floattetwild/MeshImprovement.h>
-#include <floattetwild/MeshIO.hpp>
+#include <floattetwild/geo_delaunay_3d.h>
 
 namespace floatTetWild {
 	namespace {

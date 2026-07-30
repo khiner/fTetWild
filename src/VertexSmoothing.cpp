@@ -9,10 +9,8 @@
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/VertexSmoothing.h>
 
-#include <floattetwild/MeshImprovement.h>
 #include <floattetwild/ParallelFor.hpp>
 
-#include <atomic>
 
 void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
 {

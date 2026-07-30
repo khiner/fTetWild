@@ -11,13 +11,10 @@
 #include <thread>
 
 #include <floattetwild/AABBWrapper.h>
-#include <floattetwild/FloatTetDelaunay.h>
 #include <floattetwild/FloatTetwild.h>
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/MeshImprovement.h>
-#include <floattetwild/Simplification.h>
 #include <floattetwild/Statistics.h>
-#include <floattetwild/TriangleInsertion.h>
 #include <floattetwild/CSGTreeParser.hpp>
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/MeshIO.hpp>
@@ -31,11 +28,9 @@
 
 
 #include <floattetwild/geo_mesh.h>
-#include <bitset>
 
 using namespace floatTetWild;
 
-#include <floattetwild/Predicates.hpp>
 
 
 int main(int argc, char** argv)

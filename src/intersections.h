@@ -9,7 +9,7 @@
 #ifndef FLOATTETWILD_INTERSECTIONS_H
 #define FLOATTETWILD_INTERSECTIONS_H
 
-#include <floattetwild/Mesh.hpp>
+#include <floattetwild/Types.hpp>
 
 namespace floatTetWild {
 #define CUT_EDGE_0 0
@@ -19,14 +19,11 @@ namespace floatTetWild {
 #define CUT_COPLANAR 4
 #define CUT_EMPTY -1
 
-    int is_tri_tri_cutted(const std::array<Vector3, 3> &f_tri, const std::array<Vector3, 3> &f_tet,
-                          const std::array<int, 3>& oris_tri);
 
 
     Scalar p_seg_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
 
     bool is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri);
-    bool is_seg_tri_cutted_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 3> &tri);
     bool is_tri_tri_cutted_2d(const std::array<Vector2, 3> &p_tet, const std::array<Vector2, 3> &p_tri);
 
     bool seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2, Scalar& t2);
@@ -40,8 +37,6 @@ namespace floatTetWild {
 
     bool is_crossing(int s1, int s2);
 
-    int is_tri_tri_cutted(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3,//cutting tri
-                          const Vector3 &q1, const Vector3 &q2, const Vector3 &q3);//face of tet
     int is_tri_tri_cutted_hint(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3,//cutting tri
                                const Vector3 &q1, const Vector3 &q2, const Vector3 &q3, int hint,
                                bool is_debug = false);//face of tet

@@ -1104,10 +1104,6 @@ namespace geo {
      */
     void optimize();
 
-    /**
-     * \brief Show global statistics
-     */
-    static void show_all_stats();
 
     protected:
     /**

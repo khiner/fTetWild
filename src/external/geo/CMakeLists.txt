@@ -6,7 +6,6 @@ set(SOURCES
 	geo_basic.h
 	geo_determinant.h
 	geo_vecg.h
-	geo_matrix.h
 	geo_geometry.h
 	geo_geometry_nd.h
 

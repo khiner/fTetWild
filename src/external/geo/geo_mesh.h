@@ -185,8 +185,8 @@ namespace geo {
      */
     class MeshFacets {
     public:
-        explicit MeshFacets(Mesh& mesh, MeshFacetCorners& facet_corners) :
-            mesh_(mesh), facet_corners_(facet_corners) {
+        explicit MeshFacets(MeshFacetCorners& facet_corners) :
+            facet_corners_(facet_corners) {
         }
 
         index_t nb() const {
@@ -261,16 +261,7 @@ namespace geo {
             return create_facets(1, nb_facet_vertices);
         }
 
-        /**
-         * \brief Splits every facet into a fan of triangles around its first vertex.
-         */
-        void triangulate();
 
-        /**
-         * \brief Fills in the adjacency of every corner, pairing the corners that carry the same
-         *  edge in opposite directions.
-         */
-        void connect();
 
         void clear(bool keep_attributes = true, bool keep_memory = false);
 
@@ -298,7 +289,6 @@ namespace geo {
          */
         void assign_triangle_mesh(vector<index_t>& triangle_vertex_index);
 
-        Mesh& mesh_;
         MeshFacetCorners& facet_corners_;
         index_t nb_ = 0;
         bool is_simplicial_ = true;
@@ -311,7 +301,7 @@ namespace geo {
      */
     class Mesh {
     public:
-        Mesh() : vertices(*this), facets(*this, facet_corners) {
+        Mesh() : vertices(*this), facets(facet_corners) {
         }
 
         Mesh(const Mesh&) = delete;

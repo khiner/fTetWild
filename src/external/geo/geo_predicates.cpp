@@ -622,21 +622,9 @@ namespace geo {
                 ;
         }
 
-        void set_SOS_mode(SOSMode m) {
-            SOS_mode_ = m;
-        }
 
-        SOSMode get_SOS_mode() {
-            return SOS_mode_;
-        }
 
-        void initialize() {
-            expansion::initialize();
-        }
 
-        void terminate() {
-            // Nothing to do.
-        }
 
         namespace {
             // geogram made callers do this through GEO::initialize(). Here the predicates are
@@ -645,7 +633,7 @@ namespace geo {
             // doubles, so it does not depend on any other translation unit's statics.
             struct Initializer {
                 Initializer() {
-                    initialize();
+                    expansion::initialize();
                 }
             };
             Initializer initializer;

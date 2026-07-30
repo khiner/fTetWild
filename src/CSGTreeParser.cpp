@@ -13,8 +13,6 @@
 
 #include <floattetwild/geo_mesh_reorder.h>
 
-#include <cstring>
-#include <iterator>
 
 namespace floatTetWild {
 

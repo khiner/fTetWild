@@ -11,10 +11,7 @@
 // To set the parameters related
 #include <floattetwild/Types.hpp>
 
-#include <array>
-#include <vector>
 
-#include <floattetwild/geo_mesh.h>
 #include <floattetwild/Logger.hpp>
 
 namespace floatTetWild {

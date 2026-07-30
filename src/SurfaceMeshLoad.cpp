@@ -10,7 +10,6 @@
 #include <floattetwild/Logger.hpp>
 
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <sstream>

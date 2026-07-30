@@ -2,7 +2,6 @@
 
 #include <floattetwild/mesh_AABB.h>
 #include <floattetwild/geo_mesh.h>
-#include <floattetwild/geo_mesh.h>
 #include <floattetwild/Mesh.hpp>
 
 #include <memory>

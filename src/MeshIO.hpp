@@ -10,6 +10,7 @@
 
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/Types.hpp>
+#include <floattetwild/geo_mesh.h>
 
 namespace floatTetWild
 {

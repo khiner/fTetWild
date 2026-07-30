@@ -9,8 +9,13 @@
 #ifndef FLOATTETWILD_SIMPLIFICATION_H
 #define FLOATTETWILD_SIMPLIFICATION_H
 
-#include <floattetwild/Mesh.hpp>
 #include <floattetwild/AABBWrapper.h>
+#include <floattetwild/Parameters.h>
+#include <floattetwild/Types.hpp>
+
+#include <array>
+#include <unordered_set>
+#include <vector>
 
 namespace floatTetWild {
     void simplify(std::vector<Vector3>& input_vertices, std::vector<Vector3i>& input_faces, std::vector<int>& input_tags,

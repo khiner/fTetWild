@@ -8,7 +8,6 @@
 
 #include "MeshIO.hpp"
 
-#include <floattetwild/MeshImprovement.h>
 #include <floattetwild/MshSaver.h>
 #include <floattetwild/Logger.hpp>
 

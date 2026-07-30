@@ -1229,37 +1229,5 @@ namespace geo {
         Cavity cavity_;
     };
 
-    /************************************************************************/
-
-    /**
-     * \brief Regular Delaunay triangulation of weighted points
-     * \details
-     * - the input points are 4d points, were the fourth coordinate
-     *  of point \f$ i \f$ is \f$ \sqrt{W - w_i} \f$ where \f$ W \f$ is
-     *  the maximum of the  weights of all the points and \d$ w_i \$ is
-     *  the weight associated with vertex \f$ i \f$.
-     * - the constructed combinatorics is a tetrahedralized volume (3d and
-     *  not 4d although dimension() returns 4). This tetrahedralized volume
-     *  corresponds to the regular triangulation of the weighted points.
-     */
-    class RegularWeightedDelaunay3d : public Delaunay3d {
-    public:
-        /**
-         * \brief Constructs a new Regular Delaunay3d triangulation.
-         * \details RegularWeightedDelaunay3d triangulations are only
-         * supported for dimension 3. If a different dimension is specified in
-         * the constructor, a InvalidDimension exception is thrown.
-         * \param[in] dimension dimension of the triangulation
-         * \throw InvalidDimension This exception is thrown if dimension is
-         * different than 3.
-         */
-        RegularWeightedDelaunay3d(coord_index_t dimension = 4);
-
-    protected:
-        /**
-         * \brief RegularWeightedDelaunay3d destructor
-         */
-        ~RegularWeightedDelaunay3d() override;
-    };
 } }
 

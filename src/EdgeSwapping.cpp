@@ -8,8 +8,8 @@
 
 #include <floattetwild/EdgeSwapping.h>
 #include <floattetwild/LocalOperations.h>
+#include <unordered_map>
 
-#include <floattetwild/MeshImprovement.h>
 
 namespace floatTetWild {
 }
@@ -395,7 +395,6 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
     return true;
 }
 
-#include <unordered_map>
 bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
     if (old_t_ids.size() != 5)
         return false;

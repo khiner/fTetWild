@@ -9,9 +9,7 @@
 #pragma once
 
 #include <floattetwild/AABBWrapper.h>
-#include <floattetwild/Logger.hpp>
 #include <floattetwild/Mesh.hpp>
-#include <floattetwild/Parameters.h>
 #include <floattetwild/Types.hpp>
 
 #include <vector>

@@ -6,7 +6,6 @@
 #include "geo_delaunay_3d.h"
 #include "geo_geometry_nd.h"
 #include "geo_mesh_reorder.h"
-#include <stack>
 
 // TODO: optimizations:
 // - convex hull traversal for nearest_vertex()
@@ -1037,16 +1036,5 @@ namespace geo {
         std::cerr << std::endl << "Delaunay Geo OK" << std::endl;
     }
 
-    /************************************************************************/
 
-    RegularWeightedDelaunay3d::RegularWeightedDelaunay3d(
-        coord_index_t dimension
-    ) :
-        Delaunay3d(4)
-    {
-        geo_assert(dimension == 4);
-    }
-
-    RegularWeightedDelaunay3d::~RegularWeightedDelaunay3d() {
-    }
 } }

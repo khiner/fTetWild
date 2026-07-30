@@ -33,10 +33,7 @@ class MshSaver {
         void save_nodes(const VectorF& nodes);
         void save_elements(const VectorI& elements, const VectorI& components, ElementType type);
         void save_scalar_field(const std::string& fieldname, const VectorF& field);
-        void save_vector_field(const std::string& fieldname, const VectorF& field);
         void save_elem_scalar_field(const std::string& fieldname, const VectorF& field);
-        void save_elem_vector_field(const std::string& fieldname, const VectorF& field);
-        void save_elem_tensor_field(const std::string& fieldname, const VectorF& field);
 
     public:
         enum ErrorCode {
