@@ -454,7 +454,7 @@ bool floatTetWild::CutMesh::get_intersecting_edges_and_points(std::vector<Vector
         bool is_result = seg_plane_intersection(mesh.tet_vertices[v1_id].pos, mesh.tet_vertices[v2_id].pos,
                                                 p_vs[0], p_n, p, _);
         if (!is_result) {
-            cout << "seg_plane_intersection no result!" << endl;
+            logger().error("seg_plane_intersection no result!");
             return false;
         }
 
@@ -492,7 +492,7 @@ bool floatTetWild::CutMesh::check() {
 
         Scalar dist = get_to_plane_dist(mesh.tet_vertices[gv_id].pos);
         if (std::fabs(dist) < mesh.params.eps_coplanar && to_plane_dists[lv_id] != 0 && !is_snapped[lv_id]) {
-            cout << "wrong vertex in cut mesh" << endl;
+            logger().error("wrong vertex in cut mesh");
             is_good = false;
         }
     }

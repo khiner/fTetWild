@@ -70,7 +70,7 @@ namespace floatTetWild {
             for (auto &s : stats.states_) {
                 stream << s.id << ", " << s.time << ", " << s.v_num << ", " << s.t_num << ", "
                        << s.max_energy << ", " << s.avg_energy << ", " << s.cnt_fail_inserted_face
-                       << ", -1" << endl;
+                       << ", -1" << std::endl;
                 if (s.cnt_fail_inserted_face >= 0)
                     cnt_uninserted = s.cnt_fail_inserted_face;
                 if (s.id < 6)
@@ -79,7 +79,7 @@ namespace floatTetWild {
             stream << -1 << ", " << time << ", " << stats.states_.back().v_num << ", "
                    << stats.states_.back().t_num << ", " << stats.states_.back().max_energy << ", "
                    << stats.states_.back().avg_energy << ", " << cnt_uninserted << ", "
-                   << get_peak_mem() << endl;
+                   << get_peak_mem() << std::endl;
 
             return stream;
         }

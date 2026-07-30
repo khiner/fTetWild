@@ -15,6 +15,7 @@
 #include <vector>
 
 #include <floattetwild/geo_mesh.h>
+#include <floattetwild/Logger.hpp>
 
 namespace floatTetWild {
     class Parameters {
@@ -28,7 +29,7 @@ namespace floatTetWild {
 
         bool not_sort_input = false;
         bool is_quiet = false;
-        int log_level = 3;//2;
+        int log_level = 2;  // Info
 
         bool smooth_open_boundary = false;
         bool manifold_surface = false;
@@ -125,17 +126,17 @@ namespace floatTetWild {
             split_threshold_2 = split_threshold * split_threshold;
             collapse_threshold_2 = collapse_threshold * collapse_threshold;
 
-            std::cout << "bbox_diag_length = " << bbox_diag_length << std::endl;
-            std::cout << "ideal_edge_length = " << ideal_edge_length << std::endl;
+            logger().debug("bbox_diag_length = {}", bbox_diag_length);
+            logger().debug("ideal_edge_length = {}", ideal_edge_length);
 
-            std::cout << "stage = " << stage << std::endl;
-            std::cout << "eps_input = " << eps_input << std::endl;
-            std::cout << "eps = " << eps << std::endl;
-            std::cout << "eps_simplification = " << eps_simplification << std::endl;
-            std::cout << "eps_coplanar = " << eps_coplanar << std::endl;
+            logger().debug("stage = {}", stage);
+            logger().debug("eps_input = {}", eps_input);
+            logger().debug("eps = {}", eps);
+            logger().debug("eps_simplification = {}", eps_simplification);
+            logger().debug("eps_coplanar = {}", eps_coplanar);
 
-            std::cout << "dd = " << dd << std::endl;
-            std::cout << "dd_simplification = " << dd_simplification << std::endl;
+            logger().debug("dd = {}", dd);
+            logger().debug("dd_simplification = {}", dd_simplification);
 
             return true;
         }

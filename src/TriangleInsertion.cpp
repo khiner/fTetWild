@@ -357,7 +357,7 @@ bool floatTetWild::insert_one_triangle(
                   insert_f_id, input_vertices, input_faces, cut_t_ids, mesh))
                 return true;
         }
-        cout << "FAIL get_intersecting_edges_and_points" << endl;
+        logger().warn("FAIL get_intersecting_edges_and_points");
         return false;
     }
     // have to add all cut_t_ids
@@ -391,7 +391,7 @@ bool floatTetWild::insert_one_triangle(
                   insert_f_id, input_vertices, input_faces, cut_t_ids, mesh))
                 return true;
         }
-        cout << "FAIL subdivide_tets" << endl;
+        logger().warn("FAIL subdivide_tets");
         return false;
     }
 
@@ -1345,7 +1345,7 @@ bool floatTetWild::insert_boundary_edges(
         }
         time2 += timer.getElapsedTime();
         if (n_f_ids.empty()) {
-            cout << "FAIL n_f_ids.empty()" << endl;
+            logger().warn("FAIL n_f_ids.empty()");
             continue;
         }
 
@@ -1371,7 +1371,7 @@ bool floatTetWild::insert_boundary_edges(
                 is_face_inserted[f_id] = false;
             is_all_inserted = false;
 
-            cout << "FAIL insert_boundary_edges_get_intersecting_edges_and_points" << endl;
+            logger().warn("FAIL insert_boundary_edges_get_intersecting_edges_and_points");
             time3 += timer.getElapsedTime();
             continue;
         }
@@ -1432,13 +1432,13 @@ bool floatTetWild::insert_boundary_edges(
                 }
                 known_not_surface_fs.insert(
                   known_not_surface_fs.end(), cut_fs.begin(), cut_fs.end());
-                cout << "FAIL subdivide_tets" << endl;
+                logger().warn("FAIL subdivide_tets");
             }
             else {
                 for (auto& f : cut_fs)
                     mark_known_surface_fs(f, KNOWN_SURFACE);
                 known_surface_fs.insert(known_surface_fs.end(), cut_fs.begin(), cut_fs.end());
-                cout << "SEMI-FAIL subdivide_tets" << endl;
+                logger().warn("SEMI-FAIL subdivide_tets");
             }
 
             is_all_inserted = false;  // unless now

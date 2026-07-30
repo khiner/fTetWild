@@ -30,7 +30,7 @@
 //#define USE_FWN true
 
 void floatTetWild::init(Mesh &mesh) {
-    cout << "initializing..." << endl;
+    logger().info("initializing...");
 
     for (auto &v: mesh.tet_vertices) {
         if (v.is_removed)
@@ -97,7 +97,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
                 break;
         }
 
-        cout << "//////////////// pass " << it << " ////////////////" << endl;
+        logger().info("pass {}", it);
         std::array<int, 5> it_ops;
         if (it % 3 == 2)
             it_ops = {{ops[0], ops[1], ops[2], ops[3], 1}};
@@ -110,7 +110,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
                 mesh.params.eps += mesh.params.eps_delta;
                 mesh.params.eps_2 = mesh.params.eps * mesh.params.eps;
                 cnt_increase_epsilon--;
-                cout << "enlarge envelope, eps = " << mesh.params.eps << endl;
+                logger().info("enlarge envelope, eps = {}", mesh.params.eps);
             }
         }
 
@@ -124,7 +124,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
                     mesh.params.eps += mesh.params.eps_delta;
                     mesh.params.eps_2 = mesh.params.eps * mesh.params.eps;
                     cnt_increase_epsilon--;
-                    cout << "enlarge envelope, eps = " << mesh.params.eps << endl;
+                    logger().info("enlarge envelope, eps = {}", mesh.params.eps);
                 }
             }
         } else
@@ -141,7 +141,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
     }
 
     ////postprocessing
-    cout << "//////////////// postprocessing ////////////////" << endl;
+    logger().info("postprocessing");
     for (auto &v:mesh.tet_vertices) {
         if (v.is_removed)
             continue;
@@ -217,7 +217,7 @@ void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int
 
     for (int i = 0; i < ops[0]; i++) {
         igl_timer.start();
-        cout << "edge splitting..." << endl;
+        logger().info("edge splitting");
         untangle(mesh);
         edge_splitting(mesh, tree);
         time = igl_timer.getElapsedTime();
@@ -229,7 +229,7 @@ void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int
 
     for (int i = 0; i < ops[1]; i++) {
         igl_timer.start();
-        cout << "edge collapsing..." << endl;
+        logger().info("edge collapsing");
         untangle(mesh);
         edge_collapsing(mesh, tree);
         time = igl_timer.getElapsedTime();
@@ -241,7 +241,7 @@ void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int
 
     for (int i = 0; i < ops[2]; i++) {
         igl_timer.start();
-        cout << "edge swapping..." << endl;
+        logger().info("edge swapping");
         untangle(mesh);
         edge_swapping(mesh);
         time = igl_timer.getElapsedTime();
@@ -253,7 +253,7 @@ void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int
 
     for (int i = 0; i < ops[3]; i++) {
         igl_timer.start();
-        cout << "vertex smoothing..." << endl;
+        logger().info("vertex smoothing");
         vertex_smoothing(mesh, tree);
         time = igl_timer.getElapsedTime();
         v_num = mesh.get_v_num();
@@ -1363,7 +1363,7 @@ void floatTetWild::manifold_edges(Mesh& mesh) {
         if (tet_groups.size() < 2)
             continue;
 
-        cout<<"find non-manifold edge "<<e[0]<<" "<<e[1]<<endl;
+        logger().debug("find non-manifold edge {} {}", e[0], e[1]);
 
         //split
         std::vector<int> new_t_ids;
@@ -1499,7 +1499,7 @@ void floatTetWild::manifold_vertices(Mesh& mesh){
         }
 
 
-        cout << "find non-manifold vertex " << b_v_id << endl;
+        logger().debug("find non-manifold vertex {}", b_v_id);
 
         for (int i = 1; i < tet_groups.size(); i++) {
             tet_vertices.push_back(tet_vertices[b_v_id]);

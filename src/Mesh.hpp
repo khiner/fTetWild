@@ -58,9 +58,6 @@ public:
 #define OPP_T_ID_BOUNDARY -1
 
 
-    using std::cout;
-    using std::cin;
-    using std::endl;
 
     class MeshVertex {
     public:

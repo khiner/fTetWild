@@ -128,7 +128,6 @@ int main(int argc, char** argv)
     unsigned int num_threads = std::max(1u, std::thread::hardware_concurrency());
     num_threads              = std::min(max_threads, num_threads);
     params.num_threads       = num_threads;
-    std::cout << "threads " << num_threads << std::endl;
     floatTetWild::set_num_threads(num_threads);
     // Nested for loops oversubscribe otherwise, see
     // https://github.com/libigl/libigl/issues/2412
@@ -138,6 +137,7 @@ int main(int argc, char** argv)
     Logger::init(!params.is_quiet, params.log_path);
     params.log_level = std::max(0, std::min(6, params.log_level));
     logger().set_level(params.log_level);
+    logger().info("threads {}", num_threads);
 
     if (params.output_path.empty())
         params.output_path = params.input_path;
