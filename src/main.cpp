@@ -40,15 +40,6 @@ using namespace floatTetWild;
 
 int main(int argc, char** argv)
 {
-
-
-    std::vector<int> indices(20);
-    std::iota(std::begin(indices), std::end(indices), 0);
-    floatTetWild::Random::shuffle(indices);
-    for (int a : indices)
-        std::cout << a << " ";
-    std::cout << std::endl;
-
     bool skip_simplify = false;
     bool nobinary      = false;
     bool nocolor       = false;
