@@ -11,11 +11,6 @@
 #include <floattetwild/Parameters.h>
 #include <floattetwild/Types.hpp>
 
-
-// #ifdef FLOAT_TETWILD_USE_TBB
-// #include <tbb/concurrent_vector.h>
-// #endif
-
 #include <vector>
 #include <array>
 #include <unordered_set>
@@ -88,8 +83,6 @@ public:
         bool is_freezed = false;//todo
 
         Scalar sizing_scalar = 1;
-
-        Scalar scalar = 0;
     };
 
     class MeshTet {
@@ -143,17 +136,13 @@ public:
 
     class Mesh {
     public:
-// #ifdef FLOAT_TETWILD_USE_TBB
-// #else
         std::vector<MeshVertex> tet_vertices;
         std::vector<MeshTet> tets;
-// #endif
 
         Parameters params;
 
         int t_empty_start = 0;
         int v_empty_start = 0;
-        bool is_limit_length = true;
         bool is_closed = true;
 
         bool is_input_all_inserted = false;
@@ -227,7 +216,6 @@ public:
 
         inline Scalar get_max_energy() const {
             Scalar max_energy = 0;
-            int cnt = 0;
             for (auto &t: tets) {
                 if (t.is_removed)
                     continue;

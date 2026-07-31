@@ -11,7 +11,6 @@
 
 #include <floattetwild/ParallelFor.hpp>
 
-
 void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
 {
     auto& tets         = mesh.tets;
@@ -29,7 +28,6 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
         Vector3 p;
         if (!find_new_pos(mesh, v_id, p))
             return;
-
 
         ////check
         // envelope
@@ -95,7 +93,6 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
             tree.project_to_tmp_b(p);
     }
 
-
     // check inversion & quality
     double max_q = 0;
     for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
@@ -150,7 +147,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
     ////newton
     const int    max_newton_it = 15;
     const int    max_search_it = 10;
-    const Scalar f_delta       = 1e-8;
     const Scalar J_delta       = 1e-8;
 
     x = tet_vertices[v_id].pos;
@@ -171,7 +167,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         for (auto& T : Ts) {
             f += AMIPS_energy(T);
         }
-
 
         // J
         J << 0, 0, 0;

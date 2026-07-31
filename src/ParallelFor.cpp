@@ -222,9 +222,6 @@ void set_num_threads(unsigned int n)
     pool.reset();
 }
 
-unsigned int get_num_threads()
-{ return static_cast<unsigned int>(get_pool().parallelism()); }
-
 size_t detail::chunk_count(size_t begin, size_t end)
 {
     if (end <= begin)

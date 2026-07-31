@@ -10,9 +10,7 @@
 
 #include <floattetwild/Logger.hpp>
 
-
 #include <algorithm>
-
 
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/geo_delaunay_3d.h>
@@ -100,9 +98,6 @@ namespace floatTetWild {
         }
     }
 
-//#include <floattetwild/unique_rows.h>
-//#include <floattetwild/Predicates.hpp>
-
 	void FloatTetDelaunay::tetrahedralize(const std::vector<Vector3>& input_vertices, const std::vector<Vector3i>& input_faces, const AABBWrapper &tree,
 	        Mesh &mesh, std::vector<bool> &is_face_inserted) {
         const Parameters &params = mesh.params;
@@ -116,32 +111,17 @@ namespace floatTetWild {
         mesh.params.bbox_min = min;
         mesh.params.bbox_max = max;
 
-        std::vector<Vector3> boxpoints; //(8);
-        //         else
-
-
         std::vector<Vector3> voxel_points;
         compute_voxel_points(min, max, params, tree, voxel_points);
 
-        const int n_pts = input_vertices.size() + boxpoints.size() + voxel_points.size();
+        const int n_pts = input_vertices.size() + voxel_points.size();
         tet_vertices.resize(n_pts);
+        for (int i = 0; i < input_vertices.size(); i++)
+            tet_vertices[i].pos = input_vertices[i];
+        for (int i = 0; i < voxel_points.size(); i++)
+            tet_vertices[input_vertices.size() + i].pos = voxel_points[i];
 
-        size_t index = 0;
-        int offset = 0;
-        for (int i = 0; i < input_vertices.size(); i++) {
-            tet_vertices[offset + i].pos = input_vertices[i];
-        }
-        offset += input_vertices.size();
-        for (int i = 0; i < boxpoints.size(); i++) {
-            tet_vertices[i + offset].pos = boxpoints[i];
-        }
-        offset += boxpoints.size();
-        for (int i = 0; i < voxel_points.size(); i++) {
-            tet_vertices[i + offset].pos = voxel_points[i];
-        }
-
-        std::vector<double> V_d;
-        V_d.resize(n_pts * 3);
+        std::vector<double> V_d(n_pts * 3);
         for (int i = 0; i < tet_vertices.size(); i++) {
             for (int j = 0; j < 3; j++)
                 V_d[i * 3 + j] = tet_vertices[i].pos[j];
@@ -149,7 +129,6 @@ namespace floatTetWild {
 
         geo::Delaunay3d T(3);
         T.set_vertices(n_pts, V_d.data());
-        //
         tets.resize(T.nb_cells());
         const auto &tet2v = T.cell_to_v();
         for (int i = 0; i < T.nb_cells(); i++) {
@@ -162,8 +141,7 @@ namespace floatTetWild {
             std::swap(tets[i][1], tets[i][3]);
         }
 
-        for (int i = 0; i < mesh.tets.size(); i++) {
-            auto &t = mesh.tets[i];
+        for (const auto &t : mesh.tets) {
             if (is_inverted(mesh.tet_vertices[t[0]].pos, mesh.tet_vertices[t[1]].pos,
                             mesh.tet_vertices[t[2]].pos, mesh.tet_vertices[t[3]].pos)) {
                 logger().error("EXIT_INV");
@@ -171,14 +149,6 @@ namespace floatTetWild {
             }
         }
 
-//            if (-geo::PCK::orient_3d(mesh.tet_vertices[t[0]].pos.data(), mesh.tet_vertices[t[1]].pos.data(),
-//            if (orient3d(mesh.tet_vertices[t[0]].pos.data(), mesh.tet_vertices[t[1]].pos.data(),
-//
-
-
-        //match faces: should be integer with sign
-        //match bbox 8 facets: should be -1 and 0~5
         match_bbox_fs(mesh, min, max);
-
     }
 }

@@ -500,6 +500,14 @@ struct MatrixX
         return r;
     }
 
+    T maxCoeff() const
+    {
+        assert(!a.empty());
+        T m = a[0];
+        for (size_t i = 1; i < a.size(); i++) m = m < a[i] ? a[i] : m;
+        return m;
+    }
+
     T*       data() { return a.data(); }
     const T* data() const { return a.data(); }
 
@@ -517,20 +525,6 @@ struct MatrixX
         return r;
     }
 
-    T maxCoeff() const
-    {
-        assert(!a.empty());
-        T m = a[0];
-        for (size_t i = 1; i < a.size(); i++) m = m < a[i] ? a[i] : m;
-        return m;
-    }
-
-    bool allFinite() const
-    {
-        for (size_t i = 0; i < a.size(); i++)
-            if (!std::isfinite(a[i])) return false;
-        return true;
-    }
 };
 
 // ------------------------------------------------------------------------------------------------

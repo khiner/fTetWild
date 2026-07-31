@@ -9,13 +9,11 @@
 #include <floattetwild/EdgeSplitting.h>
 #include <floattetwild/LocalOperations.h>
 
-
 #define TET_MODIFIED 100
 
 void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
-
 
     ////init
     mesh.reset_t_empty_start();
@@ -32,7 +30,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
             es_queue.push(ElementInQueue(e, l_2));
     }
     edges.clear();
-
 
     ////split
     int budget = -1;//input
@@ -103,23 +100,7 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
     ////create new vertex
     MeshVertex new_v;
     new_v.pos = (tet_vertices[v1_id].pos + tet_vertices[v2_id].pos) / 2;
-    bool is_found = false;
-    for (int i = mesh.v_empty_start; i < tet_vertices.size(); i++) {
-        mesh.v_empty_start = i;
-        if (tet_vertices[i].is_removed) {
-            is_found = true;
-            break;
-        }
-    }
-    if (!is_found)
-        mesh.v_empty_start = tet_vertices.size();
-
-    int v_id = mesh.v_empty_start;
-    if (v_id < tet_vertices.size())
-        tet_vertices[v_id] = new_v;
-    else
-        tet_vertices.push_back(new_v);
-
+    const int v_id = get_new_vertex_slot(mesh, new_v);
 
     ////check inversion
     std::vector<int> old_t_ids;
@@ -135,9 +116,6 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
                     for (int t_id1: old_t_ids)
                         is_splittable[t_id1] = false;
                     tet_vertices[v_id].is_removed = true;
-
-//
-//
                     return false;
                 }
             }
@@ -187,22 +165,10 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
         tets[new_t_ids[i]].scalar = TET_MODIFIED;
     }
     //update conectivity
-
-    tet_vertices[v_id].conn_tets.insert(tet_vertices[v_id].conn_tets.end(), old_t_ids.begin(), old_t_ids.end());
-    tet_vertices[v_id].conn_tets.insert(tet_vertices[v_id].conn_tets.end(), new_t_ids.begin(), new_t_ids.end());
-    for (int i = 0; i < old_t_ids.size(); i++) {
-        for (int j = 0; j < 4; j++) {
-            if (tets[old_t_ids[i]][j] != v_id && tets[old_t_ids[i]][j] != v2_id)
-                tet_vertices[tets[old_t_ids[i]][j]].conn_tets.push_back(new_t_ids[i]);
-        }
-        tet_vertices[v1_id].conn_tets.erase(
-                std::find(tet_vertices[v1_id].conn_tets.begin(), tet_vertices[v1_id].conn_tets.end(), old_t_ids[i]));
-        tet_vertices[v1_id].conn_tets.push_back(new_t_ids[i]);
-    }
+    relink_split_tets(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
 
     if(mesh.tets.size()!=is_splittable.size())
         is_splittable.resize(mesh.tets.size(), true);
-
 
     ////repush
     if (!is_repush)
@@ -220,7 +186,6 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
     for (int n_v_id: n_v_ids) {
         new_edges.push_back({{v_id, n_v_id}});
     }
-
 
     return true;
 }

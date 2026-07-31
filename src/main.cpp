@@ -139,17 +139,18 @@ int main(int argc, char** argv)
     if (params.log_path.empty())
         params.log_path = params.output_path;
 
-    std::string output_mesh_name = params.output_path;
-    if (params.output_path.size() > 3 &&
-        params.output_path.substr(params.output_path.size() - 3, params.output_path.size()) ==
-          "msh")
-        output_mesh_name = params.output_path;
-    else if (params.output_path.size() > 4 &&
-             params.output_path.substr(params.output_path.size() - 4, params.output_path.size()) ==
-               "mesh")
-        output_mesh_name = params.output_path;
-    else
-        output_mesh_name = params.output_path + "_" + params.postfix + ".msh";
+    // Everything but the main mesh is named after the output path plus the postfix.
+    const std::string out_prefix = params.output_path + "_" + params.postfix;
+
+    // An output path that already names a mesh file is taken as is.
+    const auto ends_with = [&](const std::string& suffix) {
+        return params.output_path.size() > suffix.size() &&
+               params.output_path.compare(params.output_path.size() - suffix.size(),
+                                          suffix.size(),
+                                          suffix) == 0;
+    };
+    const std::string output_mesh_name =
+      ends_with("msh") || ends_with("mesh") ? params.output_path : out_prefix + ".msh";
 
     /// set input tage
     std::vector<Vector3>  input_vertices;
@@ -245,24 +246,20 @@ int main(int argc, char** argv)
 
             for (int i = 0; i <= max_id; ++i) {
                 get_tracked_surface(mesh, Vt, Ft, i);
-                writeOBJ(
-                  params.output_path + "_" + params.postfix + "_" + std::to_string(i) + "_all.obj",
-                  Vt,
-                  Ft);
+                writeOBJ(out_prefix + "_" + std::to_string(i) + "_all.obj", Vt, Ft);
             }
         }
         else {
             get_tracked_surface(mesh, Vt, Ft);
-            writeOBJ(
-              params.output_path + "_" + params.postfix + "_all.obj", Vt, Ft);
+            writeOBJ(out_prefix + "_all.obj", Vt, Ft);
         }
-        MeshIO::write_mesh(params.output_path + "_" + params.postfix + "_all.msh", mesh, false);
+        MeshIO::write_mesh(out_prefix + "_all.msh", mesh, false);
     }
 
     MatrixXs Vt;
     MatrixXi Ft;
     get_tracked_surface(mesh, Vt, Ft);
-    writeOBJ(params.output_path + "_" + params.postfix + "_tracked_surface.obj", Vt, Ft);
+    writeOBJ(out_prefix + "_tracked_surface.obj", Vt, Ft);
 
     if (!csg_file.empty())
         boolean_operation(mesh, tree_with_ids, csg_Vs, csg_Fs);
@@ -309,10 +306,6 @@ int main(int argc, char** argv)
     logger().info("winding number {}s", timer.getElapsedTimeInSec());
     logger().info("");
 
-    //        && params.output_path.substr(params.output_path.size() - 3, params.output_path.size())
-    //    else if (params.output_path.size() > 4
-    //    else
-
     std::vector<Scalar> colors;
     if (!nocolor) {
         colors.resize(mesh.tets.size(), -1);
@@ -323,7 +316,7 @@ int main(int argc, char** argv)
         }
     }
     MeshIO::write_mesh(output_mesh_name, mesh, false, colors, !nobinary, !csg_file.empty());
-    writeOBJ(params.output_path + "_" + params.postfix + "_sf.obj", V_sf, F_sf);
+    writeOBJ(out_prefix + "_sf.obj", V_sf, F_sf);
 
     std::ofstream fout(params.log_path + "_" + params.postfix + ".csv");
     if (fout.good())
@@ -332,6 +325,3 @@ int main(int argc, char** argv)
 
     return EXIT_SUCCESS;
 }
-
-// #include <igl/readSTL.h>
-// #include <igl/readMESH.h>

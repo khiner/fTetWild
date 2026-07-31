@@ -9,7 +9,6 @@
 #include <floattetwild/EdgeCollapsing.h>
 #include <floattetwild/LocalOperations.h>
 
-
 #define EC_FAIL_INVERSION -1
 #define EC_FAIL_QUALITY -2
 #define EC_FAIL_ENVELOPE0 -3
@@ -99,8 +98,6 @@ void edge_collapsing_aux(Mesh&                            mesh,
             }
 #if EC_POSTPROCESS
             else {
-                //
-                //
 
                 inf_es.push_back(v_ids);
                 inf_e_tss.push_back(ts);
@@ -159,18 +156,9 @@ void edge_collapsing_aux(Mesh&                            mesh,
 
 void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
 {
-    auto& tet_vertices = mesh.tet_vertices;
-    auto& tets         = mesh.tets;
-
     std::vector<std::array<int, 2>> edges;
-
-    // #ifdef FLOAT_TETWILD_USE_TBB_bug //TODO: remove bug and fix
-
-
-    // #else
     get_all_edges(mesh, edges);
     edge_collapsing_aux(mesh, tree, edges);
-    // #endif
 }
 
 int floatTetWild::collapse_an_edge(Mesh&                            mesh,
@@ -403,7 +391,6 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
             new_edges.push_back({{v2_id, v_id}});
     }
 
-
     if (tet_vertices[v1_id].is_on_surface)
         return EC_SUCCESS_ENVELOPE;
     return EC_SUCCESS;
@@ -411,9 +398,7 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
 
 bool floatTetWild::is_edge_freezed(Mesh& mesh, int v1_id, int v2_id)
 {
-    if (mesh.tet_vertices[v1_id].is_freezed || mesh.tet_vertices[v2_id].is_freezed)
-        return true;
-    return false;
+    return mesh.tet_vertices[v1_id].is_freezed || mesh.tet_vertices[v2_id].is_freezed;
 }
 
 bool floatTetWild::is_collapsable_bbox(Mesh& mesh, int v1_id, int v2_id)
@@ -422,7 +407,6 @@ bool floatTetWild::is_collapsable_bbox(Mesh& mesh, int v1_id, int v2_id)
         return true;
     else if (!mesh.tet_vertices[v2_id].is_on_bbox)
         return false;
-
 
     std::vector<int> bbox_fs2;
     for (int t_id : mesh.tet_vertices[v2_id].conn_tets) {
@@ -450,9 +434,7 @@ bool floatTetWild::is_collapsable_length(Mesh& mesh, int v1_id, int v2_id, Scala
 {
     Scalar sizing_scalar =
       (mesh.tet_vertices[v1_id].sizing_scalar + mesh.tet_vertices[v2_id].sizing_scalar) / 2;
-    if (l_2 <= mesh.params.collapse_threshold_2 * sizing_scalar * sizing_scalar)
-        return true;
-    return false;
+    return l_2 <= mesh.params.collapse_threshold_2 * sizing_scalar * sizing_scalar;
 }
 
 bool floatTetWild::is_collapsable_boundary(Mesh&              mesh,
@@ -460,8 +442,5 @@ bool floatTetWild::is_collapsable_boundary(Mesh&              mesh,
                                            int                v2_id,
                                            const AABBWrapper& tree)
 {
-    if (mesh.tet_vertices[v1_id].is_on_boundary && !is_boundary_edge(mesh, v1_id, v2_id, tree))
-        return false;
-    return true;
-
+    return !mesh.tet_vertices[v1_id].is_on_boundary || is_boundary_edge(mesh, v1_id, v2_id, tree);
 }

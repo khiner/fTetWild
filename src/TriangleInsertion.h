@@ -27,13 +27,8 @@ namespace floatTetWild {
                           const std::vector<int> &input_tags, Mesh &mesh,
                           std::vector<bool> &is_face_inserted, AABBWrapper &tree, bool is_again);
 
-    void insert_triangles_aux(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
-                              const std::vector<int> &input_tags, Mesh &mesh,
-                              std::vector<bool> &is_face_inserted, AABBWrapper &tree, bool is_again);
-
-
-    void sort_input_faces(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
-                          const Mesh &mesh, std::vector<int> &sorted_f_ids);
+    void sort_input_faces(const std::vector<Vector3i> &input_faces, const Mesh &mesh,
+                          std::vector<int> &sorted_f_ids);
 
     void push_new_tets(Mesh &mesh, std::vector<std::array<std::vector<int>, 4>> &track_surface_fs,
                        std::vector<Vector3> &points, std::vector<MeshTet> &new_tets,
@@ -101,9 +96,6 @@ namespace floatTetWild {
                          const std::vector<std::array<int, 3>> &known_not_surface_fs,
                          std::vector<std::array<int, 2>> &b_edges,
                          Mesh &mesh, AABBWrapper &tree);
-
-    int get_opp_t_id(int t_id, int j, const Mesh &mesh);
-
 
     Vector3 get_normal(const Vector3& a, const Vector3& b, const Vector3& c);
 }

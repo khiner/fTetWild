@@ -15,6 +15,9 @@
 namespace floatTetWild {
     extern bool use_old_energy;
 
+    inline int mod4(int j) { return j % 4; }
+    inline int mod3(int j) { return j % 3; }
+    inline int mod2(int j) { return j % 2; }
 
     int get_opp_t_id(const Mesh& mesh, int t_id, int j);
     inline int get_local_f_id(int t_id, int v1_id, int v2_id, int v3_id, Mesh &mesh) {
@@ -30,8 +33,28 @@ namespace floatTetWild {
         return geo::vec3(p[0], p[1], p[2]);
     }
 
+    // The two endpoints in ascending order, so an edge has one spelling wherever it is collected.
+    inline std::array<int, 2> sorted_edge(int a, int b) {
+        return a < b ? std::array<int, 2>{{a, b}} : std::array<int, 2>{{b, a}};
+    }
+
+    // The six edges of a tet, in the order every caller has always pushed them.
+    template<typename Tet>
+    void push_tet_edges(const Tet& t, std::vector<std::array<int, 2>>& out) {
+        for (int j = 0; j < 3; j++) {
+            out.push_back(sorted_edge(t[0], t[j + 1]));
+            out.push_back(sorted_edge(t[j + 1], t[mod3(j + 1) + 1]));
+        }
+    }
+
+    // The three edges of a triangle, likewise.
+    template<typename Tri>
+    void push_tri_edges(const Tri& f, std::vector<std::array<int, 2>>& out) {
+        for (int j = 0; j < 3; j++)
+            out.push_back(sorted_edge(f[j], f[(j + 1) % 3]));
+    }
+
     void get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges);
-    void get_all_edges(const Mesh& mesh, const std::vector<int>& t_ids, std::vector<std::array<int, 2>>& edges, bool skip_freezed = false);
 
     Scalar get_edge_length(const Mesh& mesh, int v1_id, int v2_id);
     Scalar get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id);
@@ -65,6 +88,9 @@ namespace floatTetWild {
     bool is_point_out_boundary_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree);
 
     void get_new_tet_slots(Mesh& mesh, int n, std::vector<int>& new_conn_tets);
+    int get_new_vertex_slot(Mesh& mesh, const MeshVertex& v);
+    void relink_split_tets(Mesh& mesh, int v_id, int v1_id, int v2_id,
+                           const std::vector<int>& old_t_ids, const std::vector<int>& new_t_ids);
 
     inline Scalar get_area(const Vector3& a, const Vector3& b, const Vector3& c) {
         return ((b - c).cross(a - c)).norm();
@@ -85,35 +111,13 @@ namespace floatTetWild {
     }
     template<typename T>
     bool vector_contains(const std::vector<T>& v, const T& t){
-        if(v.empty())
-            return false;
-        if(std::find(v.begin(), v.end(), t)!=v.end())
-            return true;
-        return false;
+        return std::find(v.begin(), v.end(), t) != v.end();
     }
-    void set_intersection(const std::unordered_set<int>& s1, const std::unordered_set<int>& s2, std::vector<int>& v);
-    void set_intersection(const std::unordered_set<int>& s1, const std::unordered_set<int>& s2, std::unordered_set<int>& v);
-    void set_intersection(const std::unordered_set<int>& s1, const std::unordered_set<int>& s2, const std::unordered_set<int>& s3, std::vector<int>& v);
 
+    void set_intersection(const std::unordered_set<int>& s1, const std::unordered_set<int>& s2, std::vector<int>& v);
     void set_intersection(const std::vector<int>& s1, const std::vector<int>& s2, std::vector<int>& v);
     void set_intersection(const std::vector<int>& s1, const std::vector<int>& s2, const std::vector<int>& s3, std::vector<int>& v);
-    void set_intersection_sorted(const std::vector<int>& s1, const std::vector<int>& s2, const std::vector<int>& s3, std::vector<int>& v);
 
-    inline int mod4(int j) {
-
-        return j%4;
-    }
-
-    inline int mod3(int j) {
-        return j%3;
-    }
-
-    inline int mod2(int j) {
-        return j%2;
-    }
-
-
-    ///////////////
     class ElementInQueue{
     public:
         std::array<int, 2> v_ids;
