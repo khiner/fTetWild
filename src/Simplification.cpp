@@ -12,8 +12,7 @@
 
 #include <floattetwild/Timer.h>
 #include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/remove_duplicate_vertices.h>
-#include <floattetwild/unique_rows.h>
+#include <floattetwild/MeshCleanup.hpp>
 
 void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
                             std::vector<Vector3i>& input_faces,

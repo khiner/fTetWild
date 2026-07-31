@@ -25,9 +25,7 @@
 #include <floattetwild/fast_winding_number.h>
 #include <floattetwild/geo_kd_tree.h>
 #include <floattetwild/Predicates.hpp>
-#include <floattetwild/bfs_orient.h>
-#include <floattetwild/unique_rows.h>
-#include <floattetwild/remove_duplicate_vertices.h>
+#include <floattetwild/MeshCleanup.hpp>
 
 namespace floatTetWild {
 namespace {

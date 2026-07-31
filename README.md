@@ -100,7 +100,7 @@ The baseline goes to the gitignored `corpus/`, so record it per machine.
 
 The inputs of our software are triangle surface meshes in `.off/.obj/.stl/.ply` format.
 
-The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). `PyMesh::MshSaver` in `src/external/` writes `.msh` meshes. Surface meshes are written in `.obj` format.
+The tetrahedral mesh is written in `.msh` format, with minimum dihedral angle recorded as element scalar field, which can be visualized by software [Gmsh](http://gmsh.info/). `PyMesh::MshSaver` in `src/MshSaver.cpp` writes `.msh` meshes. Surface meshes are written in `.obj` format.
 
 
 ### Features
@@ -171,9 +171,10 @@ Options:
 
 Two libraries are still fetched at configure time: [CLI11](https://github.com/CLIUtils/CLI11) for
 argument parsing in the binary and [Catch2](https://github.com/catchorg/Catch2) for the unit tests.
-Everything else the algorithm needs is in the tree. `src/external/` carries the parts that came from
-other projects, each with its provenance in the file header: the `.msh` reader and writer from
+Everything else the algorithm needs is in the tree. The parts that came from other projects sit in
+`src/` alongside the rest, each keeping its own licence in its file header and listed in
+[THIRD_PARTY.md](THIRD_PARTY.md): the `.msh` reader and writer from
 [PyMesh](https://github.com/qnzhou/PyMesh), Shewchuk's exact predicates, the fast winding number for
-soups, and the mesh, kd-tree, Delaunay and multi-precision code from
-[geogram](https://github.com/BrunoLevy/geogram). We would like to thank their authors for their great
-work and publishing the code.
+soups, the surface cleanup routines from [libigl](https://github.com/libigl/libigl), and the mesh,
+kd-tree, Delaunay and multi-precision code from [geogram](https://github.com/BrunoLevy/geogram). We
+would like to thank their authors for their great work and publishing the code.

@@ -1,11 +1,46 @@
 /* This file is part of PyMesh. Copyright (c) 2015 by Qingnan Zhou */
-#include "MshSaver.h"
+#include <floattetwild/MshSaver.h>
 
 #include <cassert>
+#include <exception>
 #include <iostream>
 #include <sstream>
+#include <string>
 
-#include "Exception.h"
+// PyMesh's exception hierarchy, which only this file ever threw. Its RuntimeError is not reached
+// here and is left behind with the rest of PyMesh.
+namespace PyMesh {
+
+class PyMeshException : public std::exception {
+public:
+    PyMeshException(const std::string& description) :
+            exception(), m_description(description) {}
+    virtual ~PyMeshException() throw() {}
+
+public:
+    virtual const char* what() const throw() {
+        return m_description.c_str();
+    }
+
+private:
+    std::string m_description;
+};
+
+class IOError : public PyMeshException {
+public:
+    IOError(const std::string& description) :
+            PyMeshException(description) {}
+    virtual ~IOError() throw() {}
+};
+
+class NotImplementedError : public PyMeshException {
+public:
+    NotImplementedError(const std::string& description) :
+            PyMeshException(description) {}
+    virtual ~NotImplementedError() throw() {}
+};
+
+}  // namespace PyMesh
 
 namespace floatTetWild {
 using namespace PyMesh;

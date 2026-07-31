@@ -8,11 +8,17 @@
 
 #pragma once
 
-#include <floattetwild/get_mem.h>
 #include <floattetwild/Mesh.hpp>
+
+#include <cstddef>
 #include <mutex>
 
+// Peak resident set size in bytes, from getRSS.c. Only the summary line below ever asks.
+extern "C" size_t getPeakRSS();
+
 namespace floatTetWild {
+
+    inline size_t get_peak_mem() { return getPeakRSS() / (1024 * 1024); }
 
     class StateInfo {
     public:

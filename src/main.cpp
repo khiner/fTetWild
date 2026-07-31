@@ -24,7 +24,7 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/writeOBJ.h>
 #include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/default_num_threads.h>
+#include <floattetwild/parallel_for.h>
 
 
 #include <floattetwild/geo_mesh.h>

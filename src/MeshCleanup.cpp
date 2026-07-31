@@ -1,0 +1,224 @@
+// Vendored from libigl (https://github.com/libigl/libigl), which carries its licence per file.
+// The files gathered here were all MPL 2.0, the same licence as fTetWild.
+//
+// Copyright (C) 2013 Alec Jacobson <alecjacobson@gmail.com>  (sort, orientable_patches, bfs_orient)
+// Copyright (C) 2018 Alec Jacobson <alecjacobson@gmail.com>  (vertex_components)
+//
+// This Source Code Form is subject to the terms of the Mozilla Public License
+// v. 2.0. If a copy of the MPL was not distributed with this file, You can
+// obtain one at http://mozilla.org/MPL/2.0/.
+
+#include <floattetwild/MeshCleanup.hpp>
+
+#include <algorithm>
+#include <cassert>
+#include <queue>
+#include <vector>
+
+namespace floatTetWild {
+namespace {
+
+// Sort each row of a #X by 2 matrix ascending. libigl's igl::sort dispatched on the inner
+// dimension and also returned the permutation. orientable_patches, the one caller, always passes
+// a Dynamic-by-2 matrix and discards the permutation, so only that case survives, without the
+// dim argument: rows are sorted.
+void sort2(const MatrixXi& X, MatrixXi& Y)
+{
+    assert(X.cols() == 2);
+    Y = X;
+    for (int i = 0; i < X.rows(); i++) {
+        if (Y(i, 0) > Y(i, 1)) {
+            std::swap(Y(i, 0), Y(i, 1));
+        }
+    }
+}
+
+// Compute connected components of a graph.
+//
+// libigl also had a face-list overload, which pulls in adjacency_matrix and is not reached here,
+// and a variant returning the size of each component, which no caller read.
+//
+// libigl took a sparse adjacency matrix and walked each column, skipping stored zeros. The
+// adjacency lists here are that column with the zeros already dropped, ascending, which is the
+// order the sparse iterator produced.
+//
+// Inputs:
+//   A  n lists of neighbours, each ascending
+// Outputs:
+//   C  n list of component ids (starting with 0)
+void vertex_components(const std::vector<std::vector<int>>& A, MatrixXi& C)
+{
+    const int n = A.size();
+    std::vector<bool> seen(n, false);
+    C.resize(n, 1);
+    int id = 0;
+    // breadth first search
+    for (int k = 0; k < n; ++k) {
+        if (seen[k]) {
+            continue;
+        }
+        std::queue<int> Q;
+        Q.push(k);
+        while (!Q.empty()) {
+            const int f = Q.front();
+            Q.pop();
+            if (seen[f]) {
+                continue;
+            }
+            seen[f] = true;
+            C(f, 0) = id;
+            for (const int g : A[f]) {
+                if (!seen[g]) {
+                    Q.push(g);
+                }
+            }
+        }
+        id++;
+    }
+}
+
+// Compute connected components of facets connected by manifold edges.
+//
+// libigl built the face-face adjacency as a sparse product uE2FT * uE2FT^T and left the
+// non-manifold edges in as stored zeros for the callers to skip. The adjacency lists built here
+// hold exactly the entries those callers kept: faces sharing at least one manifold edge,
+// ascending, self excluded. A stored zero only ever meant "skip me", and a pair sharing both a
+// manifold and a non-manifold edge stayed adjacent, which is why the manifold edges alone decide
+// membership.
+//
+// Inputs:
+//   F  #F by 3 list of facets
+// Outputs:
+//   C  #F list of component ids
+//   A  #F lists of adjacent facets, each ascending
+void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<int>>& A)
+{
+    assert(F.cols() == 3);
+    const int nf = F.rows();
+
+    // List of all "half"-edges: 3*#F by 2
+    MatrixXi allE(nf * 3, 2);
+    for (int f = 0; f < nf; f++) {
+        allE(0 * nf + f, 0) = F(f, 1);
+        allE(0 * nf + f, 1) = F(f, 2);
+        allE(1 * nf + f, 0) = F(f, 2);
+        allE(1 * nf + f, 1) = F(f, 0);
+        allE(2 * nf + f, 0) = F(f, 0);
+        allE(2 * nf + f, 1) = F(f, 1);
+    }
+    // Sort each row
+    MatrixXi sortallE;
+    sort2(allE, sortallE);
+    // IC(i) tells us where to find sortallE(i,:) in uE:
+    // so that sortallE(i,:) = uE(IC(i),:)
+    MatrixXi uE, IA, IC;
+    unique_rows(sortallE, uE, IA, IC);
+
+    // Faces incident to each unique edge, each face listed once, ascending.
+    std::vector<std::vector<int>> edge_faces(uE.rows());
+    for (int e = 0; e < IC.rows(); e++) {
+        edge_faces[IC(e)].push_back(e % nf);
+    }
+    for (auto& faces : edge_faces) {
+        std::sort(faces.begin(), faces.end());
+        faces.erase(std::unique(faces.begin(), faces.end()), faces.end());
+    }
+
+    A.assign(nf, std::vector<int>());
+    for (const auto& faces : edge_faces) {
+        // Non-manifold edges join nothing.
+        if (faces.size() > 2)
+            continue;
+        for (size_t i = 0; i < faces.size(); i++)
+            for (size_t j = 0; j < faces.size(); j++)
+                if (i != j)
+                    A[faces[i]].push_back(faces[j]);
+    }
+    for (auto& neighbours : A) {
+        std::sort(neighbours.begin(), neighbours.end());
+        neighbours.erase(std::unique(neighbours.begin(), neighbours.end()), neighbours.end());
+    }
+
+    // graph connected components
+    vertex_components(A, C);
+}
+
+}  // namespace
+
+void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
+    std::vector<std::vector<int>> A;
+    orientable_patches(F, C, A);
+
+    // number of faces
+    const int m = F.rows();
+    // number of patches
+    const int num_cc = C.maxCoeff() + 1;
+    std::vector<int> seen(m, 0);
+
+    // Edge sets
+    const int ES[3][2] = {{1, 2},
+                          {2, 0},
+                          {0, 1}};
+
+    if (((void *) &FF) != ((void *) &F))
+        FF = F;
+
+    // loop over patches. libigl ran this under `#pragma omp parallel for`, dropped with the rest
+    // of the OpenMP in this tree: nothing here enables it, and the mesher has its own pool.
+    for (int c = 0; c < num_cc; c++) {
+        std::queue<int> Q;
+        // find first member of patch c
+        int cnt = 0;
+        for (int f = 0; f < FF.rows(); f++) {
+            if (C(f) == c) {
+                if (cnt == 0)
+                    Q.push(f);
+                cnt++;
+//                break;
+            }
+        }
+        if (cnt < 5)
+            continue;
+
+        int cnt_inverted = 0;
+        assert(!Q.empty());
+        while (!Q.empty()) {
+            const int f = Q.front();
+            Q.pop();
+            if (seen[f] > 0)
+                continue;
+
+            seen[f]++;
+            // loop over neighbors of f
+            for (const int n : A[f]) {
+                // loop over edges of f
+                for (int efi = 0; efi < 3; efi++) {
+                    // efi'th edge of face f
+                    const Vector2i ef(FF(f, ES[efi][0]), FF(f, ES[efi][1]));
+                    // loop over edges of n
+                    for (int eni = 0; eni < 3; eni++) {
+                        // eni'th edge of face n
+                        const Vector2i en(FF(n, ES[eni][0]), FF(n, ES[eni][1]));
+                        // Match (half-edges go same direction)
+                        if (ef(0) == en(0) && ef(1) == en(1)) {
+                            // flip face n
+                            std::swap(FF(n, 0), FF(n, 2));
+                            cnt_inverted++;
+                        }
+                    }
+                }
+                // add neighbor to queue
+                Q.push(n);
+            }
+        }
+        if (cnt_inverted < cnt / 2)
+            continue;
+
+        for (int f = 0; f < FF.rows(); f++) {
+            if (C(f) == c)
+                std::swap(FF(f, 0), FF(f, 2));
+        }
+    }
+}
+
+}  // namespace floatTetWild
