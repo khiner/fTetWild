@@ -59,6 +59,8 @@ set(SOURCES
 	Types.hpp
 
 	Statistics.h
+
+	Timer.h
 )
 
 # Code from other projects, kept under its own licence. THIRD_PARTY.md maps each entry to its
@@ -84,7 +86,6 @@ set(VENDORED_SOURCES
 	# libigl, MPL 2.0, the same licence as fTetWild.
 	MeshCleanup.hpp
 	MeshCleanup.cpp
-	Timer.h
 	writeOBJ.h
 
 	# The fast winding number: libigl's wrapper and its thread pool, MPL 2.0, over Side Effects'

@@ -15,7 +15,6 @@ own header, and that per-file notice is the actual grant: libigl, for instance, 
 | File | Upstream | Licence |
 |---|---|---|
 | `src/MeshCleanup.hpp`, `src/MeshCleanup.cpp` | libigl — `igl/{sort,sortrows,round,unique_rows,remove_duplicate_vertices,vertex_components,orientable_patches,bfs_orient}` | MPL 2.0 |
-| `src/Timer.h` | libigl — `igl/Timer.h` | MPL 2.0 |
 | `src/writeOBJ.h` | libigl — `igl/writeOBJ.h` | MPL 2.0 |
 | `src/parallel_for.h` | libigl — `igl/parallel_for.h`, `igl/default_num_threads.h` | MPL 2.0 |
 | `src/fast_winding_number.h` | libigl — `igl/fast_winding_number.h` | MPL 2.0 |

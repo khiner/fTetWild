@@ -77,50 +77,6 @@ namespace floatTetWild {
         MeshFacetsAABBWithEps(const geo::Mesh& M);
 
         /**
-         * \brief Computes all the pairs of intersecting facets.
-         * \param[in] action ACTION::operator(index_t,index_t) is
-         *  invoked of all pairs of facets that have overlapping
-         *  bounding boxes. triangles_intersection() needs to be
-         *  called to detect the actual intersections.
-         * \tparam ACTION user action class, that needs to define
-         * operator(index_t,index_t), where the two indices are
-         * the indices each pair of triangles that have intersecting
-         * bounding boxes.
-         */
-        template <class ACTION>
-        void compute_facet_bbox_intersections(
-            ACTION& action
-        ) const {
-            intersect_recursive(
-                action,
-                1, 0, mesh_.facets.nb(),
-                1, 0, mesh_.facets.nb()
-            );
-        }
-
-
-        /**
-         * \brief Computes all the intersections between a given
-         *  box and the bounding boxes of all the facets.
-         * \param[in] action ACTION::operator(index_t) is
-         *  invoked for all facets that have a bounding
-         *  box that intersects \p box_in.
-         * \tparam ACTION user action class, that needs to define
-         * operator(index_t), where the parameter is the index
-         * of the triangle that has its bounding box intersecting
-         * \p box_in.
-         */
-        template< class ACTION >
-        void compute_bbox_facet_bbox_intersections(
-            const geo::Box& box_in,
-            ACTION& action
-        ) const {
-            bbox_intersect_recursive(
-                action, box_in, 1, 0, mesh_.facets.nb()
-            );
-        }
-
-        /**
          * \brief Finds the nearest facet from an arbitrary 3d query point.
          * \param[in] p query point
          * \param[out] nearest_point nearest point on the surface
@@ -138,41 +94,6 @@ namespace floatTetWild {
                 1, 0, mesh_.facets.nb()
             );
             return nearest_facet;
-        }
-
-        /**
-         * \brief Computes the nearest point and nearest facet from
-         * a query point, using user-specified hint.
-         *
-         * \details The hint is specified as reasonable initial values of
-         * (nearest_facet, nearest_point, sq_dist). If multiple queries
-         * are done on a set of points that has spatial locality,
-         * the hint can be the result of the previous call.
-         *
-         * \param[in] p query point
-         * \param[in,out] nearest_facet the nearest facet so far,
-         *   or NO_FACET if not known yet
-         * \param[in,out] nearest_point a point in nearest_facet
-         * \param[in,out] sq_dist squared distance between p and
-         *    nearest_point
-         * \note On entry, \p sq_dist needs to be equal to the squared
-         *   distance between \p p and \p nearest_point (it is easy to
-         *   forget to update it when calling it within a loop).
-         */
-        void nearest_facet_with_hint(
-            const geo::vec3& p,
-            geo::index_t& nearest_facet, geo::vec3& nearest_point, double& sq_dist
-        ) const {
-            if(nearest_facet == geo::NO_FACET) {
-                get_nearest_facet_hint(
-                    p, nearest_facet, nearest_point, sq_dist
-                );
-            }
-            nearest_facet_recursive(
-                p,
-                nearest_facet, nearest_point, sq_dist,
-                1, 0, mesh_.facets.nb()
-            );
         }
 
         /*
@@ -212,145 +133,7 @@ namespace floatTetWild {
             );
         }
 
-        /**
-         * \brief Computes the distance between an arbitrary 3d query
-         *  point and the surface.
-         * \param[in] p query point
-         * \return the squared distance between \p p and the surface.
-         */
-        double squared_distance(const geo::vec3& p) const {
-            geo::vec3 nearest_point;
-            double result;
-            nearest_facet(p, nearest_point, result);
-            return result;
-        }
-
-	/**
-	 * \brief Tests whether this surface mesh has an intersection
-	 *  with a segment.
-	 * \param[in] q1 , q2 the two extremities of the segment.
-	 * \retval true if there exists an intersection between [q1 , q2]
-	 *  and a facet of the mesh.
-	 * \retval false otherwise.
-	 */
-	bool segment_intersection(const geo::vec3& q1, const geo::vec3& q2) const;
-
     protected:
-
-
-        /**
-         * \brief Computes all the facets that have a bbox that
-         *  intersects a given bbox in a sub-tree of the AABB tree.
-         *
-         * Note that the tree structure is completely implicit,
-         *  therefore the bounds of the (continuous) facet indices
-         *  sequences that correspond to the facets contained
-         *  in the two nodes are sent as well as the node indices.
-         *
-         * \param[in] action ACTION::operator(index_t) is
-         *  invoked for all facet that has a bounding box that
-         *  overlaps \p box.
-         * \param[in] node index of the first node of the AABB tree
-         * \param[in] b index of the first facet in \p node
-         * \param[in] e one position past the index of the last
-         *  facet in \p node
-         */
-        template <class ACTION>
-        void bbox_intersect_recursive(
-            ACTION& action,
-            const geo::Box& box,
-            geo::index_t node, geo::index_t b, geo::index_t e
-        ) const {
-            geo_debug_assert(e != b);
-
-            // Prune sub-tree that does not have intersection
-            if(!bboxes_overlap(box, bboxes_[node])) {
-                return;
-            }
-
-            // Leaf case
-            if(e == b+1) {
-                action(b);
-                return;
-            }
-
-            // Recursion
-            geo::index_t m = b + (e - b) / 2;
-            geo::index_t node_l = 2 * node;
-            geo::index_t node_r = 2 * node + 1;
-
-            bbox_intersect_recursive(action, box, node_l, b, m);
-            bbox_intersect_recursive(action, box, node_r, m, e);
-        }
-
-        /**
-         * \brief Computes all the pairs of intersecting facets
-         *  for two sub-trees of the AABB tree.
-         *
-         * Note that the tree structure is completely implicit,
-         *  therefore the bounds of the (continuous) facet indices
-         *  sequences that correspond to the facets contained
-         *  in the two nodes are sent as well as the node indices.
-         *
-         * \param[in] action ACTION::operator(index_t,index_t) is
-         *  invoked of all pairs of facets that have overlapping
-         *  bounding boxes.
-         * \param[in] node1 index of the first node of the AABB tree
-         * \param[in] b1 index of the first facet in \p node1
-         * \param[in] e1 one position past the index of the last
-         *  facet in \p node1
-         * \param[in] node2 index of the second node of the AABB tree
-         * \param[in] b2 index of the first facet in \p node2
-         * \param[in] e2 one position past the index of the second
-         *  facet in \p node2
-         */
-        template <class ACTION>
-        void intersect_recursive(
-            ACTION& action,
-            geo::index_t node1, geo::index_t b1, geo::index_t e1,
-            geo::index_t node2, geo::index_t b2, geo::index_t e2
-        ) const {
-            geo_debug_assert(e1 != b1);
-            geo_debug_assert(e2 != b2);
-
-            // Since we are intersecting the AABBTree with *itself*,
-            // we can prune half of the cases by skipping the test
-            // whenever node2's facet index interval is greated than
-            // node1's facet index interval.
-            if(e2 <= b1) {
-                return;
-            }
-
-            // The acceleration is here:
-            if(!bboxes_overlap(bboxes_[node1], bboxes_[node2])) {
-                return;
-            }
-
-            // Simple case: leaf - leaf intersection.
-            if(b1 + 1 == e1 && b2 + 1 == e2) {
-                action(b1, b2);
-                return;
-            }
-
-            // If node2 has more facets than node1, then
-            //   intersect node2's two children with node1
-            // else
-            //   intersect node1's two children with node2
-            if(e2 - b2 > e1 - b1) {
-                geo::index_t m2 = b2 + (e2 - b2) / 2;
-                geo::index_t node2_l = 2 * node2;
-                geo::index_t node2_r = 2 * node2 + 1;
-                intersect_recursive(action, node1, b1, e1, node2_l, b2, m2);
-                intersect_recursive(action, node1, b1, e1, node2_r, m2, e2);
-            } else {
-                geo::index_t m1 = b1 + (e1 - b1) / 2;
-                geo::index_t node1_l = 2 * node1;
-                geo::index_t node1_r = 2 * node1 + 1;
-                intersect_recursive(action, node1_l, b1, m1, node2, b2, e2);
-                intersect_recursive(action, node1_r, m1, e1, node2, b2, e2);
-            }
-        }
-
         /**
          * \brief Computes a reasonable initialization for
          *  nearest facet search.
@@ -402,20 +185,6 @@ namespace floatTetWild {
             geo::index_t n, geo::index_t b, geo::index_t e
         ) const;
 
-        /**
-         * \brief The recursive function used by the implementation
-         *  of segment_intersection()
-	 * \param[in] q1 , q2 the segment
-         * \param[in] n index of the current node in the AABB tree
-         * \param[in] b index of the first facet in the subtree under node \p n
-         * \param[in] e one position past the index of the last facet in the
-         *  subtree under node \p n
-	 */
-	bool segment_intersection_recursive(
-	    const geo::vec3& q1, const geo::vec3& q2, geo::index_t n, geo::index_t b, geo::index_t e
-	) const;
-
-    protected:
         geo::vector<geo::Box> bboxes_;
         const geo::Mesh& mesh_;
     };
