@@ -22,10 +22,10 @@ namespace floatTetWild {
             min = vertices.front();
             max = vertices.front();
 
-            for (size_t j = 0; j < vertices.size(); j++) {
+            for (const Vector3 &v : vertices) {
                 for (int i = 0; i < 3; i++) {
-                    min(i) = std::min(min(i), vertices[j](i));
-                    max(i) = std::max(max(i), vertices[j](i));
+                    min(i) = std::min(min(i), v(i));
+                    max(i) = std::max(max(i), v(i));
                 }
             }
 

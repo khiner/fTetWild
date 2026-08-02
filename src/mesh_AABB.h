@@ -50,7 +50,6 @@
  *  geometric queries that operate on a Mesh.
  */
 
-#include <string>
 #include <floattetwild/geo_mesh.h>
 #include <floattetwild/geo_geometry_nd.h>
 
@@ -65,13 +64,8 @@ namespace floatTetWild {
     public:
         /**
          * \brief Creates the Axis Aligned Bounding Boxes tree.
-         * \param[in] M the input mesh. It can be modified,
-         *  and will be triangulated (if
-         *  not already a triangular mesh). The facets are
-         *  re-ordered (using Morton's order, see mesh_reorder()).
-         * \param[in] reorder if not set, Morton re-ordering is
-         *  skipped (but it means that mesh_reorder() was previously
-         *  called else the algorithm will be pretty unefficient).
+         * \param[in] M the input mesh, already triangulated and already Morton-ordered by
+         *  mesh_reorder(): geogram did both here, and every caller now does them beforehand.
          * \pre M.facets.are_simplices()
          */
         MeshFacetsAABBWithEps(const geo::Mesh& M);

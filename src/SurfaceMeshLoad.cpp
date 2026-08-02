@@ -371,32 +371,28 @@ bool load_ply(const std::string& path, geo::Mesh& mesh)
             double                    xyz[3] = {0, 0, 0};
             std::vector<geo::index_t> facet_vertices;
 
+            // One value of the given type, from the text line or from the binary stream.
+            const auto read = [&](const std::string& type) {
+                double value = 0;
+                if (ascii)
+                    ascii_fields >> value;
+                else
+                    value = ply_read_binary(in, type, big_endian);
+                return value;
+            };
+
             for (const PlyProperty& property : element.properties) {
                 if (!property.count_type.empty()) {
-                    size_t n = 0;
-                    if (ascii) {
-                        ascii_fields >> n;
-                    }
-                    else {
-                        n = size_t(ply_read_binary(in, property.count_type, big_endian));
-                    }
+                    const size_t n = size_t(read(property.count_type));
                     for (size_t k = 0; k < n; ++k) {
-                        double value = 0;
-                        if (ascii)
-                            ascii_fields >> value;
-                        else
-                            value = ply_read_binary(in, property.type, big_endian);
+                        const double value = read(property.type);
                         if (is_face && property.name == "vertex_indices")
                             facet_vertices.push_back(geo::index_t(value));
                     }
                     continue;
                 }
 
-                double value = 0;
-                if (ascii)
-                    ascii_fields >> value;
-                else
-                    value = ply_read_binary(in, property.type, big_endian);
+                const double value = read(property.type);
                 if (is_vertex) {
                     if (property.name == "x")
                         xyz[0] = value;

@@ -33,20 +33,18 @@ public:
     virtual ~IOError() throw() {}
 };
 
-class NotImplementedError : public PyMeshException {
-public:
-    NotImplementedError(const std::string& description) :
-            PyMeshException(description) {}
-    virtual ~NotImplementedError() throw() {}
-};
-
 }  // namespace PyMesh
 
 namespace floatTetWild {
 using namespace PyMesh;
 
+// Gmsh's element type for a 4-node tetrahedron.
+static const int TetElementType = 4;
+static const size_t NodesPerTet = 4;
+static const size_t Dim = 3;
+
 MshSaver::MshSaver(const std::string& filename, bool binary) :
-        m_binary(binary), m_num_nodes(0), m_num_elements(0), m_dim(0) {
+        m_binary(binary), m_num_nodes(0), m_num_elements(0) {
     if (!m_binary) {
         fout.open(filename.c_str(), std::fstream::out);
     } else {
@@ -63,18 +61,10 @@ MshSaver::~MshSaver() {
     fout.close();
 }
 
-void MshSaver::save_mesh(const VectorF& nodes, const VectorI& elements, const VectorI& components,
-                         size_t dim, MshSaver::ElementType type) {
-    if (dim != 2 && dim != 3) {
-        std::stringstream err_msg;
-        err_msg << dim << "D mesh is not supported!" << std::endl;
-        throw ::PyMesh::NotImplementedError(err_msg.str());
-    }
-    m_dim = dim;
-
+void MshSaver::save_mesh(const VectorF& nodes, const VectorI& elements, const VectorI& components) {
     save_header();
     save_nodes(nodes);
-    save_elements(elements, components,type);
+    save_elements(elements, components);
 }
 
 void MshSaver::save_header() {
@@ -93,70 +83,32 @@ void MshSaver::save_header() {
 }
 
 void MshSaver::save_nodes(const VectorF& nodes) {
-    // Save nodes.
-    m_num_nodes = nodes.size() / m_dim;
+    m_num_nodes = nodes.size() / Dim;
     fout << "$Nodes" << std::endl;
     fout << m_num_nodes << std::endl;
-    if (!m_binary) {
-        for (size_t i=0; i<nodes.size(); i+=m_dim) {
-            const VectorF& v = nodes.segment(i,m_dim);
-            int node_idx = i/m_dim+1;
-            fout << node_idx << " " << v[0] << " " << v[1] << " ";
-            if (m_dim == 2) {
-                fout << 0.0 << std::endl;
-            } else {
-                fout << v[2] << std::endl;
-            }
-        }
-    } else {
-        for (size_t i=0; i<nodes.size(); i+=m_dim) {
-            const VectorF& v = nodes.segment(i,m_dim);
-            int node_idx = i/m_dim+1;
-            fout.write((char*)&node_idx, sizeof(int));
-            fout.write((char*)v.data(), sizeof(Float)*m_dim);
+    for (size_t i=0; i<nodes.size(); i+=Dim) {
+        const VectorF& v = nodes.segment(i,Dim);
+        int node_idx = i/Dim+1;
 
-            // for 2D shapes, z coordinate is always 0.
-            if (m_dim == 2) {
-                const Float zero = 0.0;
-                fout.write((char*)&zero, sizeof(Float));
-            }
+        if (!m_binary) {
+            fout << node_idx << " " << v[0] << " " << v[1] << " " << v[2] << std::endl;
+        } else {
+            fout.write((char*)&node_idx, sizeof(int));
+            fout.write((char*)v.data(), sizeof(Float)*Dim);
         }
     }
     fout << "$EndNodes" << std::endl;
     fout.flush();
 }
 
-void MshSaver::save_elements(
-        const VectorI& elements, const VectorI& components, MshSaver::ElementType type) {
-    size_t nodes_per_element = 0;
-    switch (type) {
-        case TRI:
-            nodes_per_element = 3;
-            break;
-        case QUAD:
-            nodes_per_element = 4;
-            break;
-        case TET:
-            nodes_per_element = 4;
-            break;
-        case HEX:
-            nodes_per_element = 8;
-            break;
-        default:
-        {
-            std::stringstream err_msg;
-            err_msg << "Unsupported element type " << type;
-            throw ::PyMesh::NotImplementedError(err_msg.str());
-        }
-    }
-    m_num_elements = elements.size() / nodes_per_element;
+void MshSaver::save_elements(const VectorI& elements, const VectorI& components) {
+    m_num_elements = elements.size() / NodesPerTet;
 
-    // Save elements.
     fout << "$Elements" << std::endl;
     fout << m_num_elements << std::endl;
 
     if (m_num_elements > 0) {
-        int elem_type = type;
+        int elem_type = TetElementType;
         int num_elems = m_num_elements;
         int tags = components.size() > 0 ? 2 : 0;
         if (m_binary) {
@@ -164,17 +116,17 @@ void MshSaver::save_elements(
             fout.write((char*)&num_elems, sizeof(int));
             fout.write((char*)&tags, sizeof(int));
         }
-        for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
-            int elem_num = i/nodes_per_element + 1;
-            VectorI elem = elements.segment(i, nodes_per_element);
-            for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
+        for (size_t i=0; i<elements.size(); i+=NodesPerTet) {
+            int elem_num = i/NodesPerTet + 1;
+            VectorI elem = elements.segment(i, NodesPerTet);
+            for (size_t j=0; j<NodesPerTet; j++) elem[j] += 1;
 
             if (!m_binary) {
                 fout << elem_num << " " << elem_type << " " << tags << " ";
                 if(components.size() > 0)
                     fout << components[elem_num-1] << " " << components[elem_num-1] << " ";
 
-                for (size_t j=0; j<nodes_per_element; j++) {
+                for (size_t j=0; j<NodesPerTet; j++) {
                     fout << elem[j] << " ";
                 }
                 fout << std::endl;
@@ -184,7 +136,7 @@ void MshSaver::save_elements(
                     std::array<int, 2> comps = {{components[elem_num-1], components[elem_num-1]}};
                     fout.write((char*)comps.data(), sizeof(int) * 2);
                 }
-                fout.write((char*)elem.data(), sizeof(int)*nodes_per_element);
+                fout.write((char*)elem.data(), sizeof(int)*NodesPerTet);
             }
         }
     }

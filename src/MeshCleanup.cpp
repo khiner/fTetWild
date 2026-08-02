@@ -44,7 +44,6 @@ void vertex_components(const std::vector<std::vector<int>>& A, MatrixXi& C)
     std::vector<bool> seen(n, false);
     C.resize(n, 1);
     int id = 0;
-    // breadth first search
     for (int k = 0; k < n; ++k) {
         if (seen[k]) {
             continue;
@@ -88,14 +87,11 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
     // List of all "half"-edges: 3*#F by 2
     MatrixXi allE(nf * 3, 2);
     for (int f = 0; f < nf; f++) {
-        allE(0 * nf + f, 0) = F(f, 1);
-        allE(0 * nf + f, 1) = F(f, 2);
-        allE(1 * nf + f, 0) = F(f, 2);
-        allE(1 * nf + f, 1) = F(f, 0);
-        allE(2 * nf + f, 0) = F(f, 0);
-        allE(2 * nf + f, 1) = F(f, 1);
+        for (int e = 0; e < 3; e++) {
+            allE(e * nf + f, 0) = F(f, (e + 1) % 3);
+            allE(e * nf + f, 1) = F(f, (e + 2) % 3);
+        }
     }
-    // Sort each row
     MatrixXi sortallE;
     sort2(allE, sortallE);
     // IC(i) tells us where to find sortallE(i,:) in uE:
@@ -128,7 +124,6 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
         neighbours.erase(std::unique(neighbours.begin(), neighbours.end()), neighbours.end());
     }
 
-    // graph connected components
     vertex_components(A, C);
 }
 
@@ -138,32 +133,26 @@ void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
     std::vector<std::vector<int>> A;
     orientable_patches(F, C, A);
 
-    // number of faces
     const int m = F.rows();
-    // number of patches
     const int num_cc = C.maxCoeff() + 1;
     std::vector<int> seen(m, 0);
 
-    // Edge sets
     const int ES[3][2] = {{1, 2},
                           {2, 0},
                           {0, 1}};
 
-    if (((void *) &FF) != ((void *) &F))
-        FF = F;
+    FF = F;
 
     // loop over patches. libigl ran this under `#pragma omp parallel for`, dropped with the rest of
     // the OpenMP in this tree.
     for (int c = 0; c < num_cc; c++) {
         std::queue<int> Q;
-        // find first member of patch c
         int cnt = 0;
         for (int f = 0; f < FF.rows(); f++) {
             if (C(f) == c) {
                 if (cnt == 0)
                     Q.push(f);
                 cnt++;
-//                break;
             }
         }
         if (cnt < 5)
@@ -178,25 +167,18 @@ void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
                 continue;
 
             seen[f]++;
-            // loop over neighbors of f
             for (const int n : A[f]) {
-                // loop over edges of f
                 for (int efi = 0; efi < 3; efi++) {
-                    // efi'th edge of face f
                     const Vector2i ef(FF(f, ES[efi][0]), FF(f, ES[efi][1]));
-                    // loop over edges of n
                     for (int eni = 0; eni < 3; eni++) {
-                        // eni'th edge of face n
                         const Vector2i en(FF(n, ES[eni][0]), FF(n, ES[eni][1]));
                         // Match (half-edges go same direction)
                         if (ef(0) == en(0) && ef(1) == en(1)) {
-                            // flip face n
                             std::swap(FF(n, 0), FF(n, 2));
                             cnt_inverted++;
                         }
                     }
                 }
-                // add neighbor to queue
                 Q.push(n);
             }
         }

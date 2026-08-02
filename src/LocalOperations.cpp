@@ -21,10 +21,11 @@ using floatTetWild::Scalar;
 int floatTetWild::get_opp_t_id(const Mesh& mesh, int t_id, int j)
 {
     std::vector<int> pair;
-    set_intersection(mesh.tet_vertices[mesh.tets[t_id][(j + 1) % 4]].conn_tets,
-                     mesh.tet_vertices[mesh.tets[t_id][(j + 2) % 4]].conn_tets,
-                     mesh.tet_vertices[mesh.tets[t_id][(j + 3) % 4]].conn_tets,
-                     pair);
+    get_face_tets(mesh,
+                  mesh.tets[t_id][(j + 1) % 4],
+                  mesh.tets[t_id][(j + 2) % 4],
+                  mesh.tets[t_id][(j + 3) % 4],
+                  pair);
     if (pair.size() == 2)
         return pair[0] == t_id ? pair[1] : pair[0];
     return OPP_T_ID_BOUNDARY;
@@ -538,16 +539,18 @@ void floatTetWild::set_intersection(const std::vector<int>& s11,
     std::set_intersection(s1.begin(), s1.end(), s2.begin(), s2.end(), std::back_inserter(v));
 }
 
-void floatTetWild::set_intersection(const std::vector<int>& s11,
-                                    const std::vector<int>& s22,
-                                    const std::vector<int>& s33,
-                                    std::vector<int>&       v)
+void floatTetWild::get_face_tets(const Mesh&       mesh,
+                                 int               v1_id,
+                                 int               v2_id,
+                                 int               v3_id,
+                                 std::vector<int>& t_ids)
 {
-    std::vector<int> s3 = s33;
+    std::vector<int> s3 = mesh.tet_vertices[v3_id].conn_tets;
     std::sort(s3.begin(), s3.end());
-    set_intersection(s11, s22, v);
-    auto it = std::set_intersection(v.begin(), v.end(), s3.begin(), s3.end(), v.begin());
-    v.resize(it - v.begin());
+    set_intersection(mesh.tet_vertices[v1_id].conn_tets, mesh.tet_vertices[v2_id].conn_tets, t_ids);
+    auto it =
+      std::set_intersection(t_ids.begin(), t_ids.end(), s3.begin(), s3.end(), t_ids.begin());
+    t_ids.resize(it - t_ids.begin());
 }
 
 namespace {

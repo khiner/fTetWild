@@ -11,6 +11,8 @@
 
 #include <floattetwild/Types.hpp>
 
+#include <initializer_list>
+
 namespace floatTetWild {
 #define CUT_EDGE_0 0
 #define CUT_EDGE_1 1
@@ -18,8 +20,6 @@ namespace floatTetWild {
 #define CUT_FACE 3
 #define CUT_COPLANAR 4
 #define CUT_EMPTY -1
-
-
 
     Scalar p_seg_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
 
@@ -40,12 +40,24 @@ namespace floatTetWild {
     int is_tri_tri_cutted_hint(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3,//cutting tri
                                const Vector3 &q1, const Vector3 &q2, const Vector3 &q3, int hint);//face of tet
 
-    void get_bbox_face(const Vector3& p0, const Vector3& p1, const Vector3& p2, Vector3& min, Vector3& max);
-    void get_bbox_tet(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, Vector3& min, Vector3& max);
+    // The corner-wise minimum and maximum of the given points.
+    void get_bbox(std::initializer_list<Vector3> ps, Vector3& min, Vector3& max);
 
     bool is_bbox_intersected(const Vector3& min1, const Vector3& max1, const Vector3& min2, const Vector3& max2);
 
     bool is_point_inside_tet(const Vector3& p, const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t);
+
+    // How many of the orientations are strictly positive and how many strictly negative. A zero is
+    // neither, so n - cnt_pos - cnt_neg is how many lie on the plane they were taken against.
+    void count_orientations(const int* oris, int n, int& cnt_pos, int& cnt_neg);
 }
+
+// Guigue-Devillers, in triangle_triangle_intersection.cpp, which has no header of its own. Returns
+// 1 when the triangles overlap, and then source and target are the ends of the shared segment.
+int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatTetWild::Scalar q1[3],
+                                 floatTetWild::Scalar r1[3], floatTetWild::Scalar p2[3],
+                                 floatTetWild::Scalar q2[3], floatTetWild::Scalar r2[3],
+                                 int* coplanar, floatTetWild::Scalar source[3],
+                                 floatTetWild::Scalar target[3]);
 
 #endif //FLOATTETWILD_INTERSECTIONS_H

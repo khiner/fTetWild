@@ -7,6 +7,8 @@
 #include <memory>
 
 namespace floatTetWild {
+    inline geo::vec3 to_geo_p(const Vector3 &p) { return geo::vec3(p[0], p[1], p[2]); }
+
     // Three envelopes over the same kind of query: sf is the input surface, b is its open boundary
     // and tmp_b is the boundary as it stands while triangles are still being inserted.
     class AABBWrapper {
@@ -19,7 +21,6 @@ namespace floatTetWild {
         std::shared_ptr<MeshFacetsAABBWithEps> tmp_b_tree;
         MeshFacetsAABBWithEps sf_tree;
 
-        //// initialization
         inline Scalar get_sf_diag() const { return geo::bbox_diagonal(sf_mesh); }
 
         AABBWrapper(const geo::Mesh &sf_mesh) : sf_mesh(sf_mesh), sf_tree(sf_mesh) {}
@@ -31,7 +32,6 @@ namespace floatTetWild {
                                       const std::vector<std::array<int, 2>> &b_edges1,
                                       const Mesh &mesh, const std::vector<std::array<int, 2>> &b_edges2);
 
-        //// projection
         inline Scalar project_to_sf(Vector3 &p) const { return project(sf_tree, p); }
         inline Scalar project_to_b(Vector3 &p) const { return project(*b_tree, p); }
         inline Scalar project_to_tmp_b(Vector3 &p) const { return project(*tmp_b_tree, p); }
@@ -39,7 +39,7 @@ namespace floatTetWild {
         inline int get_nearest_face_sf(const Vector3 &p) const {
             geo::vec3 nearest_p;
             double sq_dist = std::numeric_limits<double>::max();
-            return sf_tree.nearest_facet(to_geo(p), nearest_p, sq_dist);
+            return sf_tree.nearest_facet(to_geo_p(p), nearest_p, sq_dist);
         }
 
         inline Scalar get_sq_dist_to_sf(const Vector3 &p) const {
@@ -47,7 +47,7 @@ namespace floatTetWild {
             return project_to_sf(q);
         }
 
-        //// envelope check - a set of sample points, all of which have to be inside
+        // A set of sample points is outside when any one of them is.
         inline bool is_out_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
                                       geo::index_t prev_facet = geo::NO_FACET) const {
             return is_out(b_mesh, *b_tree, ps, eps_2, prev_facet);
@@ -58,7 +58,6 @@ namespace floatTetWild {
             return is_out(tmp_b_mesh, *tmp_b_tree, ps, eps_2, prev_facet);
         }
 
-        //// envelope check - a single point
         inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
             return is_out(sf_tree, p, eps_2, prev_facet);
         }
@@ -69,22 +68,16 @@ namespace floatTetWild {
 
         // Same query, but carrying the previous facet and its distance across calls. Walking a
         // triangle's samples in order means the next one usually lands on the same facet.
-        inline bool is_out_sf_envelope(const Vector3& p, const Scalar eps_2,
-                                       geo::index_t& prev_facet, double& sq_dist, geo::vec3& nearest_p) const {
-            return is_out_sf_envelope(to_geo(p), eps_2, prev_facet, sq_dist, nearest_p);
-        }
         inline bool is_out_sf_envelope(const geo::vec3& geo_p, const Scalar eps_2,
                                        geo::index_t& prev_facet, double& sq_dist, geo::vec3& nearest_p) const {
             return is_out_hinted(sf_mesh, sf_tree, geo_p, eps_2, prev_facet, sq_dist, nearest_p);
         }
 
     private:
-        static geo::vec3 to_geo(const Vector3 &p) { return geo::vec3(p[0], p[1], p[2]); }
-
         static Scalar project(const MeshFacetsAABBWithEps &tree, Vector3 &p) {
             geo::vec3 nearest_p;
             double sq_dist = std::numeric_limits<double>::max();
-            tree.nearest_facet(to_geo(p), nearest_p, sq_dist);
+            tree.nearest_facet(to_geo_p(p), nearest_p, sq_dist);
             p[0] = nearest_p[0];
             p[1] = nearest_p[1];
             p[2] = nearest_p[2];
@@ -95,7 +88,7 @@ namespace floatTetWild {
                            geo::index_t &prev_facet) {
             geo::vec3 nearest_p;
             double sq_dist;
-            prev_facet = tree.facet_in_envelope(to_geo(p), eps_2, nearest_p, sq_dist);
+            prev_facet = tree.facet_in_envelope(to_geo_p(p), eps_2, nearest_p, sq_dist);
             return Scalar(sq_dist) > eps_2;
         }
 

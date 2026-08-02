@@ -31,9 +31,7 @@ int tetrahedralization(AABBWrapper&           tree,
     if (input_vertices.empty() || input_faces.empty())
         return EXIT_FAILURE;
 
-    if (!params.init(tree.get_sf_diag()))
-        return EXIT_FAILURE;
-
+    params.init(tree.get_sf_diag());
 
     stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
 
@@ -63,10 +61,6 @@ int tetrahedralization(AABBWrapper&           tree,
                 input_vertices.size(),
                 input_faces.size());
 
-    ///////////////////////////////////////
-    // STEP 2: Volume tetrahedralization //
-    ///////////////////////////////////////
-
     timer.start();
     std::vector<bool> is_face_inserted(input_faces.size(), false);
     FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
@@ -77,10 +71,6 @@ int tetrahedralization(AABBWrapper&           tree,
                 mesh.get_v_num(),
                 mesh.get_t_num());
 
-    /////////////////////
-    // STEP 3: Cutting //
-    /////////////////////
-
     timer.start();
     insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, false);
     finish_step(StateInfo::cutting_id,
@@ -90,10 +80,6 @@ int tetrahedralization(AABBWrapper&           tree,
                 mesh.get_max_energy(),
                 mesh.get_avg_energy(),
                 std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
-
-    //////////////////////////////////////
-    // STEP 4: Volume mesh optimization //
-    //////////////////////////////////////
 
     timer.start();
     optimization(

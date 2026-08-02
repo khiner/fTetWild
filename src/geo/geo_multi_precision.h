@@ -6,8 +6,6 @@
 #pragma once
 
 #include "geo_basic.h"
-#include <iostream>
-#include <sstream>
 #include <new>
 #include <math.h>
 
@@ -825,30 +823,6 @@ namespace geo {
      * \return the sign of this expansion minus rhs.
      */
     Sign compare(double rhs) const;
-
-    /**
-     * \brief Displays all the components of this expansion
-     * (for debugging purposes).
-     * \param[out] out an output stream used to print the components
-     */
-    std::ostream& show(std::ostream& out) const {
-        out << "expansion[" << length() << "] = [";
-        for(index_t i=0; i<length(); ++i) {
-            out << (*this)[i] << " ";
-        }
-        out << "]";
-        return out;
-    }
-
-    /**
-     * \brief Gets a string representation of this expansion
-     * \return a string with the length and components
-     */
-    std::string to_string() const {
-        std::ostringstream out;
-        show(out);
-        return out.str();
-    }
 
     /**
      * \brief Optimizes the internal representation without changing the

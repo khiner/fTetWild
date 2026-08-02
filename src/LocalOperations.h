@@ -45,10 +45,6 @@ namespace floatTetWild {
         return true;
     }
 
-    inline geo::vec3 to_geo_p(const Vector3& p){
-        return geo::vec3(p[0], p[1], p[2]);
-    }
-
     // The normal of face j of tet t_id, pointing away from the corner the face is opposite to.
     // Not normalised: the callers either normalise it or only look at the sign of a dot product.
     inline Vector3 get_face_normal(const Mesh& mesh, int t_id, int j) {
@@ -71,6 +67,20 @@ namespace floatTetWild {
     // The two endpoints in ascending order, so an edge has one spelling wherever it is collected.
     inline std::array<int, 2> sorted_edge(int a, int b) {
         return a < b ? std::array<int, 2>{{a, b}} : std::array<int, 2>{{b, a}};
+    }
+
+    // The three corners of face j of a tet, in the local order that winds away from corner j.
+    template<typename Tet>
+    std::array<int, 3> face_corners(const Tet& t, int j) {
+        return {{t[mod4(j + 1)], t[mod4(j + 2)], t[mod4(j + 3)]}};
+    }
+
+    // The same three, ascending, so a face has one spelling wherever it is collected.
+    template<typename Tet>
+    std::array<int, 3> sorted_face(const Tet& t, int j) {
+        std::array<int, 3> f = face_corners(t, j);
+        std::sort(f.begin(), f.end());
+        return f;
     }
 
     // The six edges of a tet, in the order every caller has always pushed them.
@@ -157,9 +167,29 @@ namespace floatTetWild {
         return std::find(v.begin(), v.end(), t) != v.end();
     }
 
+    // The edges of the given tets, each once, appended to out. This is what an operation re-queues
+    // after it rebuilds a patch.
+    template<typename Tets>
+    void collect_tet_edges(const Tets& ts, std::vector<std::array<int, 2>>& out) {
+        out.reserve(out.size() + ts.size() * 6);
+        for (const auto& t : ts)
+            push_tet_edges(t, out);
+        vector_unique(out);
+    }
+
+    inline void collect_tet_edges(const Mesh& mesh, const std::vector<int>& t_ids,
+                                  std::vector<std::array<int, 2>>& out) {
+        out.reserve(out.size() + t_ids.size() * 6);
+        for (int t_id : t_ids)
+            push_tet_edges(mesh.tets[t_id], out);
+        vector_unique(out);
+    }
+
     void set_intersection(const std::unordered_set<int>& s1, const std::unordered_set<int>& s2, std::vector<int>& v);
     void set_intersection(const std::vector<int>& s1, const std::vector<int>& s2, std::vector<int>& v);
-    void set_intersection(const std::vector<int>& s1, const std::vector<int>& s2, const std::vector<int>& s3, std::vector<int>& v);
+
+    // The tets that share the face with these three corners: two of them, or one on the boundary.
+    void get_face_tets(const Mesh& mesh, int v1_id, int v2_id, int v3_id, std::vector<int>& t_ids);
 
     class ElementInQueue{
     public:
@@ -183,6 +213,14 @@ namespace floatTetWild {
             return e1.weight > e2.weight;
         }
     };
+
+    // The same edge can sit in the queue more than once. After taking one, drop the copies behind
+    // it.
+    template<typename Queue>
+    void pop_duplicates(Queue &queue, const std::array<int, 2> &v_ids) {
+        while (!queue.empty() && queue.top().v_ids == v_ids)
+            queue.pop();
+    }
 
     Scalar AMIPS_energy_aux(const std::array<Scalar, 12>& T);
     Scalar AMIPS_energy(const std::array<Scalar, 12>& T);

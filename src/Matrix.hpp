@@ -20,10 +20,9 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace floatTetWild {
@@ -93,15 +92,6 @@ struct Vector
     T*       data() { return v; }
     const T* data() const { return v; }
 
-    static constexpr int size() { return N; }
-    static constexpr int rows() { return N; }
-    static constexpr int cols() { return 1; }
-
-    T*       begin() { return v; }
-    T*       end() { return v + N; }
-    const T* begin() const { return v; }
-    const T* end() const { return v + N; }
-
     void setZero()
     {
         for (int i = 0; i < N; i++) v[i] = T(0);
@@ -110,16 +100,6 @@ struct Vector
     Vector& operator+=(const Vector& o)
     {
         for (int i = 0; i < N; i++) v[i] += o.v[i];
-        return *this;
-    }
-    Vector& operator-=(const Vector& o)
-    {
-        for (int i = 0; i < N; i++) v[i] -= o.v[i];
-        return *this;
-    }
-    Vector& operator*=(T s)
-    {
-        for (int i = 0; i < N; i++) v[i] *= s;
         return *this;
     }
     Vector& operator/=(T s)
@@ -261,10 +241,8 @@ inline VectorCommaInit<T, N> operator<<(Vector<T, N>& target, typename matrix_de
     return VectorCommaInit<T, N>{target, 1};
 }
 
-// ------------------------------------------------------------------------------------------------
 // 3x3 matrix. Row-major storage: nothing reads the buffer directly, and the solve below walks
 // columns explicitly either way.
-// ------------------------------------------------------------------------------------------------
 
 template <typename T>
 struct Matrix33
@@ -275,11 +253,6 @@ struct Matrix33
 
     T&       operator()(int i, int j) { return m[i * 3 + j]; }
     const T& operator()(int i, int j) const { return m[i * 3 + j]; }
-
-    void setZero()
-    {
-        for (int i = 0; i < 9; i++) m[i] = T(0);
-    }
 
     Matrix33& operator+=(const Matrix33& o)
     {
@@ -336,9 +309,7 @@ inline Vector<T, 3> operator*(const Matrix33<T>& a, const Vector<T, 3>& b)
     return r;
 }
 
-// ------------------------------------------------------------------------------------------------
 // Dynamic matrix, stored row-major and used throughout as a list of rows.
-// ------------------------------------------------------------------------------------------------
 
 template <typename T>
 struct MatrixX;
@@ -353,7 +324,6 @@ struct RowRefBase
 
     Elem&       operator()(int j) const { return p[j]; }
     Elem&       operator[](int j) const { return p[j]; }
-    int         size() const { return n; }
 
     template <int N>
     operator Vector<T, N>() const
@@ -475,11 +445,6 @@ struct MatrixX
         ncols = c;
     }
 
-    void setZero()
-    {
-        std::fill(a.begin(), a.end(), T(0));
-    }
-
     T&       operator()(int i, int j) { return a[size_t(i) * ncols + j]; }
     const T& operator()(int i, int j) const { return a[size_t(i) * ncols + j]; }
     // Linear access, for the n by 1 case.
@@ -527,10 +492,8 @@ struct MatrixX
 
 };
 
-// ------------------------------------------------------------------------------------------------
 // Column-pivoting Householder QR solve for a 3x3 system, ported from Eigen 3.4's
 // ColPivHouseholderQR so that the smoother takes the same steps it always has.
-// ------------------------------------------------------------------------------------------------
 
 template <typename T>
 Vector<T, 3> solve_col_piv_householder_qr(const Matrix33<T>& matrix, const Vector<T, 3>& rhs);

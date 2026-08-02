@@ -88,13 +88,6 @@ namespace geo {
             return distance(p1.data(), p2.data(), coord_index_t(p1.dimension()));
         }
 
-
-
-
-
-
-
-
         /**
          * \brief Computes the point closest to a given point in a nd segment
          * \param[in] point the query point
@@ -137,7 +130,6 @@ namespace geo {
             closest_point = lambda0 * V0 + lambda1 * V1;
             return distance2(point, closest_point);
         }
-
 
         /**
          * \brief Computes the point closest to a given point in a nd segment
@@ -419,9 +411,6 @@ namespace geo {
                 p, q1, q2, q3, closest_point, lambda1, lambda2, lambda3
             );
         }
-
-
-
 
     }
 } }

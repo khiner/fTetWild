@@ -37,7 +37,6 @@
 
 // ¹University of Toronto, ²SideFX, ³Gradient Space
 
-
 // _Note: this implementation is for triangle soups only, not point clouds._
 
 // This version does _not_ depend on Intel TBB. Instead it depends on
@@ -49,7 +48,6 @@
 // The main class of interest is UT_SolidAngle and its init and computeSolidAngle functions, which you can use by including UT_SolidAngle.h, and whose implementation is mostly in UT_SolidAngle.cpp, using a 4-way bounding volume hierarchy (BVH) implemented in the UT_BVH.h and UT_BVHImpl.h headers.  The rest of the files are mostly various supporting code.  UT_SubtendedAngle, for computing angles subtended by 2D curves, can also be found in UT_SolidAngle.h and UT_SolidAngle.cpp .
 
 // An example of very similar code and how to use it to create a geometry operator (SOP) in Houdini can be found in the HDK examples (toolkit/samples/SOP/SOP_WindingNumber) for Houdini 16.5.121 and later.  Query points go in the first input and the mesh geometry goes in the second input.
-
 
 // Create a single header using:
 
@@ -146,9 +144,6 @@ typedef double  fpreal64;
 
 /// SYS_FPRealUnionT for type-safe casting with integral types
 
-
-
-
 /// Asserts are disabled
 /// @{
 #define UT_IGL_ASSERT_P(ZZ)         ((void)0)
@@ -189,8 +184,6 @@ typedef double  fpreal64;
 #ifndef __SYS_Math__
 #define __SYS_Math__
 
-
-
 #include <float.h>
 #include <limits>
 #include <math.h>
@@ -228,18 +221,12 @@ static constexpr inline size_t SYSmax(size_t a, size_t b)		{ return h_max(a,b); 
     SYSclamp(int v, int min, int max)
 	{ return h_clamp(v, min, max, 0); }
 
-
-
-
-
-
 #undef h_clamp
 
 static inline fpreal32 SYSsqrt(fpreal32 arg)
 { return ::sqrtf(arg); }
 static inline fpreal32 SYSatan2(fpreal32 a, fpreal32 b)
 { return ::atan2(a, b); }
-
 
 }}
 
@@ -274,8 +261,6 @@ static inline fpreal32 SYSatan2(fpreal32 a, fpreal32 b)
 
 #ifndef __VM_SSEFunc__
 #define __VM_SSEFunc__
-
-
 
 #if defined(_MSC_VER)
     #pragma warning(push)
@@ -579,7 +564,6 @@ vm_allbits(const v4si &a)
     return _mm_movemask_ps(V4SF(_mm_cmpeq_epi32(a, theSSETrue))) == 0xF;
 }
 
-
 #define VM_EXTRACT	vm_extract
 #define VM_INSERT	vm_insert
 #define VM_SPLATS	vm_splats
@@ -656,8 +640,6 @@ vm_allbits(const v4si &a)
 #ifndef __VM_SIMDFunc__
 #define __VM_SIMDFunc__
 
-
-
 #include <cmath>
 
 namespace floatTetWild {
@@ -725,7 +707,6 @@ static SYS_FORCE_INLINE v4sf
 VM_LOAD(const float v[4]) {
 	return v4sf{{v[0], v[1], v[2], v[3]}};
 }
-
 
 static inline v4si VM_ICMPEQ(v4si a, v4si b) {
 	return v4si{{
@@ -1083,18 +1064,13 @@ int SYS_FORCE_INLINE _mm_movemask_ps(const v4sf& v) {
 #ifndef __HDK_VM_SIMD__
 #define __HDK_VM_SIMD__
 
-
 #include <cstdint>
 
 //#define FORCE_NON_SIMD
 
-
-
-
 namespace floatTetWild {
   /// @private
   namespace FastWindingNumber {
-
 
 class v4uu {
 public:
@@ -1104,9 +1080,7 @@ public:
 
     // Assignment
 
-
     // Comparison
-
 
     // Basic math
 
@@ -1123,7 +1097,6 @@ public:
 
     // component
 
-
 public:
     v4si vector;
 };
@@ -1136,12 +1109,9 @@ public:
 
     // Assignment
 
-
     // Comparison
     SYS_FORCE_INLINE v4uu operator <= (const v4uf &v) const
     { return v4uu(VM_CMPLE(vector, v.vector)); }
-
-
 
     // Basic math
     SYS_FORCE_INLINE v4uf operator+(const v4uf &r) const
@@ -1166,9 +1136,7 @@ public:
     SYS_FORCE_INLINE v4uf operator&&(const v4uu &r) const
     { return v4uf(V4SF(VM_AND(V4SI(vector), r.vector))); }
 
-
     SYS_FORCE_INLINE v4uf operator&(const v4uu &r) const { return *this && r; }
-
 
     // component
     SYS_FORCE_INLINE float operator[](int idx) const { return VM_EXTRACT(vector, idx); }
@@ -1176,7 +1144,6 @@ public:
     // more math
 
     /// This is a lie, it is a signed int.
-
 
     /// Returns the integer part of this float, this becomes the
     /// 0..1 fractional component.
@@ -1200,7 +1167,6 @@ public:
     v4sf vector;
 };
 
-
 //
 // Custom vector operations
 //
@@ -1211,34 +1177,12 @@ sqrt(const v4uf &a)
     return v4uf(VM_SQRT(a.vector));
 }
 
-
 // Use this operation to mask disabled values to 0
 // rval = !a ? b : 0;
 
-
-
 // rval = a ? b : c;
 
-
 // rval = !(a && b)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Currently there is no specific support for signed integers
 
@@ -1279,8 +1223,6 @@ sqrt(const v4uf &a)
 
 #ifndef __UT_ARRAY_H_INCLUDED__
 #define __UT_ARRAY_H_INCLUDED__
-
-
 
 #include <algorithm>
 #include <functional>
@@ -1337,7 +1279,6 @@ class UT_Array
 public:
     typedef T value_type;
 
-
     /// Copy constructor. It duplicates the data.
     /// It's marked explicit so that it's not accidentally passed by value.
     /// You can always pass by reference and then copy it, if needed.
@@ -1360,7 +1301,6 @@ public:
     /// Construct with the contents of an initializer list
 
     inline ~UT_Array();
-
 
     /// Append an element to the current elements and return its index in the
     /// array, or insert the element at a specified position; if necessary,
@@ -1550,15 +1490,10 @@ public:
     /// forcedGet(exint) does NOT grow the array, and will return default
     /// objects for out of bound array indices.
 
-
-
     T *		    array()			    { return myData; }
-
 
     /// This method allows you to swap in a new raw T array, which must be
     /// the same size as myCapacity. Use caution with this method.
-
-    
 
     /// Begin iterating over the array.  The contents of the array may be 
     /// modified during the traversal.
@@ -1574,7 +1509,6 @@ public:
     /// End reverse iterator.  Consider using it.atEnd() instead.
     
     /// Remove item specified by the reverse_iterator.
-
 
     /// Very dangerous methods to share arrays.
     /// The array is not aware of the sharing, so ensure you clear
@@ -1678,8 +1612,6 @@ private:
 };
 }}
 
-
-
 #endif // __UT_ARRAY_H_INCLUDED__
 /*
  * Copyright (c) 2018 Side Effects Software Inc.
@@ -1712,9 +1644,6 @@ private:
 #ifndef __UT_ARRAYIMPL_H_INCLUDED__
 #define __UT_ARRAYIMPL_H_INCLUDED__
 
-
-
-
 #include <algorithm>
 #include <utility>
 #include <stdlib.h>
@@ -1726,11 +1655,6 @@ namespace floatTetWild {
 
 // Implemented in UT_Array.C
 extern void ut_ArrayImplFree(void *p);
-
-
-
-
-
 
 template <typename T>
 inline UT_Array<T>::~UT_Array()
@@ -1755,9 +1679,6 @@ UT_Array<T>::allocateCapacity(exint capacity)
     return data;
 }
 
-
-
-
 template <typename T>
 template <typename S>
 inline exint
@@ -1780,20 +1701,6 @@ UT_Array<T>::appendImpl(S &&s)
     }
     return mySize++;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 template <typename T>
 inline void		
@@ -1868,12 +1775,6 @@ UT_Array<T>::setCapacity(exint capacity)
     UT_IGL_ASSERT(myData);
 }
 
-
-
-
-
-
-
 }}
 
 #endif // __UT_ARRAYIMPL_H_INCLUDED__
@@ -1907,8 +1808,6 @@ UT_Array<T>::setCapacity(exint capacity)
 
 #ifndef __UT_SMALLARRAY_H_INCLUDED__
 #define __UT_SMALLARRAY_H_INCLUDED__
-
-
 
 #include <utility>
 #include <stddef.h>
@@ -2066,9 +1965,6 @@ private:
 
 #ifndef __UT_FixedVector__
 #define __UT_FixedVector__
-
-
-
 
 namespace floatTetWild {
   /// @private
@@ -2403,7 +2299,6 @@ dot(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE,S_
     return a.dot(b);
 }
 
-
 template<typename T, exint SIZE, bool INSTANTIATED, typename S, bool S_INSTANTIATED>
 SYS_FORCE_INLINE auto
 SYSmax(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE,S_INSTANTIATED> &b) -> UT_FixedVector<decltype(a[0]+b[1]), SIZE>
@@ -2414,7 +2309,6 @@ SYSmax(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE
         result[i] = SYSmax(Type(a[i]), Type(b[i]));
     return result;
 }
-
 
 }}
 
@@ -2446,8 +2340,6 @@ SYSmax(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE
 
 #ifndef __UT_ParallelUtil__
 #define __UT_ParallelUtil__
-
-
 
 #include <thread> // This is just included for std::thread::hardware_concurrency()
 namespace floatTetWild {
@@ -2489,15 +2381,11 @@ namespace UT_Thread { inline int getNumProcessors() {
 #ifndef __HDK_UT_BVH_h__
 #define __HDK_UT_BVH_h__
 
-
-
-
 #include <limits>
 #include <memory>
 namespace floatTetWild { 
   /// @private
   namespace FastWindingNumber {
-
 
 namespace HDK_Sample {
 
@@ -2516,7 +2404,6 @@ struct Box {
             vals[axis][1] = pt[axis];
         }
     }
-
 
     SYS_FORCE_INLINE void initBounds() noexcept {
         for (uint axis = 0; axis < NAXES; ++axis) {
@@ -2926,13 +2813,6 @@ using UT_BVH = UT::BVH<N>;
 #ifndef __HDK_UT_BVHImpl_h__
 #define __HDK_UT_BVHImpl_h__
 
-
-
-
-
-
-
-
 #include <floattetwild/parallel_for.h>
 
 #include <iostream>
@@ -3270,7 +3150,6 @@ inline void BVH<N>::traverseVectorHelper(
     // NOTE: s is now the number of non-empty entries in this node.
     functors.post(nodei, parent_nodei, data_for_parent, s, local_data, descend);
 }
-
 
 template<uint N>
 template<typename SRC_INT_TYPE>
@@ -4367,7 +4246,6 @@ void BVH<N>::partitionByCentre(const BOX_TYPE* boxes, SRC_INT_TYPE*const indices
     ppivot_end = pivot_end;
 }
 
-
 } // UT namespace
 } // End HDK_Sample namespace
 }}
@@ -4402,10 +4280,6 @@ void BVH<N>::partitionByCentre(const BOX_TYPE* boxes, SRC_INT_TYPE*const indices
 #ifndef __HDK_UT_SolidAngle_h__
 #define __HDK_UT_SolidAngle_h__
 
-
-
-
-
 #include <memory>
 
 namespace floatTetWild { 
@@ -4415,7 +4289,6 @@ namespace HDK_Sample {
 
 template<typename T>
 using UT_Vector3T = UT_FixedVector<T,3>;
-
 
 template <typename T>
 SYS_FORCE_INLINE
@@ -4477,7 +4350,6 @@ inline T UTsignedSolidAngleTri(
 
     return T(2)*SYSatan2(numerator, denominator);
 }
-
 
 /// Class for quickly approximating signed solid angle of a large mesh
 /// from many query points.  This is useful for computing the
@@ -4558,8 +4430,6 @@ private:
  *      A wrapper function for the "free" function, used by UT_(Small)Array
  */
 
-
-
 #include <stdlib.h>
 
 namespace floatTetWild { 
@@ -4606,13 +4476,6 @@ inline void ut_ArrayImplFree(void *p)
  * COMMENTS:
  *      Functions and structures for computing solid angles.
  */
-
-
-
-
-
-
-
 
 #include <floattetwild/parallel_for.h>
 #include <type_traits>
@@ -5440,7 +5303,6 @@ inline T UT_SolidAngle<T, S>::computeSolidAngle(const UT_Vector3T<T> &query_poin
     myTree.traverseVector(functors, &sum);
     return sum;
 }
-
 
 // Instantiate our templates.
 //template class UT_SolidAngle<fpreal32,fpreal32>;

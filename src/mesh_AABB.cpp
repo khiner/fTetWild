@@ -138,16 +138,6 @@ namespace {
     }
 
     /**
-     * \brief Finds the nearest point in a mesh facet from a query point.
-     * \param[in] M the mesh
-     * \param[in] p the query point
-     * \param[in] f index of the facet in \p M
-     * \param[out] nearest_p the point of facet \p f nearest to \p p
-     * \param[out] squared_dist the squared distance between
-     *  \p p and \p nearest_p
-     * \pre the mesh \p M is triangulated
-     */
-    /**
      * \brief Computes the squared distance between a point and a Box.
      * \param[in] p the point
      * \param[in] B the box
@@ -284,17 +274,6 @@ namespace floatTetWild {
 
     MeshFacetsAABBWithEps::MeshFacetsAABBWithEps(const Mesh& M)
      : mesh_(M) {
-        // if(!M.facets.are_simplices()) {
-        //     mesh_repair(
-        //         M,
-        //         MeshRepairMode(
-        //             MESH_REPAIR_TRIANGULATE | MESH_REPAIR_QUIET
-        //          )
-        //     );
-        // }
-        // if(reorder) {
-        //     mesh_reorder(mesh_, MESH_ORDER_MORTON);
-        // }
         bboxes_.resize(
             max_node_index(
                 1, 0, mesh_.facets.nb()

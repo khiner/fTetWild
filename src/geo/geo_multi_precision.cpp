@@ -12,8 +12,6 @@
 #pragma fp_contract(off)
 #endif
 
-
-
 namespace {
 
     using namespace floatTetWild::geo;
@@ -81,7 +79,6 @@ namespace {
             set_next(Memory::pointer(ptr), pools_[size]);
             pools_[size] = Memory::pointer(ptr);
         }
-
 
     protected:
         /**
@@ -857,7 +854,6 @@ namespace geo {
             set_length(8);
         } else {
 
-
             const expansion* pa = &a;
             const expansion* pb = &b;
 
@@ -1069,8 +1065,6 @@ namespace geo {
         const expansion& d = expansion_diff(*this, rhs);
         return d.sign();
     }
-
-
 
     /************************************************************************/
 

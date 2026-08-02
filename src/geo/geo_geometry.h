@@ -15,29 +15,11 @@
 namespace floatTetWild {
 namespace geo {
 
-
     /**
      * \brief Represents points and vectors in 3d.
      * \details Syntax is (mostly) compatible with GLSL.
      */
     typedef vecng<3, Numeric::float64> vec3;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     /************************************************************************/
 
@@ -45,26 +27,6 @@ namespace geo {
      * \brief Geometric functions and utilities.
      */
     namespace Geom {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         /**
          * \brief Computes the signed volume of a 3d tetrahedron
@@ -103,12 +65,7 @@ namespace geo {
             );
         }
 
-
-
-
-
     }
-
 
     /*******************************************************************/
 
@@ -138,7 +95,6 @@ namespace geo {
         }
     };
 
-
     /**
      * \brief Computes the smallest Box that encloses two Boxes.
      * \param[out] target the smallest axis-aligned box
@@ -152,18 +108,6 @@ namespace geo {
             target.xyz_max[c] = std::max(B1.xyz_max[c], B2.xyz_max[c]);
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
     /******************************************************************/
 

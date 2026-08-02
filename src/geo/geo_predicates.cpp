@@ -28,7 +28,6 @@ namespace {
 
     using namespace floatTetWild::geo;
 
-
     PCK::SOSMode SOS_mode_ = PCK::SOS_ADDRESS;
 
     /**
@@ -320,7 +319,6 @@ namespace {
         const expansion& m24 = expansion_det2x2(a22,a23,a42,a43);
         const expansion& m34 = expansion_det2x2(a32,a33,a42,a43);
 
-
         const expansion& z11 = expansion_product(a21,m34);
         const expansion& z12 = expansion_product(a31,m24).negate();
         const expansion& z13 = expansion_product(a41,m23);
@@ -340,7 +338,6 @@ namespace {
         const expansion& z42 = expansion_product(a21,m13).negate();
         const expansion& z43 = expansion_product(a31,m12);
         const expansion& Delta4 = expansion_sum3(z41,z42,z43);
-
 
         Sign Delta4_sign = Delta4.sign();
         geo_assert(Delta4_sign != ZERO);
@@ -549,7 +546,6 @@ namespace geo {
             // Therefore:
             // in_sphere_3d(p0,p1,p2,p3,p4) = -side4_3d(p0,p1,p2,p3,p4)
 
-
             // This specialized filter supposes that orient_3d(p0,p1,p2,p3) > 0
 
             Sign result = Sign(in_sphere_3d_filter_optim(p0, p1, p2, p3, p4));
@@ -621,10 +617,6 @@ namespace geo {
                 PCK::orient_3d(p1, p2, p3, q100) == ZERO
                 ;
         }
-
-
-
-
 
         namespace {
             // geogram made callers do this through GEO::initialize(). Here the predicates are

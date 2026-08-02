@@ -10,10 +10,24 @@
 #include <floattetwild/LocalOperations.h>
 
 #include <numeric>
+#include <random>
 
 namespace floatTetWild {
 
 	namespace {
+	// A Fisher-Yates shuffle over one process-wide generator, seeded so that a run is repeatable.
+	// Only one_ring_edge_set() shuffles, and the sequence it draws decides which collapses a round
+	// makes, so the generator has to stay exactly this one.
+	void shuffle_ids(std::vector<int> &vec)
+	{
+		static std::mt19937 gen(42);
+		for (int i = vec.size() - 1; i > 0; --i) {
+			const int index = (gen() - std::mt19937::min()) /
+			                  double(std::mt19937::max() - std::mt19937::min()) * (i + 1);
+			std::swap(vec[i], vec[index]);
+		}
+	}
+
 	// Greedy graph colouring over the one-ring adjacency, so that same-coloured vertices are never
 	// neighbours and can be smoothed at the same time. -1 marks a removed vertex.
 	void one_ring_vertex_coloring(const Mesh &mesh, std::vector<int> &colors)
@@ -49,15 +63,7 @@ namespace floatTetWild {
 					available[colors[n]] = false;
 			}
 
-			int first_available_col;
-			for (first_available_col = 0; first_available_col < available.size(); first_available_col++){
-				if (available[first_available_col])
-					break;
-			}
-
-			assert(available[first_available_col]);
-
-			colors[i] = first_available_col;
+			colors[i] = std::find(available.begin(), available.end(), true) - available.begin();
 
 			for(const auto n : ring)
 			{
@@ -84,7 +90,6 @@ namespace floatTetWild {
 		for(size_t i = 0; i < colors.size(); ++i)
 		{
 			const int col = colors[i];
-			//removed vertex
 			if(col < 0)
 				serial_set.push_back(i);
 			else
@@ -110,7 +115,7 @@ namespace floatTetWild {
 	{
 		std::vector<int> indices(edges.size());
 		std::iota(std::begin(indices), std::end(indices), 0);
-		floatTetWild::Random::shuffle(indices);
+		shuffle_ids(indices);
 
 		std::vector<bool> unsafe_face(f_is_removed.size(), false);
 		safe_set.clear();

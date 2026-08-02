@@ -6,10 +6,6 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-//
-// Created by Yixin Hu on 9/12/19.
-//
-
 #include <floattetwild/CutMesh.h>
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/Predicates.hpp>
@@ -29,12 +25,9 @@ void floatTetWild::CutMesh::construct(const std::vector<int>& cut_t_ids) {
 
     tets.resize(cut_t_ids.size());
     for (int i = 0; i < cut_t_ids.size(); i++) {
-        tets[i] = {{map_v_ids[mesh.tets[cut_t_ids[i]][0]],
-                           map_v_ids[mesh.tets[cut_t_ids[i]][1]],
-                           map_v_ids[mesh.tets[cut_t_ids[i]][2]],
-                           map_v_ids[mesh.tets[cut_t_ids[i]][3]]}};
+        for (int j = 0; j < 4; j++)
+            tets[i][j] = map_v_ids[mesh.tets[cut_t_ids[i]][j]];
     }
-
 }
 
 floatTetWild::Scalar floatTetWild::CutMesh::get_signed_plane_dist(const Vector3 &p, bool &snaps) const {
@@ -64,7 +57,7 @@ bool floatTetWild::CutMesh::snap_to_plane() {
         }
     }
 
-    revert_totally_snapped_tets(0, tets.size());
+    revert_totally_snapped_tets();
 
     return snapped;
 }
@@ -84,7 +77,7 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
             is_visited[t_id] = true;
 
         int old_cut_t_ids = cut_t_ids.size();
-        for (auto m: map_v_ids) {
+        for (const auto &m: map_v_ids) {
             int gv_id = m.first;
             int lv_id = m.second;
 
@@ -104,34 +97,23 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
                 is_visited[gt_id] = true;
 
                 int cnt = 0;
-                for (int j = 0; j < 4; j++) {
-                    int tmp_gv_id = mesh.tets[gt_id][j];
-                    if (map_v_ids.find(tmp_gv_id) != map_v_ids.end()) {
-                        cnt++;
-                    }
-                }
+                for (int j = 0; j < 4; j++)
+                    cnt += map_v_ids.count(mesh.tets[gt_id][j]);
                 if (cnt < 3)
                     continue;
-                int cnt_pos = 0;
-                int cnt_neg = 0;
-                for (int j = 0; j < 4; j++) {
-                    int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2],
+                int oris[4];
+                for (int j = 0; j < 4; j++)
+                    oris[j] = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2],
                                                     mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
-                    if (ori == Predicates::ORI_POSITIVE)
-                        cnt_pos++;
-                    else if (ori == Predicates::ORI_NEGATIVE)
-                        cnt_neg++;
-                }
-                if (cnt_neg == 0 || cnt_pos == 0)
+                int cnt_pos, cnt_neg;
+                count_orientations(oris, 4, cnt_pos, cnt_neg);
+                if (cnt_neg == 0 || cnt_pos == 0)  // does not straddle the plane
                     continue;
 
                 bool is_overlapped = false;
                 std::array<Vector2, 4> tet_2d;
-                for (int j = 0; j < 4; j++) {
-                    Scalar dist = get_to_plane_dist(mesh.tet_vertices[mesh.tets[gt_id][j]].pos);
-                    Vector3 proj_p = mesh.tet_vertices[mesh.tets[gt_id][j]].pos - dist * p_n;
-                    tet_2d[j] = to_2d(proj_p, t);
-                }
+                for (int j = 0; j < 4; j++)
+                    tet_2d[j] = to_2d(mesh.tet_vertices[mesh.tets[gt_id][j]].pos, p_n, p_vs[0], t);
                 for(int j=0;j<4;j++) {
                     if (is_tri_tri_cutted_2d({{tet_2d[(j + 1) % 4], tet_2d[(j + 2) % 4], tet_2d[(j + 3) % 4]}},
                                              tri_2d)) {
@@ -171,13 +153,12 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
         if (cut_t_ids.size() == old_cut_t_ids)
             break;
     }
-    revert_totally_snapped_tets(0, tets.size());
+    revert_totally_snapped_tets();
 }
 
-int floatTetWild::CutMesh::project_to_plane(int input_vertices_size) {
+void floatTetWild::CutMesh::project_to_plane(int input_vertices_size) {
     is_projected.resize(v_ids.size(), false);
 
-    int cnt = 0;
     for (int i = 0; i < is_snapped.size(); i++) {
         if (!is_snapped[i] || is_projected[i])
             continue;
@@ -197,25 +178,26 @@ int floatTetWild::CutMesh::project_to_plane(int input_vertices_size) {
             mesh.tet_vertices[v_ids[i]].pos = proj_p;
             is_projected[i] = true;
             to_plane_dists[i] = get_to_plane_dist(proj_p);
-            cnt++;
         }
     }
-    return cnt;
 }
 
-void floatTetWild::CutMesh::revert_totally_snapped_tets(int a, int b) {
-    for (int i = a; i < b; i++) {
-        const auto &t = tets[i];
-        if (is_v_on_plane(t[0]) && is_v_on_plane(t[1]) && is_v_on_plane(t[2]) && is_v_on_plane(t[3])) {
-            auto tmp_t = t;
-            std::sort(tmp_t.begin(), tmp_t.end(), [&](int a, int b) {
-                return fabs(to_plane_dists[a]) > fabs(to_plane_dists[b]);
-            });
-            for (int j = 0; j < 3; j++) {
-                if (is_snapped[tmp_t[j]]) {
-                    is_snapped[tmp_t[j]] = false;
-                    break;
-                }
+// A tet with all four corners on the plane would be cut into nothing, so the corner furthest from
+// the plane gives up its snap.
+void floatTetWild::CutMesh::revert_totally_snapped_tets() {
+    for (const auto &t : tets) {
+        if (!is_v_on_plane(t[0]) || !is_v_on_plane(t[1]) || !is_v_on_plane(t[2]) ||
+            !is_v_on_plane(t[3]))
+            continue;
+
+        auto tmp_t = t;
+        std::sort(tmp_t.begin(), tmp_t.end(), [&](int a, int b) {
+            return fabs(to_plane_dists[a]) > fabs(to_plane_dists[b]);
+        });
+        for (int j = 0; j < 3; j++) {
+            if (is_snapped[tmp_t[j]]) {
+                is_snapped[tmp_t[j]] = false;
+                break;
             }
         }
     }
@@ -225,9 +207,7 @@ bool floatTetWild::CutMesh::get_intersecting_edges_and_points(std::vector<Vector
                                                               std::map<std::array<int, 2>, int>& map_edge_to_intersecting_point,
                                                               std::vector<int>& subdivide_t_ids) {
     std::vector<std::array<int, 2>> edges;
-    for (auto &t: tets)
-        push_tet_edges(t, edges);
-    vector_unique(edges);
+    collect_tet_edges(tets, edges);
 
     std::vector<int> e_v_ids;
     for (int i = 0; i < edges.size(); i++) {

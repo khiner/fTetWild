@@ -35,7 +35,6 @@
 
 // modified by Aaron to better detect coplanarity
 
-
 #ifdef FLOAT_TETWILD_USE_FLOAT
     typedef float real;                      // float
 #else
@@ -54,7 +53,6 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
 *  intersection if it exists)
 */
 
-
 /* some 3D macros */
 
 #define CROSS(dest,v1,v2)                       \
@@ -62,20 +60,15 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
                dest[1]=v1[2]*v2[0]-v1[0]*v2[2]; \
                dest[2]=v1[0]*v2[1]-v1[1]*v2[0];
 
-
 #define DOT(v1,v2) (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2])
-
-
 
 #define SUB(dest,v1,v2) dest[0]=v1[0]-v2[0]; \
                         dest[1]=v1[1]-v2[1]; \
                         dest[2]=v1[2]-v2[2];
 
-
 #define SCALAR(dest,alpha,v) dest[0] = alpha * v[0]; \
                              dest[1] = alpha * v[1]; \
                              dest[2] = alpha * v[2];
-
 
 /*
 *
@@ -158,8 +151,6 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
   } \
 }
 
-
-
 #define TRI_TRI_INTER_3D(p1,q1,r1,p2,q2,r2,dp2,dq2,dr2) { \
   if (dp2 > 0) { \
      if (dq2 > 0) CONSTRUCT_INTERSECTION(p1,r1,q1,r2,p2,q2) \
@@ -186,7 +177,6 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
        return -1;\
      } \
   }} }
-
 
 /*
    The following version computes the segment of intersection of the
@@ -227,12 +217,10 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
     SUB(v2,q2,r2)
     CROSS(N2,v1,v2)
 
-
     *coplanar = 0;
 
     // Compute distance signs  of p1, q1 and r1
     // to the plane of triangle(p2,q2,r2)
-
 
     dp1 = sub_sub_cross_sub_dot(p2, q2, r2, p1);
     dq1 = sub_sub_cross_sub_dot(p2, q2, r2, q1);

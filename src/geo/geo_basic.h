@@ -66,7 +66,6 @@ namespace geo {
             return -max_float64();
         }
 
-
         /**
          * \brief The random engine that random_int32() draws from.
          * \details geogram keeps one default-seeded std::mt19937_64 for the whole process and
@@ -104,7 +103,6 @@ namespace geo {
         return x * x;
     }
 
-
     /** \brief The type for storing and manipulating indices. */
     typedef uint32_t index_t;
 
@@ -114,8 +112,6 @@ namespace geo {
 
     /** \brief The type for storing and manipulating index differences. */
     typedef int32_t signed_index_t;
-
-
 
     /** \brief The type for storing coordinate indices. */
     typedef uint8_t coord_index_t;

@@ -15,7 +15,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
 
-    ////init
     mesh.reset_t_empty_start();
     mesh.reset_v_empty_start();
 
@@ -37,7 +36,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
         push_if_long(e);
     edges.clear();
 
-    ////split
     // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
     // it stands and leave the empty slots already in the mesh to be reused.
     const int v_slots = mesh.v_empty_size();
@@ -79,12 +77,10 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
 
-    ////create new vertex
     MeshVertex new_v;
     new_v.pos = (tet_vertices[v1_id].pos + tet_vertices[v2_id].pos) / 2;
     const int v_id = get_new_vertex_slot(mesh, new_v);
 
-    ////check inversion
     std::vector<int> old_t_ids;
     set_intersection(tet_vertices[v1_id].conn_tets, tet_vertices[v2_id].conn_tets, old_t_ids);
     for (int t_id: old_t_ids) {
@@ -104,8 +100,6 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
         }
     }
 
-    ////real update
-    //update vertex
     tet_vertices[v_id].sizing_scalar = (tet_vertices[v1_id].sizing_scalar + tet_vertices[v2_id].sizing_scalar) / 2;
     tet_vertices[v_id].is_on_bbox = is_bbox_edge(mesh, v1_id, v2_id, old_t_ids);
     tet_vertices[v_id].is_on_surface = is_surface_edge(mesh, v1_id, v2_id, old_t_ids);
@@ -114,13 +108,11 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
         tet_vertices[v_id].is_on_cut = (tet_vertices[v1_id].is_on_cut && tet_vertices[v2_id].is_on_cut);
     }
 
-    //update tets
     std::vector<int> new_t_ids;
     get_new_tet_slots(mesh, old_t_ids.size(), new_t_ids);
     for(int t_id: new_t_ids)
         tets[t_id].reset();
 
-    //update indices & tags
     // Each old tet keeps its v1 end and each new copy keeps its v2 end, with the other end moved
     // onto the new vertex. The face opposite the end that was moved away is new, so its marks go.
     const auto move_end = [&](MeshTet &t, int moved_v_id, int dropped_v_id) {
@@ -130,20 +122,18 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
             else if (t[j] == dropped_v_id)
                 clear_face_marks(t, j);
         }
-        t.scalar = TET_MODIFIED;//marks it for a quality update
+        t.scalar = TET_MODIFIED;  // marks it for a quality update
     };
     for (int i = 0; i < old_t_ids.size(); i++) {
         tets[new_t_ids[i]] = tets[old_t_ids[i]];
         move_end(tets[old_t_ids[i]], v1_id, v2_id);
         move_end(tets[new_t_ids[i]], v2_id, v1_id);
     }
-    //update conectivity
     relink_split_tets(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
 
     if(mesh.tets.size()!=is_splittable.size())
         is_splittable.resize(mesh.tets.size(), true);
 
-    ////repush
     if (!is_repush)
         return true;
 

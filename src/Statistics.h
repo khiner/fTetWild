@@ -57,11 +57,6 @@ namespace floatTetWild {
 
     class Statistics {
     public:
-        static Statistics &instance() {
-            static Statistics inst;
-            return inst;
-        }
-
         template<class... Args>
         void record(Args &&... args) {
             std::lock_guard<std::mutex> guard(mutex_);
@@ -89,16 +84,14 @@ namespace floatTetWild {
         }
 
     private:
-        Statistics() = default;
-
-    private:
         std::mutex mutex_;
         std::vector<StateInfo> states_;
     };
 
-// Retrieve current stats instance
+// The one instance every stage records into.
     inline Statistics &stats() {
-        return Statistics::instance();
+        static Statistics inst;
+        return inst;
     }
 
 } // namespace floatTetWild

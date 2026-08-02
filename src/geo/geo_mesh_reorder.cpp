@@ -77,7 +77,6 @@ namespace {
         index_t nb_vertices_;
     };
 
-
     /**
      * \brief Exposes an interface compatible with the requirement
      * of Hilbert sort templates for a raw array of vertices.
@@ -482,7 +481,6 @@ namespace {
                 m8_ = e;
                 m4_ = reorder_split(m0_, m8_, CMP<COORDX, UPX, MESH>(M));
 
-
                 parallel(
                     [this]() { m2_ = reorder_split(m0_, m4_, CMP<COORDY,  UPY, MESH>(M_)); },
                     [this]() { m6_ = reorder_split(m4_, m8_, CMP<COORDY, !UPY, MESH>(M_)); }
@@ -658,7 +656,6 @@ namespace {
         );
     }
 
-
     /**
      * \brief Sorts the vertices of a mesh according to the Morton ordering.
      * \details The function does not change the mesh, it computes instead
@@ -700,7 +697,6 @@ namespace {
             M, sorted_indices.begin(), sorted_indices.end()
         );
     }
-
 
 #endif
 
@@ -807,8 +803,6 @@ namespace geo {
     }
 
 #endif
-
-
 
     void compute_BRIO_order(
         index_t nb_vertices, const double* vertices,

@@ -26,8 +26,6 @@ namespace geo {
          */
         enum SOSMode { SOS_ADDRESS, SOS_LEXICO };
 
-
-
         /**
          * \brief Tests whether a point is in the circumscribed sphere of
          *  four other points.
@@ -158,7 +156,6 @@ namespace geo {
             const double* p2,
             const double* p3
         );
-
 
     }
 }

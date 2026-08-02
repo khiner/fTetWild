@@ -19,29 +19,21 @@ class MshSaver {
         ~MshSaver();
 
     public:
-        // Only these element types are supported.
-        enum ElementType {
-            TRI = 2,
-            QUAD = 3,
-            TET = 4,
-            HEX = 5
-        };
-
-    public:
-        void save_mesh(const VectorF& nodes, const VectorI& elements, const VectorI& components, size_t dim, ElementType type);
-        void save_header();
-        void save_nodes(const VectorF& nodes);
-        void save_elements(const VectorI& elements, const VectorI& components, ElementType type);
+        // Nodes are 3D and elements are tets, which is all fTetWild writes. PyMesh also handled
+        // 2D nodes and triangle, quad and hex elements.
+        void save_mesh(const VectorF& nodes, const VectorI& elements, const VectorI& components);
         void save_scalar_field(const std::string& fieldname, const VectorF& field);
         void save_elem_scalar_field(const std::string& fieldname, const VectorF& field);
 
     private:
+        void save_header();
+        void save_nodes(const VectorF& nodes);
+        void save_elements(const VectorI& elements, const VectorI& components);
         void save_field(const char* section, size_t count, const std::string& fieldname, const VectorF& field);
 
         bool m_binary;
         size_t m_num_nodes;
         size_t m_num_elements;
-        size_t m_dim;
 
         std::ofstream fout;
 };

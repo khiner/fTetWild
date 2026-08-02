@@ -87,11 +87,7 @@ void MeshIO::write_mesh(const std::string&         path,
         if (!mesh.tet_vertices[i].is_removed)
             old_2_new[i] = cnt_v++;
     }
-    int cnt_t = 0;
-    for (size_t i = 0; i < mesh.tets.size(); i++) {
-        if (!mesh.tets[i].is_removed)
-            cnt_t++;
-    }
+    const int cnt_t = mesh.get_t_num();
 
     PyMesh::VectorF V_flat(cnt_v * 3);
     PyMesh::VectorI T_flat(cnt_t * 4);
@@ -122,25 +118,22 @@ void MeshIO::write_mesh(const std::string&         path,
         index++;
     }
 
-    mesh_saver.save_mesh(V_flat, T_flat, C_flat, 3, mesh_saver.TET);
+    mesh_saver.save_mesh(V_flat, T_flat, C_flat);
 
-    if (color.size() == mesh.tets.size()) {
-        PyMesh::VectorF color_flat(cnt_t);
+    // One colour per tet or one per vertex, whichever the caller sized the array to.
+    const bool per_tet = color.size() == mesh.tets.size();
+    if (per_tet || color.size() == mesh.tet_vertices.size()) {
+        PyMesh::VectorF color_flat(per_tet ? cnt_t : cnt_v);
         index = 0;
-        for (size_t i = 0; i < mesh.tets.size(); i++) {
-            if (!mesh.tets[i].is_removed)
-                color_flat[index++] = color[i];
+        for (size_t i = 0; i < color.size(); i++) {
+            if (per_tet ? mesh.tets[i].is_removed : mesh.tet_vertices[i].is_removed)
+                continue;
+            color_flat[index++] = color[i];
         }
-        mesh_saver.save_elem_scalar_field("color", color_flat);
-    }
-    else if (color.size() == mesh.tet_vertices.size()) {
-        PyMesh::VectorF color_flat(cnt_v);
-        index = 0;
-        for (size_t i = 0; i < mesh.tet_vertices.size(); i++) {
-            if (!mesh.tet_vertices[i].is_removed)
-                color_flat[index++] = color[i];
-        }
-        mesh_saver.save_scalar_field("color", color_flat);
+        if (per_tet)
+            mesh_saver.save_elem_scalar_field("color", color_flat);
+        else
+            mesh_saver.save_scalar_field("color", color_flat);
     }
 
     timer.stop();

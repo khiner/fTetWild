@@ -6,8 +6,6 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
-// Created by Jeremie Dumas on 09/04/18.
-//
 
 #include "Logger.hpp"
 
@@ -25,47 +23,27 @@
 namespace floatTetWild {
 namespace {
 
-// spdlog's names and console colours, so a run looks the same as it did.
-const char* level_name(Logger::Level level)
+// spdlog's names and console colours, so a run looks the same as it did. Indexed by Level, which
+// runs from Trace to Off with nothing in between.
+struct LevelStyle
 {
-    switch (level) {
-    case Logger::Trace:
-        return "trace";
-    case Logger::Debug:
-        return "debug";
-    case Logger::Info:
-        return "info";
-    case Logger::Warn:
-        return "warning";
-    case Logger::Error:
-        return "error";
-    case Logger::Critical:
-        return "critical";
-    case Logger::Off:
-    default:
-        return "off";
-    }
-}
+    const char* name;
+    const char* colour;
+};
 
-const char* level_colour(Logger::Level level)
+const LevelStyle& style_of(Logger::Level level)
 {
-    switch (level) {
-    case Logger::Trace:
-        return "\033[37m";
-    case Logger::Debug:
-        return "\033[36m";
-    case Logger::Info:
-        return "\033[32m";
-    case Logger::Warn:
-        return "\033[33m\033[1m";
-    case Logger::Error:
-        return "\033[31m\033[1m";
-    case Logger::Critical:
-        return "\033[1m\033[41m";
-    case Logger::Off:
-    default:
-        return "\033[m";
-    }
+    static const LevelStyle styles[] = {
+      {"trace", "\033[37m"},
+      {"debug", "\033[36m"},
+      {"info", "\033[32m"},
+      {"warning", "\033[33m\033[1m"},
+      {"error", "\033[31m\033[1m"},
+      {"critical", "\033[1m\033[41m"},
+      {"off", "\033[m"},
+    };
+    const int i = level < Logger::Trace || level > Logger::Off ? int(Logger::Off) : int(level);
+    return styles[i];
 }
 
 // Colour only when stdout is a terminal, which is what spdlog's console sink did. It keeps
@@ -131,8 +109,8 @@ void Logger::write(Level level, const std::string& message)
     // Only the level name is coloured, matching spdlog's default pattern.
     static const bool colour = stdout_is_terminal();
 
-    const std::string stamp  = timestamp();
-    const std::string prefix = "[" + stamp + "] [float-tetwild] [";
+    const LevelStyle& style  = style_of(level);
+    const std::string prefix = "[" + timestamp() + "] [float-tetwild] [";
 
     // Flushed per line. spdlog logged from a background thread and flushed on a timer, so its
     // lines could land out of order against the plain cout printing the rest of the code does.
@@ -140,13 +118,12 @@ void Logger::write(Level level, const std::string& message)
     std::lock_guard<std::mutex> lock(mutex_);
     if (use_cout_) {
         if (colour)
-            std::cout << prefix << level_colour(level) << level_name(level) << "\033[m] " << message
-                      << std::endl;
+            std::cout << prefix << style.colour << style.name << "\033[m] " << message << std::endl;
         else
-            std::cout << prefix << level_name(level) << "] " << message << std::endl;
+            std::cout << prefix << style.name << "] " << message << std::endl;
     }
     if (file_.is_open())
-        file_ << prefix << level_name(level) << "] " << message << std::endl;
+        file_ << prefix << style.name << "] " << message << std::endl;
 }
 
 }  // namespace floatTetWild

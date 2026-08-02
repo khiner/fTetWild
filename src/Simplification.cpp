@@ -35,7 +35,6 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
     collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
     swapping(input_vertices, input_faces, tree, params, f_is_removed, conn_fs);
 
-    // clean up vs, fs
     std::vector<int>     map_v_ids(input_vertices.size(), -1);
     std::vector<Vector3> new_input_vertices;
     new_input_vertices.reserve(input_vertices.size());
@@ -96,14 +95,15 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
     F_tmp.resize(0, 0);
     VectorXi IF;
     unique_rows(F_in, F_tmp, IF, _);
-    F_in                            = F_tmp;
-    std::vector<int> old_input_tags = input_tags;
-    input_tags.resize(IF.rows());
-    for (int i = 0; i < IF.rows(); i++) {
-        input_tags[i] = old_input_tags[IF(i)];
-    }
-    if (V_in.rows() == 0 || F_in.rows() == 0)
+    F_in = F_tmp;
+    // The faces were reordered and deduplicated, so their tags follow them.
+    std::vector<int> face_tags(IF.rows());
+    for (int i = 0; i < IF.rows(); i++)
+        face_tags[i] = input_tags[IF(i)];
+    if (V_in.rows() == 0 || F_in.rows() == 0) {
+        input_tags = face_tags;
         return false;
+    }
 
     logger().info("remove duplicates: ");
     logger().info("#v: {} -> {}", input_vertices.size(), V_in.rows());
@@ -112,7 +112,6 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
     input_vertices.resize(V_in.rows());
     input_faces.clear();
     input_faces.reserve(F_in.rows());
-    old_input_tags = input_tags;
     input_tags.clear();
     for (int i = 0; i < V_in.rows(); i++)
         input_vertices[i] = V_in.row(i);
@@ -122,17 +121,13 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
         if (i > 0 && (F_in(i, 0) == F_in(i - 1, 0) && F_in(i, 1) == F_in(i - 1, 2) &&
                       F_in(i, 2) == F_in(i - 1, 1)))
             continue;
-        // check area
         const Vector3 p0 = V_in.row(F_in(i, 0));
         const Vector3 p1 = V_in.row(F_in(i, 1));
         const Vector3 p2 = V_in.row(F_in(i, 2));
-        Vector3       u    = p1 - p0;
-        Vector3       v    = p2 - p0;
-        Vector3       area = u.cross(v);
-        if (area.norm() / 2 <= SCALAR_ZERO * params.bbox_diag_length)
+        if ((p1 - p0).cross(p2 - p0).norm() / 2 <= SCALAR_ZERO * params.bbox_diag_length)
             continue;
         input_faces.push_back(F_in.row(i));
-        input_tags.push_back(old_input_tags[i]);
+        input_tags.push_back(face_tags[i]);
     }
 
     return true;
@@ -157,8 +152,7 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
               push_tri_edges(input_faces[f_id], out);
           });
 
-        std::sort(edges.begin(), edges.end());
-        edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
+        vector_unique(edges);
     };
 
     auto is_onering_clean = [&](int v_id) {
@@ -182,14 +176,11 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         return true;
     };
 
-    static const int SUC        = 1;
-    static const int FAIL_CLEAN = 0;
-    static const int FAIL_FLIP  = -1;
-    static const int FAIL_ENV   = -2;
-
+    // Moves v1 and v2 onto their midpoint projected back to the surface, or returns false and
+    // leaves the mesh alone when that would flip a face or leave the envelope.
     auto remove_an_edge = [&](int v1_id, int v2_id, const std::vector<int>& n12_f_ids) {
         if (!is_onering_clean(v1_id) || !is_onering_clean(v2_id))
-            return FAIL_CLEAN;
+            return false;
 
         std::vector<int> new_f_ids;
         for (int f_id : conn_fs[v1_id]) {
@@ -202,55 +193,46 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         }
         vector_unique(new_f_ids);
 
-        // compute new point
         Vector3 p = (input_vertices[v1_id] + input_vertices[v2_id]) / 2;
         tree.project_to_sf(p);
 
-        // computing normal for checking flipping
+        // The corner of the face that sits on the edge, and so moves onto p. -1 when the face has
+        // none, which the two checks below then skip.
+        const auto moved_corner = [&](int f_id) {
+            for (int j = 0; j < 3; j++) {
+                if (input_faces[f_id][j] == v1_id || input_faces[f_id][j] == v2_id)
+                    return j;
+            }
+            return -1;
+        };
+
         for (int f_id : new_f_ids) {
+            const int j = moved_corner(f_id);
+            if (j < 0)
+                continue;
             Vector3 old_nv =
               (input_vertices[input_faces[f_id][1]] - input_vertices[input_faces[f_id][2]])
                 .cross(input_vertices[input_faces[f_id][0]] - input_vertices[input_faces[f_id][2]]);
-
-            for (int j = 0; j < 3; j++) {
-                if (input_faces[f_id][j] == v1_id || input_faces[f_id][j] == v2_id) {
-                    Vector3 new_nv = (input_vertices[input_faces[f_id][mod3(j + 1)]] -
-                                      input_vertices[input_faces[f_id][mod3(j + 2)]])
-                                       .cross(p - input_vertices[input_faces[f_id][mod3(j + 2)]]);
-                    if (old_nv.dot(new_nv) <= 0)
-                        return FAIL_FLIP;
-                    // check new tris' area
-                    if (new_nv.norm() / 2 <= SCALAR_ZERO_2)
-                        return FAIL_FLIP;
-                    break;
-                }
-            }
+            Vector3 new_nv = (input_vertices[input_faces[f_id][mod3(j + 1)]] -
+                              input_vertices[input_faces[f_id][mod3(j + 2)]])
+                               .cross(p - input_vertices[input_faces[f_id][mod3(j + 2)]]);
+            if (old_nv.dot(new_nv) <= 0)
+                return false;
+            if (new_nv.norm() / 2 <= SCALAR_ZERO_2)
+                return false;
         }
 
-        // check if go outside of envelop
         for (int f_id : new_f_ids) {
-            for (int j = 0; j < 3; j++) {
-                if (input_faces[f_id][j] == v1_id || input_faces[f_id][j] == v2_id) {
-                    const std::array<Vector3, 3> tri = {
-                      {p,
-                       input_vertices[input_faces[f_id][mod3(j + 1)]],
-                       input_vertices[input_faces[f_id][mod3(j + 2)]]}};
-                    if (is_out_envelope(tri, tree, params))
-                        return FAIL_ENV;
-                    break;
-                }
-            }
+            const int j = moved_corner(f_id);
+            if (j < 0)
+                continue;
+            const std::array<Vector3, 3> tri = {
+              {p,
+               input_vertices[input_faces[f_id][mod3(j + 1)]],
+               input_vertices[input_faces[f_id][mod3(j + 2)]]}};
+            if (is_out_envelope(tri, tree, params))
+                return false;
         }
-
-        // real update
-        std::vector<int> n_v_ids;  // get this info before real update for later usage
-        for (int f_id : new_f_ids) {
-            for (int j = 0; j < 3; j++) {
-                if (input_faces[f_id][j] != v1_id && input_faces[f_id][j] != v2_id)
-                    n_v_ids.push_back(input_faces[f_id][j]);
-            }
-        }
-        vector_unique(n_v_ids);
 
         v_is_removed[v1_id]   = true;
         input_vertices[v2_id] = p;
@@ -258,7 +240,7 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
         // faces marked removed, which is what keeps this safe to run on several edges at once.
         for (int f_id : n12_f_ids)
             f_is_removed[f_id] = true;
-        for (int f_id : conn_fs[v1_id]) {  // add conn_fs
+        for (int f_id : conn_fs[v1_id]) {
             if (f_is_removed[f_id])
                 continue;
             conn_fs[v2_id].insert(f_id);
@@ -270,7 +252,7 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
 
         // No queue to push new edges onto. The loop below rebuilds the edge list and a fresh safe
         // set on every round instead.
-        return SUC;
+        return true;
     };
 
     std::atomic<int> cnt(0);
@@ -294,12 +276,10 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
             if (n12_f_ids.size() != 2)
                 return;
 
-            int res = remove_an_edge(v_ids[0], v_ids[1], n12_f_ids);
-            if (res == SUC)
+            if (remove_an_edge(v_ids[0], v_ids[1], n12_f_ids))
                 cnt++;
         });
 
-        // cleanup conn_fs
         parallel_for(size_t(0), conn_fs.size(), [&](size_t i) {
             if (v_is_removed[i])
                 return;
@@ -363,7 +343,6 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
                 n_v_ids[1] = input_faces[n12_f_ids[1]][j];
         }
 
-        // check coplanar
         Scalar cos_a0 =
           get_angle_cos(input_vertices[n_v_ids[0]], input_vertices[v1_id], input_vertices[v2_id]);
         Scalar cos_a1 =
@@ -380,22 +359,10 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
                 continue;
         }
 
-        // check inversion
-        auto& old_nv  = cos_a1 < cos_a0 ? old_nvs[0] : old_nvs[1];
-        bool  is_filp = false;
-        for (int f_id : n12_f_ids) {
-            auto& a = input_vertices[input_faces[f_id][0]];
-            auto& b = input_vertices[input_faces[f_id][1]];
-            auto& c = input_vertices[input_faces[f_id][2]];
-            if (old_nv.dot(((b - c).cross(a - c)).normalized()) < 0) {
-                is_filp = true;
-                break;
-            }
-        }
-        if (is_filp)
+        // check inversion: the two faces must not already face opposite ways
+        if (old_nvs[0].dot(old_nvs[1]) < 0)
             continue;
 
-        // check quality
         Scalar cos_a0_new = get_angle_cos(
           input_vertices[v1_id], input_vertices[n_v_ids[0]], input_vertices[n_v_ids[1]]);
         Scalar cos_a1_new = get_angle_cos(
@@ -414,7 +381,6 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
             continue;
         }
 
-        // real update
         for (int j = 0; j < 3; j++) {
             if (input_faces[n12_f_ids[0]][j] == v2_id)
                 input_faces[n12_f_ids[0]][j] = n_v_ids[1];

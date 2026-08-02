@@ -39,6 +39,16 @@ void build_segment_mesh(geo::Mesh& mesh, const std::vector<std::array<Vector3, 2
     }
 }
 
+// Builds the mesh for a set of segments, Morton-orders it, and builds its tree.
+void build_segment_tree(geo::Mesh&                             mesh,
+                        std::shared_ptr<MeshFacetsAABBWithEps>& tree,
+                        const std::vector<std::array<Vector3, 2>>& segments)
+{
+    build_segment_mesh(mesh, segments);
+    mesh_reorder(mesh, geo::MESH_ORDER_MORTON);
+    tree = std::make_shared<MeshFacetsAABBWithEps>(mesh);
+}
+
 }  // namespace
 
 void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertices,
@@ -63,9 +73,7 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
     for (const auto& e : b_edges)
         segments.push_back({{input_vertices[e[0]], input_vertices[e[1]]}});
 
-    build_segment_mesh(b_mesh, segments);
-    mesh_reorder(b_mesh, geo::MESH_ORDER_MORTON);
-    b_tree = std::make_shared<MeshFacetsAABBWithEps>(b_mesh);
+    build_segment_tree(b_mesh, b_tree, segments);
 
     if (b_edges.empty())
         mesh.is_closed = true;
@@ -84,9 +92,7 @@ void AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vector3>&          
     for (const auto& e : b_edges2)
         segments.push_back({{mesh.tet_vertices[e[0]].pos, mesh.tet_vertices[e[1]].pos}});
 
-    build_segment_mesh(tmp_b_mesh, segments);
-    mesh_reorder(tmp_b_mesh, geo::MESH_ORDER_MORTON);
-    tmp_b_tree = std::make_shared<MeshFacetsAABBWithEps>(tmp_b_mesh);
+    build_segment_tree(tmp_b_mesh, tmp_b_tree, segments);
 }
 
 }  // namespace floatTetWild

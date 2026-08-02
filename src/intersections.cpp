@@ -72,7 +72,7 @@ bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, 
     Scalar D = n.dot(u);
     d1 = -n.dot(w);
 
-    if (fabs(D) == 0)// segment is parallel to the plane, whether or not it lies in it
+    if (fabs(D) == 0)  // parallel to the plane, whether or not it lies in it
         return false;
 
     Scalar t = d1 / D;
@@ -83,7 +83,6 @@ bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, 
     p = p1 + t * u;
     return true;
 }
-
 
 namespace floatTetWild {
 namespace {
@@ -106,9 +105,9 @@ bool sides_of(const std::array<Vector2, 3>& edges, const std::array<Vector2, 3>&
     }
     for (int k = 0; k < 3; k++) {
         if (cnt_pos[k] == 3 || cnt_neg[k] == 3)
-            return true;//one of the vertices is strictly contained inside the other tri
+            return true;  // a vertex is strictly inside the other triangle
     }
-    //the whole triangle is contained by the other one
+    // the whole triangle is contained by the other one
     return std::find(oris.begin(), oris.end(), Predicates::ORI_NEGATIVE) == oris.end()
         || std::find(oris.begin(), oris.end(), Predicates::ORI_POSITIVE) == oris.end();
 }
@@ -135,19 +134,25 @@ bool floatTetWild::is_tri_tri_cutted_2d(const std::array<Vector2, 3>& vs_tet, co
     return false;
 }
 
-
-bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri) {
-    int cnt_pos = 0;
-    int cnt_neg = 0;
-
-    for (int i = 0; i < 3; i++) {
-        int ori = Predicates::orient_2d(tri[i], tri[(i + 1) % 3], p);
-        if (ori == Predicates::ORI_POSITIVE)
+void floatTetWild::count_orientations(const int* oris, int n, int& cnt_pos, int& cnt_neg) {
+    cnt_pos = 0;
+    cnt_neg = 0;
+    for (int i = 0; i < n; i++) {
+        if (oris[i] == Predicates::ORI_POSITIVE)
             cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
+        else if (oris[i] == Predicates::ORI_NEGATIVE)
             cnt_neg++;
     }
-    return cnt_neg == 3 || cnt_pos == 3; //strict inside
+}
+
+bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri) {
+    int oris[3];
+    for (int i = 0; i < 3; i++)
+        oris[i] = Predicates::orient_2d(tri[i], tri[(i + 1) % 3], p);
+
+    int cnt_pos, cnt_neg;
+    count_orientations(oris, 3, cnt_pos, cnt_neg);
+    return cnt_neg == 3 || cnt_pos == 3;  // strictly inside
 }
 
 // The axis the triangle's normal leans on most, which is the one to drop when flattening to 2d.
@@ -180,19 +185,9 @@ bool floatTetWild::is_crossing(int s1, int s2) {
         || (s2 == Predicates::ORI_POSITIVE && s1 == Predicates::ORI_NEGATIVE);
 }
 
-
-extern "C++" int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatTetWild::Scalar q1[3], floatTetWild::Scalar r1[3],
-                                             floatTetWild::Scalar p2[3], floatTetWild::Scalar q2[3], floatTetWild::Scalar r2[3],
-                                             int * coplanar,
-                                             floatTetWild::Scalar source[3], floatTetWild::Scalar target[3]);
-
-
 int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, const Vector3& p3,
                                          const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint) {
     if(hint == CUT_COPLANAR){
-
-        //todo: to2d
-
         int axis = get_t(p1, p2, p3);
 
         if(is_tri_tri_cutted_2d({{to_2d(p1, axis), to_2d(p2, axis), to_2d(p3, axis)}}, {{to_2d(q1, axis), to_2d(q2, axis), to_2d(q3, axis)}}))
@@ -200,19 +195,14 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
         return CUT_EMPTY;
     }
 
-    std::array<Scalar, 3> p_1, q_1, r_1, p_2, q_2, r_2;
-    for (int j = 0; j < 3; j++) {
-        p_1[j] = p1[j];
-        q_1[j] = p2[j];
-        r_1[j] = p3[j];
-        p_2[j] = q1[j];
-        q_2[j] = q2[j];
-        r_2[j] = q3[j];
-    }
+    // The test only reads its six corners, so they go in as they are.
+    const auto coords = [](const Vector3& p) { return const_cast<Scalar*>(p.data()); };
 
     int coplanar = 0;
     std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
-    int result = tri_tri_intersection_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0], &coplanar, &s[0], &t[0]);
+    int result = tri_tri_intersection_test_3d(coords(p1), coords(p2), coords(p3),
+                                              coords(q1), coords(q2), coords(q3),
+                                              &coplanar, &s[0], &t[0]);
     if (result != 1) {
         return CUT_EMPTY;
     }
@@ -227,32 +217,17 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
     return CUT_FACE;
 }
 
-namespace {
-void get_bbox(const floatTetWild::Vector3* ps, int n, floatTetWild::Vector3& min,
-              floatTetWild::Vector3& max) {
-    min = ps[0];
-    max = ps[0];
-    for (int i = 1; i < n; i++) {
+void floatTetWild::get_bbox(std::initializer_list<Vector3> ps, Vector3& min, Vector3& max) {
+    min = *ps.begin();
+    max = *ps.begin();
+    for (const Vector3& p : ps) {
         for (int j = 0; j < 3; j++) {
-            if (ps[i][j] < min[j])
-                min[j] = ps[i][j];
-            if (ps[i][j] > max[j])
-                max[j] = ps[i][j];
+            if (p[j] < min[j])
+                min[j] = p[j];
+            if (p[j] > max[j])
+                max[j] = p[j];
         }
     }
-}
-}  // namespace
-
-void floatTetWild::get_bbox_face(const Vector3& p0, const Vector3& p1, const Vector3& p2,
-        Vector3& min, Vector3& max) {
-    const Vector3 ps[3] = {p0, p1, p2};
-    get_bbox(ps, 3, min, max);
-}
-
-void floatTetWild::get_bbox_tet(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3,
-        Vector3& min, Vector3& max) {
-    const Vector3 ps[4] = {p0, p1, p2, p3};
-    get_bbox(ps, 4, min, max);
 }
 
 bool floatTetWild::is_bbox_intersected(const Vector3& min1, const Vector3& max1, const Vector3& min2, const Vector3& max2) {
@@ -263,7 +238,7 @@ bool floatTetWild::is_bbox_intersected(const Vector3& min1, const Vector3& max1,
     return true;
 }
 
-///inside or on
+// Inside the tet or on its boundary.
 bool floatTetWild::is_point_inside_tet(const Vector3& p, const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t) {
     // p against each face, in the order that replaces one corner of the tet at a time.
     const int oris[4] = {Predicates::orient_3d(p, p1t, p2t, p3t),
@@ -271,14 +246,7 @@ bool floatTetWild::is_point_inside_tet(const Vector3& p, const Vector3& p0t, con
                          Predicates::orient_3d(p0t, p1t, p, p3t),
                          Predicates::orient_3d(p0t, p1t, p2t, p)};
 
-    int cnt_pos = 0;
-    int cnt_neg = 0;
-    for (int ori : oris) {
-        if (ori == Predicates::ORI_POSITIVE)
-            cnt_pos++;
-        else if (ori == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
-    }
-
+    int cnt_pos, cnt_neg;
+    count_orientations(oris, 4, cnt_pos, cnt_neg);
     return cnt_pos == 0 || cnt_neg == 0;
 }

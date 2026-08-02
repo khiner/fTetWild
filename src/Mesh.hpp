@@ -15,47 +15,19 @@
 #include <array>
 #include <unordered_set>
 #include <cassert>
-#include <random>
-
 
 namespace floatTetWild {
 
-class Random
-{
-public:
-    static int next(int min, int max)
-    {
-        static std::mt19937 gen(42);
-        int res = (gen()-std::mt19937::min())/double(std::mt19937::max()-std::mt19937::min())*(max-min)+min;
-
-        return res;
-    }
-
-    template< typename T >
-    static void shuffle( std::vector<T> &vec )
-    {
-        for (int i = vec.size() - 1; i > 0; --i) {
-            using std::swap;
-            const int index = next(0, i+1);
-            swap(vec[i], vec[index]);
-        }
-    }
-};
-
-#define NOT_SURFACE SCHAR_MAX//SHRT_MAX//INT_MAX
+#define NOT_SURFACE SCHAR_MAX
 #define KNOWN_NOT_SURFACE -SCHAR_MAX/2
 #define KNOWN_SURFACE SCHAR_MAX/2
 
 #define NO_SURFACE_TAG 0
 #define NOT_BBOX -1
-#define OPP_T_ID_UNKNOWN -2
 #define OPP_T_ID_BOUNDARY -1
-
-
 
     class MeshVertex {
     public:
-        MeshVertex(const Vector3& p): pos(p){}
         MeshVertex() {}
 
         Vector3 pos;
@@ -75,11 +47,10 @@ public:
         bool is_on_surface = false;
         bool is_on_boundary = false;
         bool is_on_cut = false;
-        int on_boundary_e_id = -1;
         bool is_on_bbox = false;
 
         bool is_removed = false;
-        bool is_freezed = false;//todo
+        bool is_freezed = false;
 
         Scalar sizing_scalar = 1;
     };
@@ -95,7 +66,6 @@ public:
         inline void reset() {
             is_surface_fs = {{NOT_SURFACE, NOT_SURFACE, NOT_SURFACE, NOT_SURFACE}};
             is_bbox_fs = {{NOT_BBOX, NOT_BBOX, NOT_BBOX, NOT_BBOX}};
-            opp_t_ids = {{OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN}};
             surface_tags = {{0, 0, 0, 0}};
 
             quality = 0;
@@ -103,7 +73,6 @@ public:
             is_removed = false;
             is_outside = false;
         }
-
 
         inline int &operator[](const int index) {
             assert(index >= 0 && index < 4);
@@ -124,7 +93,6 @@ public:
 
         std::array<char, 4> is_surface_fs = {{NOT_SURFACE, NOT_SURFACE, NOT_SURFACE, NOT_SURFACE}};
         std::array<char, 4> is_bbox_fs = {{NOT_BBOX, NOT_BBOX, NOT_BBOX, NOT_BBOX}};
-        std::array<int, 4> opp_t_ids = {{OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN, OPP_T_ID_UNKNOWN}};
         std::array<char, 4> surface_tags = {{0, 0, 0, 0}};
 
         Scalar quality = 0;
@@ -172,7 +140,6 @@ public:
         void one_ring_vertex_sets(const int threshold, std::vector<std::vector<int>> &concurrent_sets,
                                   std::vector<int> &serial_set) const;
 
-
         static void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char> &v_is_removed,
                           const std::vector<char> &f_is_removed, const std::vector<std::unordered_set<int>> &conn_fs,
                           std::vector<int> &safe_set);
@@ -216,5 +183,4 @@ public:
         }
     };
 }
-
 

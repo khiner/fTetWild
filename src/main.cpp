@@ -25,12 +25,9 @@
 #include <floattetwild/writeOBJ.h>
 #include <floattetwild/ParallelFor.hpp>
 
-
 #include <floattetwild/geo_mesh.h>
 
 using namespace floatTetWild;
-
-
 
 int main(int argc, char** argv)
 {
@@ -100,7 +97,7 @@ int main(int argc, char** argv)
       ->check(CLI::ExistingFile);
 
     command_line.add_flag(
-      "--use-old-energy", floatTetWild::use_old_energy, "(for debugging usage only)");  // tmp
+      "--use-old-energy", floatTetWild::use_old_energy, "(for debugging usage only)");
 
     command_line.add_flag(
       "--disable-filtering", params.disable_filtering, "Disable filtering out outside elements.");
@@ -147,7 +144,6 @@ int main(int argc, char** argv)
     const std::string output_mesh_name =
       ends_with("msh") || ends_with("mesh") ? params.output_path : out_prefix + ".msh";
 
-    /// set input tage
     std::vector<Vector3>  input_vertices;
     std::vector<Vector3i> input_faces;
     std::vector<int>      input_tags;
@@ -163,7 +159,6 @@ int main(int argc, char** argv)
         }
     }
 
-    /// set envelope
     Timer               timer;
     geo::Mesh                sf_mesh;
     CSGTree                  tree_with_ids;
@@ -214,10 +209,8 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        if (input_tags.size() != input_faces.size()) {
-            input_tags.resize(input_faces.size());
-            std::fill(input_tags.begin(), input_tags.end(), 0);
-        }
+        if (input_tags.size() != input_faces.size())
+            input_tags.assign(input_faces.size(), 0);
     }
     AABBWrapper tree(sf_mesh);
 

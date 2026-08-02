@@ -6,10 +6,6 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-//
-// Created by Yixin Hu on 2019-08-27.
-//
-
 #ifndef FLOATTETWILD_TRIANGLEINSERTION_H
 #define FLOATTETWILD_TRIANGLEINSERTION_H
 
@@ -37,8 +33,6 @@ namespace floatTetWild {
     void simplify_subdivision_result(int insert_f_id, int input_v_size, Mesh &mesh, AABBWrapper &tree,
                                      std::vector<std::array<std::vector<int>, 4>> &track_surface_fs);
 
-    ///face
-
     bool insert_one_triangle(int f_id, const std::vector<Vector3> &input_vertices,
                              const std::vector<Vector3i> &input_faces, const std::vector<int> &input_tags,
                              Mesh &mesh, std::vector<std::array<std::vector<int>, 4>> &track_surface_fs,
@@ -58,14 +52,13 @@ namespace floatTetWild {
 
     void pair_track_surface_fs(Mesh &mesh, std::vector<std::array<std::vector<int>, 4>> &track_surface_fs);
 
-    ///edge
     void find_boundary_edges(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
                              const std::vector<bool> &is_face_inserted, const std::vector<bool> &old_is_face_inserted,
                              std::vector<std::pair<std::array<int, 2>, std::vector<int>>> &b_edge_infos,
                              std::vector<bool> &is_on_cut_edges,
                              std::vector<std::array<int, 2>> &b_edges);
 
-    bool insert_boundary_edges(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
+    void insert_boundary_edges(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
                                std::vector<std::pair<std::array<int, 2>, std::vector<int>>> &b_edge_infos,
                                std::vector<bool> &is_on_cut_edges,
                                std::vector<std::array<std::vector<int>, 4>> &track_surface_fs, Mesh &mesh,
@@ -83,7 +76,6 @@ namespace floatTetWild {
             std::vector<int> &snapped_v_ids, std::vector<std::array<int, 3>> &cut_fs,
             bool is_again);
 
-    ///other
     bool is_uninserted_face_covered(int uninserted_f_id, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
                                     const std::vector<int>& cut_t_ids, Mesh &mesh);
 
@@ -98,6 +90,5 @@ namespace floatTetWild {
 
     Vector3 get_normal(const Vector3& a, const Vector3& b, const Vector3& c);
 }
-
 
 #endif //FLOATTETWILD_TRIANGLEINSERTION_H

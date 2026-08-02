@@ -8,7 +8,6 @@
 
 #pragma once
 
-// To set the parameters related
 #include <floattetwild/Types.hpp>
 
 
@@ -35,18 +34,12 @@ namespace floatTetWild {
         bool use_input_for_wn = false;
         bool coarsen = false;
 
-        // it decides the scale of the box, presents the deviation of the box from the model
-        //( in % of  max((xmax-xmin), (ymax-ymin), (zmax-zmin)) of the input points)
+        // Fractions of the bounding box diagonal, except ideal_edge_length_abs, which is an
+        // absolute length and wins over ideal_edge_length_rel when it is set.
         Scalar box_scale = 1 / 15.0;
-
-        // epsilon presents the tolerence permited (in % of the box diagonal)
         Scalar eps_rel = 1e-3;
-
-        // initial target edge length at every vertex(in % of the box diagonal)
         Scalar ideal_edge_length_rel = 1 / 20.0;
         Scalar min_edge_len_rel = -1;
-
-        // initial absolute target edge length not scaled to the box diagonal
         Scalar ideal_edge_length_abs = 0.0;
 
         int max_its = 80;
@@ -79,7 +72,7 @@ namespace floatTetWild {
         Scalar eps_2_simplification;
         Scalar dd_simplification;
 
-        bool init(Scalar bbox_diag_l) {
+        void init(Scalar bbox_diag_l) {
             if (stage > 5)
                 stage = 5;
 
@@ -94,7 +87,7 @@ namespace floatTetWild {
             }
 
             eps_input = bbox_diag_length * eps_rel;
-            dd = eps_input;// / stage;
+            dd = eps_input;
             dd /= 1.5;
 
             // The sampled envelope check is conservative by the sampling error bound, the
@@ -106,7 +99,7 @@ namespace floatTetWild {
 
             eps_2 = eps * eps;
 
-            eps_coplanar = eps * 0.2;  // better to set it as eps-related
+            eps_coplanar = eps * 0.2;
             if (eps_coplanar > bbox_diag_length * 1e-6)
                 eps_coplanar = bbox_diag_length * 1e-6;
             eps_2_coplanar = eps_coplanar * eps_coplanar;
@@ -134,8 +127,6 @@ namespace floatTetWild {
 
             logger().debug("dd = {}", dd);
             logger().debug("dd_simplification = {}", dd_simplification);
-
-            return true;
         }
     };
 }  // namespace floatTetWild

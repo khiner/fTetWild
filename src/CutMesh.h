@@ -6,10 +6,6 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-//
-// Created by Yixin Hu on 9/12/19.
-//
-
 #ifndef FLOATTETWILD_CUTMESH_H
 #define FLOATTETWILD_CUTMESH_H
 
@@ -43,13 +39,13 @@ namespace floatTetWild {
 
         void expand_new(std::vector<int> &cut_t_ids);
 
-        int project_to_plane(int input_vertices_size);
+        void project_to_plane(int input_vertices_size);
 
         bool get_intersecting_edges_and_points(std::vector<Vector3> &points,
                                                std::map<std::array<int, 2>, int> &map_edge_to_intersecting_point,
                                                std::vector<int> &subdivide_t_ids);
 
-        void revert_totally_snapped_tets(int a, int b);
+        void revert_totally_snapped_tets();
 
         inline bool is_v_on_plane(int lv_id) const {
             return is_snapped[lv_id] || to_plane_dists[lv_id] == 0;

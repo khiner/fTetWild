@@ -103,11 +103,6 @@ namespace geo {
         return s * v;
     }
 
-
-
-
-
-
     /************************************************************************/
 
     /**
@@ -338,7 +333,6 @@ namespace geo {
     /************************************************************************/
 
     namespace Numeric {
-
 
         template<class T>
         inline void optimize_number_representation(

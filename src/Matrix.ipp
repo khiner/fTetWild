@@ -54,12 +54,25 @@ inline void make_householder_in_place(T* v, int stride, int n, T& tau, T& beta)
     }
 }
 
+// Applies the reflector whose coefficient is tau and whose essential part is `essential` to one
+// column, from row k down. Both the decomposition and the solve below need this, and the two have
+// to stay the same arithmetic.
+template <typename T>
+inline void apply_householder(T* col, int k, const T* essential, int essential_size, T tau)
+{
+    T tmp  = inner_product(essential, col + k + 1, essential_size);
+    tmp    = tmp + col[k];
+    col[k] = sub_product(col[k], tau, tmp);
+    for (int i = 0; i < essential_size; i++)
+        col[k + 1 + i] = sub_product(col[k + 1 + i], tau * essential[i], tmp);
+}
+
 }  // namespace matrix_detail
 
 template <typename T>
 Vector<T, 3> solve_col_piv_householder_qr(const Matrix33<T>& matrix, const Vector<T, 3>& rhs)
 {
-    using matrix_detail::inner_product;
+    using matrix_detail::apply_householder;
     using matrix_detail::make_householder_in_place;
 
     // Column-major, so that a column is a contiguous run and reads like Eigen's m_qr.col(k).
@@ -122,14 +135,8 @@ Vector<T, 3> solve_col_piv_householder_qr(const Matrix33<T>& matrix, const Vecto
         const int essential_size = 3 - k - 1;
         if (essential_size > 0 && tau != T(0)) {
             const T* essential = qr + k * 3 + k + 1;
-            for (int j = k + 1; j < 3; j++) {
-                T* col = qr + j * 3;
-                T  tmp = inner_product(essential, col + k + 1, essential_size);
-                tmp    = tmp + col[k];
-                col[k] = sub_product(col[k], tau, tmp);
-                for (int i = 0; i < essential_size; i++)
-                    col[k + 1 + i] = sub_product(col[k + 1 + i], tau * essential[i], tmp);
-            }
+            for (int j = k + 1; j < 3; j++)
+                apply_householder(qr + j * 3, k, essential, essential_size, tau);
         }
 
         // LAPACK's stable norm downdate, xGEQP3 lines 278-297.
@@ -171,14 +178,8 @@ Vector<T, 3> solve_col_piv_householder_qr(const Matrix33<T>& matrix, const Vecto
         if (essential_size == 0) {
             c[k] *= T(1) - tau;
         }
-        else if (tau != T(0)) {
-            const T* essential = qr + k * 3 + k + 1;
-            T tmp = inner_product(essential, c + k + 1, essential_size);
-            tmp  = tmp + c[k];
-            c[k] = sub_product(c[k], tau, tmp);
-            for (int i = 0; i < essential_size; i++)
-                c[k + 1 + i] = sub_product(c[k + 1 + i], tau * essential[i], tmp);
-        }
+        else if (tau != T(0))
+            apply_householder(c, k, qr + k * 3 + k + 1, essential_size, tau);
     }
 
     // Back substitution over the leading nonzero_pivots block.

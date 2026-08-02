@@ -140,10 +140,7 @@ namespace geo {
             }
         }
 
-        set_arrays(
-            nb_tets,
-            cell_to_v_store_.data(), cell_to_cell_store_.data()
-        );
+        set_arrays(nb_tets, cell_to_v_store_.data());
     }
 
     index_t Delaunay3d::locate_inexact(

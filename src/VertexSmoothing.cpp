@@ -24,13 +24,10 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
         if (tet_vertices[v_id].is_on_bbox)
             return;
 
-        ////newton
         Vector3 p;
         if (!find_new_pos(mesh, v_id, p))
             return;
 
-        ////check
-        // envelope
         std::vector<Scalar> new_qs;
         if (tet_vertices[v_id].is_on_boundary) {
             if (!project_and_check(mesh, v_id, p, tree, false, new_qs))
@@ -47,10 +44,8 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
                 return;
         }
 
-        ////real update
         tet_vertices[v_id].pos = p;
 
-        // quality
         int cnt = 0;
         for (int t_id : tet_vertices[v_id].conn_tets) {
             if (!new_qs.empty())
@@ -83,7 +78,6 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
                                      bool                 is_sf,
                                      std::vector<Scalar>& new_qs)
 {
-    // project to surface
     if (is_sf)
         tree.project_to_sf(p);
     else {
@@ -93,7 +87,6 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
             tree.project_to_tmp_b(p);
     }
 
-    // check inversion & quality
     const Scalar max_q = get_max_quality(mesh, mesh.tet_vertices[v_id].conn_tets);
     for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
         auto& t = mesh.tets[t_id];
@@ -140,7 +133,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         Ts.push_back(T);
     }
 
-    ////newton
     const int    max_newton_it = 15;
     const int    max_search_it = 10;
     const Scalar J_delta       = 1e-8;
@@ -158,18 +150,19 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             T[2] = p(2);
         }
     };
+    const auto total_energy = [&Ts]() {
+        Scalar sum = 0;
+        for (auto& T : Ts)
+            sum += AMIPS_energy(T);
+        return sum;
+    };
 
     for (int newton_it = 0; newton_it < max_newton_it; newton_it++) {
         if (newton_it > 0)
             set_candidate(x);
 
-        // f
-        Scalar f = 0;
-        for (auto& T : Ts) {
-            f += AMIPS_energy(T);
-        }
+        const Scalar f = total_energy();
 
-        // J
         J << 0, 0, 0;
         for (auto& T : Ts) {
             Vector3 tmp_J;
@@ -177,10 +170,9 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             J += tmp_J;
         }
         if (!J.allFinite() || (std::abs(J(0)) < J_delta && std::abs(J(1)) < J_delta &&
-                               std::abs(J(2)) < J_delta))  // gradient is also zero
+                               std::abs(J(2)) < J_delta))
             break;
 
-        // H
         H << 0, 0, 0, 0, 0, 0, 0, 0, 0;
         for (auto& T : Ts) {
             Matrix3 tmp_H;
@@ -190,7 +182,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         if (!H.allFinite())
             break;
 
-        // x
         bool    found_step = false;
         Scalar  a          = 1;
         Vector3 x_next;
@@ -200,7 +191,6 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
                 break;
             set_candidate(x_next);
 
-            // check inversion
             bool is_valid = true;
             int  ii       = 0;
             for (int t_id : tet_vertices[v_id].conn_tets) {
@@ -215,12 +205,7 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
                 continue;
             }
 
-            // check energy
-            Scalar f_next = 0;
-            for (auto& T : Ts) {
-                f_next += AMIPS_energy(T);
-            }
-            if (f_next >= f) {
+            if (total_energy() >= f) {
                 a /= 2;
                 continue;
             }

@@ -101,23 +101,13 @@ namespace geo {
             return cell_to_v_;
         }
 
-        /**
-         * \brief The cell-to-cell array, four indices per cell.
-         */
-        const index_t* cell_to_cell() const {
-            return cell_to_cell_;
-        }
-
     protected:
         /**
          * \brief Publishes the computed triangulation.
          */
-        void set_arrays(
-            index_t nb_cells, const index_t* cell_to_v, const index_t* cell_to_cell
-        ) {
+        void set_arrays(index_t nb_cells, const index_t* cell_to_v) {
             nb_cells_ = nb_cells;
             cell_to_v_ = cell_to_v;
-            cell_to_cell_ = cell_to_cell;
         }
 
 
@@ -975,7 +965,6 @@ namespace geo {
         index_t nb_vertices_ = 0;
         index_t nb_cells_ = 0;
         const index_t* cell_to_v_ = nullptr;
-        const index_t* cell_to_cell_ = nullptr;
 
         vector<index_t> cell_to_v_store_;
         vector<index_t> cell_to_cell_store_;
