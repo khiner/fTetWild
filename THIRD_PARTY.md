@@ -16,7 +16,7 @@ own header, and that per-file notice is the actual grant: libigl, for instance, 
 |---|---|---|
 | `src/MeshCleanup.hpp`, `src/MeshCleanup.cpp` | libigl — `igl/{sort,sortrows,round,unique_rows,remove_duplicate_vertices,vertex_components,orientable_patches,bfs_orient}` | MPL 2.0 |
 | `src/writeOBJ.h` | libigl — `igl/writeOBJ.h` | MPL 2.0 |
-| `src/parallel_for.h` | libigl — `igl/parallel_for.h`, `igl/default_num_threads.h` | MPL 2.0 |
+| `src/parallel_for.h` | libigl — `igl/parallel_for.h` (signature only; the implementation is fTetWild's, over `ParallelFor.hpp`) | MPL 2.0 |
 | `src/fast_winding_number.h` | libigl — `igl/fast_winding_number.h` | MPL 2.0 |
 | `src/FastWindingNumberForSoups.h` | [Side Effects Software](https://github.com/sideeffects/WindingNumber), via libigl | MIT |
 | `src/predicates.c` | [Jonathan Richard Shewchuk](https://www.cs.cmu.edu/~quake/robust.html), CMU | Public domain |

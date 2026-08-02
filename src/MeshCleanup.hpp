@@ -1,6 +1,7 @@
-// Vendored from libigl (https://github.com/libigl/libigl), which carries its licence per file.
-// The files gathered here were all MPL 2.0, the same licence as fTetWild.
+// libigl's surface cleanup, in one unit. The templates stay here because Simplification and
+// MeshImprovement instantiate them; the rest of the cluster is file-local in MeshCleanup.cpp.
 //
+// From libigl (https://github.com/libigl/libigl), MPL 2.0, the same licence as fTetWild:
 // Copyright (C) 2013 Alec Jacobson <alecjacobson@gmail.com>  (round, sortrows,
 //                                                             remove_duplicate_vertices)
 // Copyright (C) 2017 Alec Jacobson <alecjacobson@gmail.com>  (unique_rows)
@@ -8,11 +9,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-//
-// The surface cleanup libigl gave fTetWild, in one unit. Simplification and MeshImprovement
-// instantiate the templates, so those stay here. The rest of the cluster -- sort2,
-// vertex_components and orientable_patches -- has bfs_orient as its only caller and lives in
-// MeshCleanup.cpp instead.
 #pragma once
 
 #include <floattetwild/Types.hpp>

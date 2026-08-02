@@ -1,8 +1,7 @@
 #include <floattetwild/Predicates.hpp>
 
-// The Shewchuk exact predicates in predicates.c. That file defines REAL off the same
-// FLOAT_TETWILD_USE_FLOAT switch Scalar follows, so these signatures track Scalar, and it does not
-// include this declaration itself -- this is the C++ side of the boundary and its only reader.
+// The Shewchuk exact predicates in predicates.c, which defines REAL off the same
+// FLOAT_TETWILD_USE_FLOAT switch Scalar follows and does not include these declarations itself.
 extern "C" {
 #ifdef FLOAT_TETWILD_USE_FLOAT
 typedef float PredicatesReal;

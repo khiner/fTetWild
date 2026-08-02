@@ -1,6 +1,4 @@
-// Vendored from libigl (https://github.com/libigl/libigl), which carries its licence per file.
-// The files gathered here were all MPL 2.0, the same licence as fTetWild.
-//
+// From libigl (https://github.com/libigl/libigl), MPL 2.0, the same licence as fTetWild:
 // Copyright (C) 2013 Alec Jacobson <alecjacobson@gmail.com>  (sort, orientable_patches, bfs_orient)
 // Copyright (C) 2018 Alec Jacobson <alecjacobson@gmail.com>  (vertex_components)
 //
@@ -18,10 +16,9 @@
 namespace floatTetWild {
 namespace {
 
-// Sort each row of a #X by 2 matrix ascending. libigl's igl::sort dispatched on the inner
-// dimension and also returned the permutation. orientable_patches, the one caller, always passes
-// a Dynamic-by-2 matrix and discards the permutation, so only that case survives, without the
-// dim argument: rows are sorted.
+// Sort each row of a #X by 2 matrix ascending. igl::sort dispatched on the inner dimension and
+// returned the permutation too; orientable_patches, the one caller, always passes dim 2 and
+// discards the permutation.
 void sort2(const MatrixXi& X, MatrixXi& Y)
 {
     assert(X.cols() == 2);
@@ -33,14 +30,9 @@ void sort2(const MatrixXi& X, MatrixXi& Y)
     }
 }
 
-// Compute connected components of a graph.
-//
-// libigl also had a face-list overload, which pulls in adjacency_matrix and is not reached here,
-// and a variant returning the size of each component, which no caller read.
-//
-// libigl took a sparse adjacency matrix and walked each column, skipping stored zeros. The
-// adjacency lists here are that column with the zeros already dropped, ascending, which is the
-// order the sparse iterator produced.
+// Compute connected components of a graph. libigl walked a sparse adjacency matrix column by
+// column, skipping stored zeros; A is that column with the zeros already dropped, in the same
+// ascending order the sparse iterator produced.
 //
 // Inputs:
 //   A  n lists of neighbours, each ascending
@@ -79,12 +71,9 @@ void vertex_components(const std::vector<std::vector<int>>& A, MatrixXi& C)
 
 // Compute connected components of facets connected by manifold edges.
 //
-// libigl built the face-face adjacency as a sparse product uE2FT * uE2FT^T and left the
-// non-manifold edges in as stored zeros for the callers to skip. The adjacency lists built here
-// hold exactly the entries those callers kept: faces sharing at least one manifold edge,
-// ascending, self excluded. A stored zero only ever meant "skip me", and a pair sharing both a
-// manifold and a non-manifold edge stayed adjacent, which is why the manifold edges alone decide
-// membership.
+// libigl built face-face adjacency as a sparse uE2FT * uE2FT^T, leaving non-manifold edges in as
+// stored zeros for callers to skip. A stored zero only ever meant "skip me", so A holds what those
+// callers kept: faces sharing at least one manifold edge, ascending, self excluded.
 //
 // Inputs:
 //   F  #F by 3 list of facets
@@ -163,8 +152,8 @@ void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
     if (((void *) &FF) != ((void *) &F))
         FF = F;
 
-    // loop over patches. libigl ran this under `#pragma omp parallel for`, dropped with the rest
-    // of the OpenMP in this tree: nothing here enables it, and the mesher has its own pool.
+    // loop over patches. libigl ran this under `#pragma omp parallel for`, dropped with the rest of
+    // the OpenMP in this tree.
     for (int c = 0; c < num_cc; c++) {
         std::queue<int> Q;
         // find first member of patch c

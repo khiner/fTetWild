@@ -24,7 +24,6 @@
 #include <floattetwild/Timer.h>
 #include <floattetwild/writeOBJ.h>
 #include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/parallel_for.h>
 
 
 #include <floattetwild/geo_mesh.h>
@@ -124,10 +123,6 @@ int main(int argc, char** argv)
     num_threads              = std::min(max_threads, num_threads);
     params.num_threads       = num_threads;
     floatTetWild::set_num_threads(num_threads);
-    // Nested for loops oversubscribe otherwise, see
-    // https://github.com/libigl/libigl/issues/2412
-    floatTetWild::default_num_threads(std::ceil(std::sqrt(num_threads)));
-
 
     Logger::init(!params.is_quiet, params.log_path);
     params.log_level = std::max(0, std::min(6, params.log_level));

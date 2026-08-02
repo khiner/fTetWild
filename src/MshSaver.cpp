@@ -7,8 +7,8 @@
 #include <sstream>
 #include <string>
 
-// PyMesh's exception hierarchy, which only this file ever threw. Its RuntimeError is not reached
-// here and is left behind with the rest of PyMesh.
+// PyMesh's exception hierarchy, which only this file ever threw. Its RuntimeError is unreached and
+// stays behind.
 namespace PyMesh {
 
 class PyMeshException : public std::exception {

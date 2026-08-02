@@ -63,10 +63,9 @@ set(SOURCES
 	Timer.h
 )
 
-# Code from other projects, kept under its own licence. THIRD_PARTY.md maps each entry to its
-# upstream and its terms, and every file repeats them in its header. They sit here rather than in
-# a subdirectory because the include path is flat either way: float_tetwild_copy_headers puts
-# every header in <floattetwild/>, wherever it came from.
+# Code from other projects, kept under its own licence, listed in THIRD_PARTY.md and repeated in
+# each file's header. No subdirectory because the include path is flat either way:
+# float_tetwild_copy_headers puts every header in <floattetwild/> wherever it came from.
 set(VENDORED_SOURCES
 	# Shewchuk's exact predicates, public domain, and fTetWild's wrapper over them.
 	predicates.c
@@ -88,8 +87,9 @@ set(VENDORED_SOURCES
 	MeshCleanup.cpp
 	writeOBJ.h
 
-	# The fast winding number: libigl's wrapper and its thread pool, MPL 2.0, over Side Effects'
-	# implementation, MIT.
+	# The fast winding number: libigl's wrapper, MPL 2.0, over Side Effects' implementation, MIT.
+	# parallel_for.h keeps igl::parallel_for's signature, so those call sites need no edit, but
+	# runs on ParallelFor.hpp.
 	parallel_for.h
 	FastWindingNumberForSoups.h
 	fast_winding_number.h

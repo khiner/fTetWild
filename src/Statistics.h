@@ -13,7 +13,7 @@
 #include <cstddef>
 #include <mutex>
 
-// Peak resident set size in bytes, from getRSS.c. Only the summary line below ever asks.
+// Peak resident set size in bytes, from getRSS.c. Only the summary line below asks.
 extern "C" size_t getPeakRSS();
 
 namespace floatTetWild {

@@ -4,10 +4,9 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
-// This replaces libigl's igl::Timer, which reached for mach_absolute_time, QueryPerformanceCounter
-// or gettimeofday behind three-way ifdefs. steady_clock is all three. The method names are the ones
-// the call sites already use. Nothing here feeds the mesh: the times reach the log and the .csv
-// beside the output, and neither is hashed.
+// Replaces libigl's igl::Timer, which picked between mach_absolute_time, QueryPerformanceCounter and
+// gettimeofday behind ifdefs. steady_clock is all three. The times reach the log and the .csv beside
+// the output, neither of which is hashed.
 
 #pragma once
 
