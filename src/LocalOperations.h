@@ -11,6 +11,7 @@
 
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/AABBWrapper.h>
+#include <floattetwild/Predicates.hpp>
 
 namespace floatTetWild {
     extern bool use_old_energy;
@@ -46,6 +47,18 @@ namespace floatTetWild {
 
     inline geo::vec3 to_geo_p(const Vector3& p){
         return geo::vec3(p[0], p[1], p[2]);
+    }
+
+    // The normal of face j of tet t_id, pointing away from the corner the face is opposite to.
+    // Not normalised: the callers either normalise it or only look at the sign of a dot product.
+    inline Vector3 get_face_normal(const Mesh& mesh, int t_id, int j) {
+        const Vector3& v1 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 1)]].pos;
+        const Vector3& v2 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 2)]].pos;
+        const Vector3& v3 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 3)]].pos;
+        if (Predicates::orient_3d(v1, v2, v3, mesh.tet_vertices[mesh.tets[t_id][j]].pos) ==
+            Predicates::ORI_POSITIVE)
+            return (v2 - v1).cross(v3 - v1);
+        return (v3 - v1).cross(v2 - v1);
     }
 
     // A face a local operation has just created carries none of the old marks.
@@ -93,7 +106,6 @@ namespace floatTetWild {
     Scalar get_max_quality(const Mesh& mesh, const std::vector<int>& t_ids);
     Scalar get_quality(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     Scalar get_quality(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
-    void get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scalar& avg_energy);
 
     bool is_inverted(const Mesh& mesh, int t_id);
     bool is_inverted(const Mesh& mesh, const MeshTet& t);

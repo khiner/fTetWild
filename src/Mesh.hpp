@@ -133,6 +133,28 @@ public:
         bool is_outside = false;
     };
 
+    // Vertices and tets are both kept in place and marked, never erased, so the two lists below
+    // are walked the same way.
+    template<typename T>
+    inline int count_live(const std::vector<T> &v) {
+        int cnt = 0;
+        for (const auto &e:v) {
+            if (!e.is_removed)
+                cnt++;
+        }
+        return cnt;
+    }
+
+    // The first slot a removal left free, or the end when there is none.
+    template<typename T>
+    inline int first_removed(const std::vector<T> &v) {
+        for (int i = 0; i < int(v.size()); i++) {
+            if (v[i].is_removed)
+                return i;
+        }
+        return int(v.size());
+    }
+
     class Mesh {
     public:
         std::vector<MeshVertex> tet_vertices;
@@ -155,83 +177,41 @@ public:
                           const std::vector<char> &f_is_removed, const std::vector<std::unordered_set<int>> &conn_fs,
                           std::vector<int> &safe_set);
 
-        inline int t_empty_size() const {
+        inline int get_v_num() const { return count_live(tet_vertices); }
+        inline int get_t_num() const { return count_live(tets); }
+
+        inline int t_empty_size() const { return int(tets.size()) - get_t_num(); }
+        inline int v_empty_size() const { return int(tet_vertices.size()) - get_v_num(); }
+
+        inline void reset_t_empty_start() { t_empty_start = first_removed(tets); }
+        inline void reset_v_empty_start() { v_empty_start = first_removed(tet_vertices); }
+
+        // The largest and the mean tet quality. Both in one pass, because the optimization loop
+        // asks for the pair several times per iteration and the tet array is the big one.
+        inline void get_max_avg_energy(Scalar &max_energy, Scalar &avg_energy) const {
+            max_energy = 0;
+            avg_energy = 0;
             int cnt = 0;
-            for (const auto &t:tets) {
-                if (t.is_removed)
-                    cnt++;
-            }
-            return cnt;
-        }
-
-        inline int v_empty_size() const {
-            int cnt = 0;
-            for (const auto &v:tet_vertices) {
-                if (v.is_removed)
-                    cnt++;
-            }
-            return cnt;
-        }
-
-        inline void reset_t_empty_start() {
-            t_empty_start = tets.size();
-            for (int i = 0; i < tets.size(); i++) {
-                if (tets[i].is_removed) {
-                    t_empty_start = i;
-                    break;
-                }
-            }
-        }
-
-        inline void reset_v_empty_start() {
-            v_empty_start = tet_vertices.size();
-            for (int i = 0; i < tet_vertices.size(); i++) {
-                if (tet_vertices[i].is_removed) {
-                    v_empty_start = i;
-                    break;
-                }
-            }
-        }
-
-        inline int get_v_num() const {
-            int cnt = 0;
-            for (int i = 0; i < tet_vertices.size(); i++) {
-                if (!tet_vertices[i].is_removed)
-                    cnt++;
-            }
-            return cnt;
-        }
-
-        inline int get_t_num() const {
-            int cnt = 0;
-            for (int i = 0; i < tets.size(); i++) {
-                if (!tets[i].is_removed)
-                    cnt++;
-            }
-            return cnt;
-        }
-
-        inline Scalar get_max_energy() const {
-            Scalar max_energy = 0;
             for (auto &t: tets) {
                 if (t.is_removed)
                     continue;
                 if (t.quality > max_energy)
                     max_energy = t.quality;
-            }
-            return max_energy;
-        }
-
-        inline Scalar get_avg_energy() const {
-            Scalar avg_energy = 0;
-            int cnt = 0;
-            for (auto &t: tets) {
-                if (t.is_removed)
-                    continue;
                 avg_energy += t.quality;
                 cnt++;
             }
             avg_energy /= cnt;
+        }
+
+        inline Scalar get_max_energy() const {
+            Scalar max_energy, _;
+            get_max_avg_energy(max_energy, _);
+            return max_energy;
+        }
+
+        inline Scalar get_avg_energy() const {
+            Scalar _, avg_energy;
+            get_max_avg_energy(_, avg_energy);
             return avg_energy;
         }
     };

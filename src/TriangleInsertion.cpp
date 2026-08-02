@@ -1453,22 +1453,22 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
     std::vector<std::array<bool, 4>> is_visited(track_surface_fs.size(),
                                                 {{false, false, false, false}});
     for (int t_id = 0; t_id < track_surface_fs.size(); t_id++) {
+        MeshTet& t = mesh.tets[t_id];
         for (int j = 0; j < 4; j++) {
 
             int ff_id    = -1;
             int opp_t_id = -1;
             int k        = -1;
-            if (mesh.tets[t_id].is_surface_fs[j] == KNOWN_SURFACE ||
-                mesh.tets[t_id].is_surface_fs[j] == KNOWN_NOT_SURFACE) {
+            if (t.is_surface_fs[j] == KNOWN_SURFACE || t.is_surface_fs[j] == KNOWN_NOT_SURFACE) {
                 if (!get_opp_face(mesh, t_id, j, opp_t_id, k)) {
-                    mesh.tets[t_id].is_surface_fs[j] = NOT_SURFACE;
+                    t.is_surface_fs[j] = NOT_SURFACE;
                     continue;
                 }
                 is_visited[t_id][j]     = true;
                 is_visited[opp_t_id][k] = true;
-                if (mesh.tets[t_id].is_surface_fs[j] == KNOWN_NOT_SURFACE ||
+                if (t.is_surface_fs[j] == KNOWN_NOT_SURFACE ||
                     track_surface_fs[t_id][j].empty()) {
-                    mesh.tets[t_id].is_surface_fs[j]     = NOT_SURFACE;
+                    t.is_surface_fs[j]                   = NOT_SURFACE;
                     mesh.tets[opp_t_id].is_surface_fs[k] = NOT_SURFACE;
                     continue;
                 }
@@ -1476,15 +1476,15 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                     ff_id = track_surface_fs[t_id][j].front();
             }
             else {
-                if (mesh.tets[t_id].is_surface_fs[j] != NOT_SURFACE || is_visited[t_id][j])
+                if (t.is_surface_fs[j] != NOT_SURFACE || is_visited[t_id][j])
                     continue;
                 is_visited[t_id][j] = true;
                 if (track_surface_fs[t_id][j].empty())
                     continue;
 
-                auto& tp1_3d = mesh.tet_vertices[mesh.tets[t_id][(j + 1) % 4]].pos;
-                auto& tp2_3d = mesh.tet_vertices[mesh.tets[t_id][(j + 2) % 4]].pos;
-                auto& tp3_3d = mesh.tet_vertices[mesh.tets[t_id][(j + 3) % 4]].pos;
+                auto& tp1_3d = mesh.tet_vertices[t[(j + 1) % 4]].pos;
+                auto& tp2_3d = mesh.tet_vertices[t[(j + 2) % 4]].pos;
+                auto& tp3_3d = mesh.tet_vertices[t[(j + 3) % 4]].pos;
 
                 double eps_2 = (mesh.params.eps + mesh.params.eps_simplification) / 2;
                 double dd    = (mesh.params.dd + mesh.params.dd_simplification) / 2;
@@ -1497,75 +1497,61 @@ void floatTetWild::mark_surface_fs(const std::vector<Vector3>&                  
                     ff_id = track_surface_fs[t_id][j].front();
 
                 if (!get_opp_face(mesh, t_id, j, opp_t_id, k)) {
-                    mesh.tets[t_id].is_surface_fs[j] = NOT_SURFACE;
+                    t.is_surface_fs[j] = NOT_SURFACE;
                     continue;
                 }
                 is_visited[opp_t_id][k] = true;
             }
 
-            mesh.tets[t_id].surface_tags[j]     = input_tags[ff_id];
-            mesh.tets[opp_t_id].surface_tags[k] = input_tags[ff_id];
+            MeshTet& opp = mesh.tets[opp_t_id];
+            // The face carries opposite signs on its two sides.
+            const auto set_sides = [&](int side, int opp_side) {
+                t.is_surface_fs[j]   = side;
+                opp.is_surface_fs[k] = opp_side;
+            };
 
-            auto& fv1 = input_vertices[input_faces[ff_id][0]];
-            auto& fv2 = input_vertices[input_faces[ff_id][1]];
-            auto& fv3 = input_vertices[input_faces[ff_id][2]];
-            int ori =
-              Predicates::orient_3d(fv1, fv2, fv3, mesh.tet_vertices[mesh.tets[t_id][j]].pos);
-            int opp_ori =
-              Predicates::orient_3d(fv1, fv2, fv3, mesh.tet_vertices[mesh.tets[opp_t_id][k]].pos);
-            if ((ori == Predicates::ORI_POSITIVE && opp_ori == Predicates::ORI_NEGATIVE) ||
-                (ori == Predicates::ORI_NEGATIVE && opp_ori == Predicates::ORI_POSITIVE)) {
-                mesh.tets[t_id].is_surface_fs[j]     = ori;
-                mesh.tets[opp_t_id].is_surface_fs[k] = opp_ori;
+            t.surface_tags[j]   = input_tags[ff_id];
+            opp.surface_tags[k] = input_tags[ff_id];
+
+            auto& fv1   = input_vertices[input_faces[ff_id][0]];
+            auto& fv2   = input_vertices[input_faces[ff_id][1]];
+            auto& fv3   = input_vertices[input_faces[ff_id][2]];
+            int   ori   = Predicates::orient_3d(fv1, fv2, fv3, mesh.tet_vertices[t[j]].pos);
+            int opp_ori = Predicates::orient_3d(fv1, fv2, fv3, mesh.tet_vertices[opp[k]].pos);
+            // The two corners straddle the face, so each side takes the sign it is on.
+            if (ori != Predicates::ORI_ZERO && opp_ori != Predicates::ORI_ZERO &&
+                ori != opp_ori) {
+                set_sides(ori, opp_ori);
                 continue;
             }
+            // One corner is in the face's plane, so it takes the other's sign flipped.
             if (ori == Predicates::ORI_ZERO && opp_ori != Predicates::ORI_ZERO) {
-                mesh.tets[t_id].is_surface_fs[j]     = -opp_ori;
-                mesh.tets[opp_t_id].is_surface_fs[k] = opp_ori;
+                set_sides(-opp_ori, opp_ori);
                 continue;
             }
             if (opp_ori == Predicates::ORI_ZERO && ori != Predicates::ORI_ZERO) {
-                mesh.tets[t_id].is_surface_fs[j]     = ori;
-                mesh.tets[opp_t_id].is_surface_fs[k] = -ori;
+                set_sides(ori, -ori);
                 continue;
             }
-            if (ori == opp_ori) {
-                Vector3 n = (fv2 - fv1).cross(fv3 - fv1);
-                n.normalize();
-                Scalar dist     = n.dot(mesh.tet_vertices[mesh.tets[t_id][j]].pos - fv1);
-                Scalar opp_dist = n.dot(mesh.tet_vertices[mesh.tets[opp_t_id][k]].pos - fv1);
-                if (ori == Predicates::ORI_ZERO) {
-
-                    auto&   tv1 = mesh.tet_vertices[mesh.tets[t_id][(j + 1) % 4]].pos;
-                    auto&   tv2 = mesh.tet_vertices[mesh.tets[t_id][(j + 2) % 4]].pos;
-                    auto&   tv3 = mesh.tet_vertices[mesh.tets[t_id][(j + 3) % 4]].pos;
-                    Vector3 nt;
-                    if (Predicates::orient_3d(
-                          tv1, tv2, tv3, mesh.tet_vertices[mesh.tets[t_id][j]].pos) ==
-                        Predicates::ORI_POSITIVE)
-                        nt = (tv2 - tv1).cross(tv3 - tv1);
-                    else
-                        nt = (tv3 - tv1).cross(tv2 - tv1);
-                    nt.normalize();
-                    if (n.dot(nt) > 0) {
-                        mesh.tets[opp_t_id].is_surface_fs[k] = 1;
-                        mesh.tets[t_id].is_surface_fs[j]     = -1;
-                    }
-                    else {
-                        mesh.tets[opp_t_id].is_surface_fs[k] = -1;
-                        mesh.tets[t_id].is_surface_fs[j]     = 1;
-                    }
-                }
-                else {
-                    if (dist < opp_dist) {
-                        mesh.tets[opp_t_id].is_surface_fs[k] = opp_ori;
-                        mesh.tets[t_id].is_surface_fs[j]     = -ori;
-                    }
-                    else {
-                        mesh.tets[opp_t_id].is_surface_fs[k] = -opp_ori;
-                        mesh.tets[t_id].is_surface_fs[j]     = ori;
-                    }
-                }
+            // Both corners are on the same side, or both are in the plane.
+            Vector3 n = (fv2 - fv1).cross(fv3 - fv1);
+            n.normalize();
+            if (ori == Predicates::ORI_ZERO) {
+                Vector3 nt = get_face_normal(mesh, t_id, j);
+                nt.normalize();
+                if (n.dot(nt) > 0)
+                    set_sides(-1, 1);
+                else
+                    set_sides(1, -1);
+            }
+            else {
+                // The nearer corner keeps its side and the further one is flipped.
+                const Scalar dist     = n.dot(mesh.tet_vertices[t[j]].pos - fv1);
+                const Scalar opp_dist = n.dot(mesh.tet_vertices[opp[k]].pos - fv1);
+                if (dist < opp_dist)
+                    set_sides(-ori, opp_ori);
+                else
+                    set_sides(ori, -opp_ori);
             }
         }
     }

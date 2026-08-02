@@ -324,44 +324,6 @@ namespace geo {
     // ========================== Initialization from doubles
 
     /**
-     * \brief Assigns a number to this expansion.
-     * \param[in] a the number
-     * \return the new value of this expansion (\p a)
-     */
-    expansion& assign(double a) {
-        set_length(1);
-        x_[0] = a;
-        return *this;
-    }
-
-    /**
-     * \brief Copies an expansion to this expansion
-     * \param[in] rhs the expansion to be copied
-     * \return the new value of this expansion (\p rhs)
-     */
-    expansion& assign(const expansion& rhs) {
-        geo_debug_assert(capacity() >= rhs.length());
-        set_length(rhs.length());
-        for(index_t i=0; i<rhs.length(); ++i) {
-            x_[i] = rhs.x_[i];
-        }
-        return *this;
-    }
-
-    /**
-     * \brief Copies the absolute value of an expansion to this expansion
-     * \param[in] rhs the expansion to be copied
-     * \return the new value of this expansion that is, abs(\p rhs)
-     */
-    expansion& assign_abs(const expansion& rhs) {
-        assign(rhs);
-        if(sign() == NEGATIVE) {
-            negate();
-        }
-        return *this;
-    }
-
-    /**
      * \brief Computes the required capacity to store the
      *  sum of two doubles.
      * \param[in] a first number
@@ -454,35 +416,6 @@ namespace geo {
     expansion& assign_product(double a, double b) {
         set_length(2);
         two_product(a, b, x_[1], x_[0]);
-        return *this;
-    }
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     * to store the exact square of a double.
-     * \param[in] a the number to be squared
-     * \return the required capacity of an expansion
-     * to store the exact square of a double.
-     * \note The result does not depend on the value of the
-     *  number \p a.
-     */
-    static index_t square_capacity(double a) {
-        geo_argused(a);
-        return 2;
-    }
-
-    /**
-     * \brief Assigns the square of a double to this expansion
-     *  (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_square() macro instead.
-     * \param[in] a the number to be squared
-     * \return the new value of this expansion (\p a * \p a)
-     * \pre capacity() >= square_capacity(a)
-     */
-    expansion& assign_square(double a) {
-        set_length(2);
-        square(a, x_[1], x_[0]);
         return *this;
     }
 
@@ -711,61 +644,6 @@ namespace geo {
      */
     expansion& assign_product(const expansion& a, const expansion& b);
 
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact product of three expansions.
-     * \param[in] a first expansion
-     * \param[in] b second expansion
-     * \param[in] c third expansion
-     * \return the required capacity of an expansion
-     *  to store the exact product of \p a, \p b and \p c
-     */
-    static index_t product_capacity(
-        const expansion& a, const expansion& b, const expansion& c
-    ) {
-        return a.length() * b.length() * c.length() * 4;
-    }
-
-    /**
-     * \brief Assigns the product of three expansions
-     * to this expansion (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_product3() macro instead.
-     * \param[in] a first expansion
-     * \param[in] b second expansion
-     * \param[in] c third expansion
-     * \return the new value of this expansion (\p a * \p b * \p c)
-     * \pre capacity() >= product_capacity(a,b,c)
-     */
-    expansion& assign_product(
-        const expansion& a, const expansion& b, const expansion& c
-    );
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact square of an expansion.
-     * \param[in] a the expansion to be squared
-     * \return the required capacity of an expansion
-     *  to store the exact square \p a * \p a
-     */
-    static index_t square_capacity(const expansion& a) {
-        if(a.length() == 2) {
-            return 6;
-        }                                  // see two_square()
-        return a.length() * a.length() * 2;
-    }
-
-    /**
-     * \brief Assigns the product of an expansions
-     * to this expansion (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_square() macro instead.
-     * \param[in] a the expansion to be squared
-     * \return the new value of this expansion (\p a * \p a )
-     * \pre capacity() >= square_capacity(a)
-     */
-    expansion& assign_square(const expansion& a);
-
     // ====== Determinants =============================
 
     /**
@@ -841,41 +719,6 @@ namespace geo {
         const expansion& a31, const expansion& a32, const expansion& a33
     );
 
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store an exact 3x3 determinant where the
-     *  first row is 1 1 1.
-     * \param[in] a21 , a22 , a23 , a31 , a32 , a33 coefficients
-     *  of the determinant
-     * \return the required capacity of an expansion to store
-     *  the exact value of the determinant
-     */
-    static index_t det_111_2x3_capacity(
-        const expansion& a21, const expansion& a22, const expansion& a23,
-        const expansion& a31, const expansion& a32, const expansion& a33
-    ) {
-        return
-            det2x2_capacity(a22, a23, a32, a33) +
-            det2x2_capacity(a23, a21, a33, a31) +
-            det2x2_capacity(a21, a22, a31, a32);
-    }
-
-    /**
-     * \brief Assigns a 3x3 determinant to this expansion
-     *  where the first row is 1 1 1(should not be used by client code).
-     * \details Do not use directly, use expansion_det_111_3x3()
-     * macro instead.
-     * \param[in] a21 , a22 , a23 , a31 , a32 , a33 coefficients
-     *  of the determinant
-     * \return the new value of this expansion, with
-     *  the exact 3x3 determinant
-     * \pre capacity() >= det__111_2x3capacity(a21,a22,a23,a31,a32,a33)
-     */
-    expansion& assign_det_111_2x3(
-        const expansion& a21, const expansion& a22, const expansion& a23,
-        const expansion& a31, const expansion& a32, const expansion& a33
-    );
-
     // ======= Geometry-specific initializations =======
 
     /**
@@ -904,61 +747,6 @@ namespace geo {
      */
     expansion& assign_sq_dist(
         const double* p1, const double* p2, coord_index_t dim
-    );
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact dot product between two vectors.
-     * \param[in] dim dimension of the vectors
-     * \return the required capacity of an expansion to store
-     *  the dot product between two \p dim%-dimensional vectors
-     *  specified by differences of doubles.
-     */
-    static index_t dot_at_capacity(coord_index_t dim) {
-        return index_t(dim) * 8;
-    }
-
-    /**
-     * \brief Assigns the dot product of two vectors to
-     *  this expansion (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_dot_at() macro instead.
-     * \param[in] p1 pointer to the coordinates of a point
-     * \param[in] p2 pointer to the coordinates of a point
-     * \param[in] p0 pointer to the coordinates of a point
-     * \param[in] dim dimension of the points
-     * \return the new value of this expansion, with the dot
-     *  product (p1-p0).(p2-p0)
-     */
-    expansion& assign_dot_at(
-        const double* p1, const double* p2, const double* p0,
-        coord_index_t dim
-    );
-
-
-    /**
-     * \brief Computes the required capacity to store the
-     *  length of a 3d vector.
-     * \param[in] x , y , z coordinates of the vector
-     * \return the capacity required to store the squared norm
-     *   of [x,y,z]
-     */
-    static index_t length2_capacity(
-        const expansion& x, const expansion& y, const expansion& z
-    ) {
-        return square_capacity(x) + square_capacity(y) + square_capacity(z);
-    }
-
-    /**
-     * \brief Assigns the length of a vector to this expansion
-     *  (should not be used by client code). Do not call this
-     *  function directly, use expansion_length2() macro instead.
-     * \param[in] x , y , z coordinates of the vector
-     * \return the new value of this expansion, with the squared
-     *  length of [x,y,z]
-     */
-    expansion& assign_length2(
-        const expansion& x, const expansion& y, const expansion& z
     );
 
     // =============== some general purpose functions =========
@@ -1128,37 +916,6 @@ namespace geo {
 
     // =============== arithmetic operations ===========================
 
-    /**
-     * \brief Creates an expansion from a double.
-     * \param[in] a the double
-     * \return a reference to an expansion, allocated on the
-     *  stack.
-     * \code
-     *  const expansion& e1 = expansion_create(a);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     *  calling function.
-     * \relates geo::expansion
-     */
-#define expansion_create(a)                     \
-    new_expansion_on_stack(1)->assign(a)
-
-
-    /**
-     * \brief Creates an expansion from the absolute value of another
-     *  expansion
-     * \param[in] e the expansion
-     * \return a reference to an expansion, allocated on the
-     *  stack.
-     * \code
-     *  const expansion& e1 = expansion_abs(e);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     *  calling function.
-     * \relates geo::expansion
-     */
-#define expansion_abs(e)                                \
-    new_expansion_on_stack(e.length())->assign_abs(e)
 
     /**
      * \brief Computes an expansion that represents the exact
@@ -1273,48 +1030,6 @@ namespace geo {
         expansion::product_capacity(a, b)       \
     )->assign_product(a, b)
 
-    /**
-     * \brief Computes an expansion that represents the exact
-     *  product of its arguments.
-     * \param[in] a an expansion
-     * \param[in] b an expansion
-     * \param[in] c an expansion
-     * \return a reference to an expansion, allocated on the stack.
-     * \code
-     * expansion& e1 = ...;
-     * expansion& e2 = ...;
-     * expansion& e3 = ...;
-     * expansion& e4 = expansion_product3(e1,e2,e3);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     * calling function.
-     * \relates geo::expansion
-     */
-#define expansion_product3(a, b, c)             \
-    new_expansion_on_stack(                     \
-        expansion::product_capacity(a, b, c)    \
-    )->assign_product(a, b, c)
-
-    /**
-     * \brief Computes an expansion that represents the exact
-     *  square of its argument.
-     * \param[in] a a double or an expansion
-     * \return a reference to an expansion, allocated on the stack.
-     * \code
-     * expansion& e1 = ...;
-     * expansion& e2 = expansion_square(e1);
-     * double x = ...;
-     * expansion& e3 = expansion_square(x);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     * calling function.
-     * \relates geo::expansion
-     */
-#define expansion_square(a)                     \
-    new_expansion_on_stack(                     \
-        expansion::square_capacity(a)           \
-    )->assign_square(a)
-
     // =============== determinants =====================================
 
     /**
@@ -1356,28 +1071,6 @@ namespace geo {
         expansion::det3x3_capacity(a11,a12,a13,a21,a22,a23,a31,a32,a33) \
     )->assign_det3x3(a11, a12, a13, a21, a22, a23, a31, a32, a33)
 
-    /**
-     * \brief Computes an expansion that represents the exact
-     *  3x3 determinant of its arguments where the first row
-     *  is 1 1 1.
-     * \return a reference to an expansion, allocated on the stack.
-     * \code
-     * const expansion& a21 = ...;
-     * ...
-     * const expansion& a33 = ...;
-     * expansion& d = expansion_det_111_2x3(
-     *     a21,a22,a23,a31,a32,a33
-     * );
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     * calling function.
-     * \relates geo::expansion
-     */
-#define expansion_det_111_2x3(a21, a22, a23, a31, a32, a33)             \
-    new_expansion_on_stack(                                             \
-        expansion::det_111_2x3_capacity(a21, a22, a23, a31, a32, a33)   \
-    )->assign_det_111_2x3(a21, a22, a23, a31, a32, a33)
-
     // =============== geometric functions ==============================
 
     /**
@@ -1401,49 +1094,6 @@ namespace geo {
         expansion::sq_dist_capacity(dim)        \
     )->assign_sq_dist(a, b, dim)
 
-    /**
-     * \brief Computes an expansion that represents the exact
-     *  dot product dot(a-c,b-c)
-     * \param[in] a first point (specified as a const double*)
-     * \param[in] b second point (specified as a const double*)
-     * \param[in] c third point (specified as a const double*)
-     * \param[in] dim dimension of the points
-     * \return a reference to an expansion, allocated on the stack.
-     * \code
-     * const double* p1 = ...;
-     * const double* p2 = ...;
-     * const double* p0 = ...;
-     * expansion& dot12 = expansion_dot_at(p1,p2,p0,3);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     * calling function.
-     * \relates geo::expansion
-     */
-#define expansion_dot_at(a, b, c, dim)          \
-    new_expansion_on_stack(                     \
-        expansion::dot_at_capacity(dim)         \
-    )->assign_dot_at(a, b, c, dim)
-
-
-    /**
-     * \brief Computes an expansion that represents the exact
-     *  squared length of a 3d vector
-     * \param[in] x,y,z coordinates of the vector (specified as expansion)
-     * \return a reference to an expansion, allocated on the stack.
-     * \code
-     * const expansion& x = ...;
-     * const expansion& y = ...;
-     * const expansion& z = ...;
-     * expansion& l = expansion_length2(x,y,z);
-     * \endcode
-     * \warning Do not return or use the returned reference outside the
-     * calling function.
-     * \relates geo::expansion
-     */
-#define expansion_length2(x,y,z)                \
-    new_expansion_on_stack(                     \
-        expansion::length2_capacity(x,y,z)      \
-    )->assign_length2(x,y,z)
 
     /************************************************************************/
 

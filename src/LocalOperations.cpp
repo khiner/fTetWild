@@ -204,22 +204,6 @@ Scalar floatTetWild::get_max_quality(const Mesh& mesh, const std::vector<int>& t
     return max_quality;
 }
 
-void floatTetWild::get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scalar& avg_energy)
-{
-    max_energy = 0;
-    avg_energy = 0;
-    int cnt    = 0;
-    for (auto& t : mesh.tets) {
-        if (t.is_removed)
-            continue;
-        if (t.quality > max_energy)
-            max_energy = t.quality;
-        avg_energy += t.quality;
-        cnt++;
-    }
-    avg_energy /= cnt;
-}
-
 bool floatTetWild::is_inverted(const Mesh& mesh, int t_id)
 {
     return is_inverted(mesh, mesh.tets[t_id]);
@@ -488,16 +472,9 @@ void floatTetWild::get_new_tet_slots(Mesh& mesh, int n, std::vector<int>& new_co
 // Reuses the first free vertex slot at or after v_empty_start, appending when there is none.
 int floatTetWild::get_new_vertex_slot(Mesh& mesh, const MeshVertex& v)
 {
-    bool is_found = false;
-    for (int i = mesh.v_empty_start; i < mesh.tet_vertices.size(); i++) {
-        mesh.v_empty_start = i;
-        if (mesh.tet_vertices[i].is_removed) {
-            is_found = true;
-            break;
-        }
-    }
-    if (!is_found)
-        mesh.v_empty_start = mesh.tet_vertices.size();
+    while (mesh.v_empty_start < mesh.tet_vertices.size() &&
+           !mesh.tet_vertices[mesh.v_empty_start].is_removed)
+        mesh.v_empty_start++;
 
     const int v_id = mesh.v_empty_start;
     if (v_id < mesh.tet_vertices.size())
@@ -628,25 +605,18 @@ Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
 
 Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
 {
-    Scalar res = AMIPS_energy_aux(T);
-    if (use_old_energy) {
+    const Scalar res = AMIPS_energy_aux(T);
+    // !(res > 1e8), not res <= 1e8: a NaN falls through unchanged, as it always has.
+    if (use_old_energy || !(res > 1e8))
         return res;
-    }
 
-    if (res > 1e8) {
-
-        if (is_degenerate(Vector3(T[0], T[1], T[2]),
-                          Vector3(T[3], T[4], T[5]),
-                          Vector3(T[6], T[7], T[8]),
-                          Vector3(T[9], T[10], T[11]))) {
-            return std::numeric_limits<double>::infinity();
-        }
-
-        return AMIPS_energy_exact(T);
-    }
-    else {
-        return res;
-    }
+    // The cheap form has lost the determinant to cancellation, so redo it exactly.
+    if (is_degenerate(Vector3(T[0], T[1], T[2]),
+                      Vector3(T[3], T[4], T[5]),
+                      Vector3(T[6], T[7], T[8]),
+                      Vector3(T[9], T[10], T[11])))
+        return std::numeric_limits<double>::infinity();
+    return AMIPS_energy_exact(T);
 }
 
 Scalar floatTetWild::AMIPS_energy_aux(const std::array<Scalar, 12>& T)

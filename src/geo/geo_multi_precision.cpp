@@ -939,28 +939,6 @@ namespace geo {
         return *this;
     }
 
-    expansion& expansion::assign_product(
-        const expansion& a, const expansion& b, const expansion& c
-    ) {
-        const expansion& bc = expansion_product(b, c);
-        this->assign_product(a, bc);
-        return *this;
-    }
-
-    expansion& expansion::assign_square(const expansion& a) {
-        geo_debug_assert(capacity() >= square_capacity(a));
-        if(a.length() == 1) {
-            square(a[0], x_[1], x_[0]);
-            set_length(2);
-        } else if(a.length() == 2) {
-            two_square(a[1], a[0], x_);
-            set_length(6);
-        } else {
-            this->assign_product(a, a);
-        }
-        return *this;
-    }
-
     // =============  determinants ==========================================
 
     expansion& expansion::assign_det2x2(
@@ -987,16 +965,6 @@ namespace geo {
         return this->assign_sum(a11c11, a12c12, a13c13);
     }
 
-    expansion& expansion::assign_det_111_2x3(
-        const expansion& a21, const expansion& a22, const expansion& a23,
-        const expansion& a31, const expansion& a32, const expansion& a33
-    ) {
-        const expansion& c11 = expansion_det2x2(a22, a23, a32, a33);
-        const expansion& c12 = expansion_det2x2(a23, a21, a33, a31);
-        const expansion& c13 = expansion_det2x2(a21, a22, a31, a32);
-        return this->assign_sum(c11, c12, c13);
-    }
-
     // =============  geometric operations ==================================
 
     expansion& expansion::assign_sq_dist(
@@ -1020,44 +988,6 @@ namespace geo {
             expansion& d2 = expansion_sq_dist(p1_2, p2_2, dim2);
             this->assign_sum(d1, d2);
         }
-        return *this;
-    }
-
-    expansion& expansion::assign_dot_at(
-        const double* p1, const double* p2, const double* p0,
-        coord_index_t dim
-    ) {
-        geo_debug_assert(capacity() >= dot_at_capacity(dim));
-        if(dim == 1) {
-
-            double v[2];
-            two_diff(p1[0], p0[0], v[1], v[0]);
-            double w[2];
-            two_diff(p2[0], p0[0], w[1], w[0]);
-            two_two_product(v, w, x_);
-            set_length(8);
-        } else {
-            // "Distillation" (see Shewchuk's paper) is computed recursively,
-            // by splitting the list of expansions to sum into two halves.
-            coord_index_t dim1 = dim / 2;
-            coord_index_t dim2 = coord_index_t(dim - dim1);
-            const double* p1_2 = p1 + dim1;
-            const double* p2_2 = p2 + dim1;
-            const double* p0_2 = p0 + dim1;
-            expansion& d1 = expansion_dot_at(p1, p2, p0, dim1);
-            expansion& d2 = expansion_dot_at(p1_2, p2_2, p0_2, dim2);
-            this->assign_sum(d1, d2);
-        }
-        return *this;
-    }
-
-    expansion& expansion::assign_length2(
-        const expansion& x, const expansion& y, const expansion& z
-    ) {
-        const expansion& x2 = expansion_square(x);
-        const expansion& y2 = expansion_square(y);
-        const expansion& z2 = expansion_square(z);
-        this->assign_sum(x2,y2,z2);
         return *this;
     }
 

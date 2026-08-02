@@ -214,6 +214,68 @@ namespace {
         return result;
     }
 
+    /**
+     * \brief The recursive traversal behind both nearest facet queries.
+     * \details With \p Envelope set the walk stops as soon as the facet found so far is within
+     *  \p sq_epsilon, and never descends into a box that is already outside it. Without it,
+     *  \p sq_epsilon is unused and the walk finds the nearest facet outright.
+     */
+    template <bool Envelope>
+    void nearest_recursive(
+        const Mesh& M, const vector<Box>& bboxes,
+        const vec3& p, double sq_epsilon,
+        index_t& nearest_f, vec3& nearest_point, double& sq_dist,
+        index_t n, index_t b, index_t e
+    ) {
+        geo_debug_assert(e > b);
+
+        if(Envelope && sq_dist <= sq_epsilon) {
+            return;
+        }
+
+        // If node is a leaf: compute point-facet distance
+        // and replace current if nearer
+        if(b + 1 == e) {
+            vec3 cur_nearest_point;
+            double cur_sq_dist;
+            floatTetWild::get_point_facet_nearest_point(
+                M, p, b, cur_nearest_point, cur_sq_dist
+            );
+            if(cur_sq_dist < sq_dist) {
+                nearest_f = b;
+                nearest_point = cur_nearest_point;
+                sq_dist = cur_sq_dist;
+            }
+            return;
+        }
+        index_t m = b + (e - b) / 2;
+        index_t childl = 2 * n;
+        index_t childr = 2 * n + 1;
+
+        double dl = point_box_signed_squared_distance(p, bboxes[childl]);
+        double dr = point_box_signed_squared_distance(p, bboxes[childr]);
+
+        const auto descend = [&](double d, index_t child, index_t cb, index_t ce) {
+            if(d < sq_dist && (!Envelope || d <= sq_epsilon)) {
+                nearest_recursive<Envelope>(
+                    M, bboxes, p, sq_epsilon,
+                    nearest_f, nearest_point, sq_dist,
+                    child, cb, ce
+                );
+            }
+        };
+
+        // Traverse the "nearest" child first, so that it has more chances
+        // to prune the traversal of the other child.
+        if(dl < dr) {
+            descend(dl, childl, b, m);
+            descend(dr, childr, m, e);
+        } else {
+            descend(dr, childr, m, e);
+            descend(dl, childl, b, m);
+        }
+    }
+
 }
 
 /****************************************************************************/
@@ -285,63 +347,9 @@ namespace floatTetWild {
         index_t& nearest_f, vec3& nearest_point, double& sq_dist,
         index_t n, index_t b, index_t e
     ) const {
-        geo_debug_assert(e > b);
-
-        // If node is a leaf: compute point-facet distance
-        // and replace current if nearer
-        if(b + 1 == e) {
-            vec3 cur_nearest_point;
-            double cur_sq_dist;
-            get_point_facet_nearest_point(
-                mesh_, p, b, cur_nearest_point, cur_sq_dist
-            );
-            if(cur_sq_dist < sq_dist) {
-                nearest_f = b;
-                nearest_point = cur_nearest_point;
-                sq_dist = cur_sq_dist;
-            }
-            return;
-        }
-        index_t m = b + (e - b) / 2;
-        index_t childl = 2 * n;
-        index_t childr = 2 * n + 1;
-
-        double dl = point_box_signed_squared_distance(p, bboxes_[childl]);
-        double dr = point_box_signed_squared_distance(p, bboxes_[childr]);
-
-        // Traverse the "nearest" child first, so that it has more chances
-        // to prune the traversal of the other child.
-        if(dl < dr) {
-            if(dl < sq_dist) {
-                nearest_facet_recursive(
-                    p,
-                    nearest_f, nearest_point, sq_dist,
-                    childl, b, m
-                );
-            }
-            if(dr < sq_dist) {
-                nearest_facet_recursive(
-                    p,
-                    nearest_f, nearest_point, sq_dist,
-                    childr, m, e
-                );
-            }
-        } else {
-            if(dr < sq_dist) {
-                nearest_facet_recursive(
-                    p,
-                    nearest_f, nearest_point, sq_dist,
-                    childr, m, e
-                );
-            }
-            if(dl < sq_dist) {
-                nearest_facet_recursive(
-                    p,
-                    nearest_f, nearest_point, sq_dist,
-                    childl, b, m
-                );
-            }
-        }
+        nearest_recursive<false>(
+            mesh_, bboxes_, p, 0, nearest_f, nearest_point, sq_dist, n, b, e
+        );
     }
 
     void MeshFacetsAABBWithEps::facet_in_envelope_recursive(
@@ -349,67 +357,9 @@ namespace floatTetWild {
         index_t& nearest_f, vec3& nearest_point, double& sq_dist,
         index_t n, index_t b, index_t e
     ) const {
-        geo_debug_assert(e > b);
-
-        if (sq_dist <= sq_epsilon) {
-            return;
-        }
-
-        // If node is a leaf: compute point-facet distance
-        // and replace current if nearer
-        if(b + 1 == e) {
-            vec3 cur_nearest_point;
-            double cur_sq_dist;
-            get_point_facet_nearest_point(
-                mesh_, p, b, cur_nearest_point, cur_sq_dist
-            );
-            if(cur_sq_dist < sq_dist) {
-                nearest_f = b;
-                nearest_point = cur_nearest_point;
-                sq_dist = cur_sq_dist;
-            }
-            return;
-        }
-        index_t m = b + (e - b) / 2;
-        index_t childl = 2 * n;
-        index_t childr = 2 * n + 1;
-
-        double dl = point_box_signed_squared_distance(p, bboxes_[childl]);
-        double dr = point_box_signed_squared_distance(p, bboxes_[childr]);
-
-        // Traverse the "nearest" child first, so that it has more chances
-        // to prune the traversal of the other child.
-        if(dl < dr) {
-            if(dl < sq_dist && dl <= sq_epsilon) {
-                facet_in_envelope_recursive(
-                    p, sq_epsilon,
-                    nearest_f, nearest_point, sq_dist,
-                    childl, b, m
-                );
-            }
-            if(dr < sq_dist && dr <= sq_epsilon) {
-                facet_in_envelope_recursive(
-                    p, sq_epsilon,
-                    nearest_f, nearest_point, sq_dist,
-                    childr, m, e
-                );
-            }
-        } else {
-            if(dr < sq_dist && dr <= sq_epsilon) {
-                facet_in_envelope_recursive(
-                    p, sq_epsilon,
-                    nearest_f, nearest_point, sq_dist,
-                    childr, m, e
-                );
-            }
-            if(dl < sq_dist && dl <= sq_epsilon) {
-                facet_in_envelope_recursive(
-                    p, sq_epsilon,
-                    nearest_f, nearest_point, sq_dist,
-                    childl, b, m
-                );
-            }
-        }
+        nearest_recursive<true>(
+            mesh_, bboxes_, p, sq_epsilon, nearest_f, nearest_point, sq_dist, n, b, e
+        );
     }
 
 

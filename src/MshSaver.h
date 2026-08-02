@@ -36,6 +36,8 @@ class MshSaver {
         void save_elem_scalar_field(const std::string& fieldname, const VectorF& field);
 
     private:
+        void save_field(const char* section, size_t count, const std::string& fieldname, const VectorF& field);
+
         bool m_binary;
         size_t m_num_nodes;
         size_t m_num_elements;

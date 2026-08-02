@@ -266,7 +266,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
             it_after_al_inserted++;
 
         Scalar max_energy, avg_energy;
-        get_max_avg_energy(mesh, max_energy, avg_energy);
+        mesh.get_max_avg_energy(max_energy, avg_energy);
         if (max_energy <= mesh.params.stop_energy && mesh.is_input_all_inserted)
             break;
 
@@ -290,7 +290,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
         }
 
         Scalar new_max_energy, new_avg_energy;
-        get_max_avg_energy(mesh, new_max_energy, new_avg_energy);
+        mesh.get_max_avg_energy(new_max_energy, new_avg_energy);
         if (!is_just_after_update) {
             if (max_energy - new_max_energy < 5e-1 && (avg_energy - new_avg_energy) / avg_energy < 0.1) {
                 is_hit_min_edge_length = update_scaling_field(mesh, new_max_energy) || is_hit_min_edge_length;
@@ -396,12 +396,11 @@ void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int
             if (passes[p].untangle_first)
                 untangle(mesh);
             passes[p].run(mesh, tree);
-            double time = igl_timer.getElapsedTimeInSec();
-            int v_num = mesh.get_v_num();
-            int t_num = mesh.get_t_num();
-            double max_energy, avg_energy;
-            get_max_avg_energy(mesh, max_energy, avg_energy);
-            stats().record(passes[p].id, time, v_num, t_num, max_energy, avg_energy);
+            const double time = igl_timer.getElapsedTimeInSec();
+            Scalar max_energy, avg_energy;
+            mesh.get_max_avg_energy(max_energy, avg_energy);
+            stats().record(passes[p].id, time, mesh.get_v_num(), mesh.get_t_num(),
+                           max_energy, avg_energy);
         }
     }
 }
@@ -697,16 +696,9 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
             const auto &fv2 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 1));
             const auto &fv3 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 2));
             auto nf = geo::cross((fv2 - fv1), (fv3 - fv1));
-            Vector3 n, nt;
+            Vector3 n;
             n << nf[0], nf[1], nf[2];
-            auto &tv1 = mesh.tet_vertices[mesh.tets[t_id][(j + 1) % 4]].pos;
-            auto &tv2 = mesh.tet_vertices[mesh.tets[t_id][(j + 2) % 4]].pos;
-            auto &tv3 = mesh.tet_vertices[mesh.tets[t_id][(j + 3) % 4]].pos;
-            if (Predicates::orient_3d(tv1, tv2, tv3, mesh.tet_vertices[mesh.tets[t_id][j]].pos)
-                == Predicates::ORI_POSITIVE)
-                nt = (tv2 - tv1).cross(tv3 - tv1);
-            else
-                nt = (tv3 - tv1).cross(tv2 - tv1);
+            const Vector3 nt = get_face_normal(mesh, t_id, j);
             if (nt.dot(n) > 0) {
                 t.is_surface_fs[j] = 1;
                 mesh.tets[opp_t_id].is_surface_fs[k] = -1;

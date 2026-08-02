@@ -231,10 +231,9 @@ int main(int argc, char** argv)
     // used to fall inside this window and is now inside tetrahedralization.
     timer.start();
 
+    MatrixXs Vt;
+    MatrixXi Ft;
     if (export_raw) {
-        MatrixXs Vt;
-        MatrixXi Ft;
-
         if (!csg_file.empty()) {
             int max_id = CSGTreeParser::get_max_id(tree_with_ids);
 
@@ -250,8 +249,6 @@ int main(int argc, char** argv)
         MeshIO::write_mesh(out_prefix + "_all.msh", mesh);
     }
 
-    MatrixXs Vt;
-    MatrixXi Ft;
     get_tracked_surface(mesh, Vt, Ft);
     writeOBJ(out_prefix + "_tracked_surface.obj", Vt, Ft);
 

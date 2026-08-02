@@ -134,14 +134,6 @@ namespace geo {
             return attributes_;
         }
 
-        index_range::iterator begin() const {
-            return index_range(0, nb()).begin();
-        }
-
-        index_range::iterator end() const {
-            return index_range(0, nb()).end();
-        }
-
     private:
         friend class MeshFacets;
 

@@ -44,16 +44,10 @@
 
 /* function prototype */
 
-
-
 int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
                                  real p2[3], real q2[3], real r2[3],
                                  int * coplanar,
                                  real source[3],real target[3]);
-
-int sub_sub_cross_sub_dot(real a[3], real b[3], real c[3], real d[3]);
-
-
 
 /* coplanar returns whether the triangles are coplanar
 *  source and target are the endpoints of the segment of
@@ -221,8 +215,8 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
 
 {
     int dp1, dq1, dr1, dp2, dq2, dr2;
-    real v1[3], v2[3], v[3];
-    real N1[3], N2[3], N[3];
+    real v1[3], v2[3];
+    real N1[3], N2[3];
     real alpha;
 
 	SUB(v1,q1,p1)

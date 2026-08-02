@@ -29,33 +29,10 @@ namespace geo {
         }
     }
 
-    inline void parallel(
-        std::function<void()> f1,
-        std::function<void()> f2
-    ) {
-        impl::run_parallel({f1, f2});
-    }
-
-    inline void parallel(
-        std::function<void()> f1,
-        std::function<void()> f2,
-        std::function<void()> f3,
-        std::function<void()> f4
-    ) {
-        impl::run_parallel({f1, f2, f3, f4});
-    }
-
-    inline void parallel(
-        std::function<void()> f1,
-        std::function<void()> f2,
-        std::function<void()> f3,
-        std::function<void()> f4,
-        std::function<void()> f5,
-        std::function<void()> f6,
-        std::function<void()> f7,
-        std::function<void()> f8
-    ) {
-        impl::run_parallel({f1, f2, f3, f4, f5, f6, f7, f8});
+    // Runs the given tasks at once. The spatial sort calls this with 2, 4 and 8 of them.
+    template <typename... F>
+    inline void parallel(F&&... fs) {
+        impl::run_parallel({std::function<void()>(std::forward<F>(fs))...});
     }
 }
 }

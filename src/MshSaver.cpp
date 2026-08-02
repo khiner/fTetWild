@@ -159,12 +159,17 @@ void MshSaver::save_elements(
         int elem_type = type;
         int num_elems = m_num_elements;
         int tags = components.size() > 0 ? 2 : 0;
-        if (!m_binary) {
-            for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
-                int elem_num = i/nodes_per_element + 1;
-                VectorI elem = elements.segment(i, nodes_per_element);
-                for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
+        if (m_binary) {
+            fout.write((char*)&elem_type, sizeof(int));
+            fout.write((char*)&num_elems, sizeof(int));
+            fout.write((char*)&tags, sizeof(int));
+        }
+        for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
+            int elem_num = i/nodes_per_element + 1;
+            VectorI elem = elements.segment(i, nodes_per_element);
+            for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
 
+            if (!m_binary) {
                 fout << elem_num << " " << elem_type << " " << tags << " ";
                 if(components.size() > 0)
                     fout << components[elem_num-1] << " " << components[elem_num-1] << " ";
@@ -173,16 +178,7 @@ void MshSaver::save_elements(
                     fout << elem[j] << " ";
                 }
                 fout << std::endl;
-            }
-        } else {
-            fout.write((char*)&elem_type, sizeof(int));
-            fout.write((char*)&num_elems, sizeof(int));
-            fout.write((char*)&tags, sizeof(int));
-            for (size_t i=0; i<elements.size(); i+=nodes_per_element) {
-                int elem_num = i/nodes_per_element + 1;
-                VectorI elem = elements.segment(i, nodes_per_element);
-                for (size_t j=0; j<nodes_per_element; j++) elem[j] += 1;
-
+            } else {
                 fout.write((char*)&elem_num, sizeof(int));
                 if(components.size() > 0){
                     std::array<int, 2> comps = {{components[elem_num-1], components[elem_num-1]}};
@@ -196,9 +192,11 @@ void MshSaver::save_elements(
     fout.flush();
 }
 
-void MshSaver::save_scalar_field(const std::string& fieldname, const VectorF& field) {
-    assert(field.size() == m_num_nodes);
-    fout << "$NodeData" << std::endl;
+// One value per node or per element, which is the same section apart from its name and length.
+void MshSaver::save_field(const char* section, size_t count,
+                          const std::string& fieldname, const VectorF& field) {
+    assert(field.size() == count);
+    fout << "$" << section << std::endl;
     fout << "1" << std::endl; // num string tags.
     fout << "\"" << fieldname << "\"" << std::endl;
     fout << "1" << std::endl; // num real tags.
@@ -206,52 +204,27 @@ void MshSaver::save_scalar_field(const std::string& fieldname, const VectorF& fi
     fout << "3" << std::endl; // num int tags.
     fout << "0" << std::endl; // the time step
     fout << "1" << std::endl; // 1-component scalar field.
-    fout << m_num_nodes << std::endl; // number of nodes
+    fout << count << std::endl; // number of nodes or elements
 
-    if (m_binary) {
-        for (size_t i=0; i<m_num_nodes; i++) {
-            int node_idx = i+1;
-            fout.write((char*)&node_idx, sizeof(int));
+    for (size_t i=0; i<count; i++) {
+        int idx = i+1;
+        if (m_binary) {
+            fout.write((char*)&idx, sizeof(int));
             fout.write((char*)&field[i], sizeof(Float));
-        }
-    } else {
-        for (size_t i=0; i<m_num_nodes; i++) {
-            int node_idx = i+1;
-            fout << node_idx << " " << field[i] << std::endl;
+        } else {
+            fout << idx << " " << field[i] << std::endl;
         }
     }
-    fout << "$EndNodeData" << std::endl;
+    fout << "$End" << section << std::endl;
     fout.flush();
 }
 
+void MshSaver::save_scalar_field(const std::string& fieldname, const VectorF& field) {
+    save_field("NodeData", m_num_nodes, fieldname, field);
+}
 
 void MshSaver::save_elem_scalar_field(const std::string& fieldname, const VectorF& field) {
-    assert(field.size() == m_num_elements);
-    fout << "$ElementData" << std::endl;
-    fout << 1 << std::endl; // num string tags.
-    fout << "\"" << fieldname << "\"" << std::endl;
-    fout << "1" << std::endl; // num real tags.
-    fout << "0.0" << std::endl; // time value.
-    fout << "3" << std::endl; // num int tags.
-    fout << "0" << std::endl; // the time step
-    fout << "1" << std::endl; // 1-component scalar field.
-    fout << m_num_elements << std::endl; // number of elements
-
-    if (m_binary) {
-        for (size_t i=0; i<m_num_elements; i++) {
-            int elem_idx = i+1;
-            fout.write((char*)&elem_idx, sizeof(int));
-            fout.write((char*)&field[i], sizeof(Float));
-        }
-    } else {
-        for (size_t i=0; i<m_num_elements; i++) {
-            int elem_idx = i+1;
-            fout << elem_idx << " " << field[i] << std::endl;
-        }
-    }
-
-    fout << "$EndElementData" << std::endl;
-    fout.flush();
+    save_field("ElementData", m_num_elements, fieldname, field);
 }
 
 

@@ -202,17 +202,10 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
 
     // quality
     Scalar old_max_quality = 0;
-    if (mesh.is_coarsening) {
+    if (mesh.is_coarsening)
         old_max_quality = mesh.params.stop_energy;
-    }
-    else {
-        if (is_check_quality) {
-            for (int t_id : tet_vertices[v1_id].conn_tets) {
-                if (tets[t_id].quality > old_max_quality)
-                    old_max_quality = tets[t_id].quality;
-            }
-        }
-    }
+    else if (is_check_quality)
+        old_max_quality = get_max_quality(mesh, tet_vertices[v1_id].conn_tets);
     std::vector<Scalar> new_qs;
     new_qs.reserve(tet_vertices[v1_id].conn_tets.size());
     int ii = 0;

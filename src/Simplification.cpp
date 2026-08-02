@@ -36,44 +36,29 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
     swapping(input_vertices, input_faces, tree, params, f_is_removed, conn_fs);
 
     // clean up vs, fs
-    // v
-    std::vector<int> map_v_ids(input_vertices.size(), -1);
-    int              cnt = 0;
+    std::vector<int>     map_v_ids(input_vertices.size(), -1);
+    std::vector<Vector3> new_input_vertices;
+    new_input_vertices.reserve(input_vertices.size());
     for (int i = 0; i < input_vertices.size(); i++) {
         if (v_is_removed[i] || conn_fs[i].empty())
             continue;
-        map_v_ids[i] = cnt;
-        cnt++;
-    }
-
-    std::vector<Vector3> new_input_vertices(cnt);
-    cnt = 0;
-    for (int i = 0; i < input_vertices.size(); i++) {
-        if (v_is_removed[i] || conn_fs[i].empty())
-            continue;
-        new_input_vertices[cnt++] = input_vertices[i];
+        map_v_ids[i] = new_input_vertices.size();
+        new_input_vertices.push_back(input_vertices[i]);
     }
     input_vertices = new_input_vertices;
 
-    // f
-    cnt = 0;
+    std::vector<Vector3i> new_input_faces;
+    std::vector<int>      new_input_tags;
+    new_input_faces.reserve(input_faces.size());
+    new_input_tags.reserve(input_faces.size());
     for (int i = 0; i < input_faces.size(); i++) {
         if (f_is_removed[i])
             continue;
+        Vector3i f;
         for (int j = 0; j < 3; j++)
-            input_faces[i][j] = map_v_ids[input_faces[i][j]];
-        cnt++;
-    }
-
-    std::vector<Vector3i> new_input_faces(cnt);
-    std::vector<int>      new_input_tags(cnt);
-    cnt = 0;
-    for (int i = 0; i < input_faces.size(); i++) {
-        if (f_is_removed[i])
-            continue;
-        new_input_faces[cnt] = input_faces[i];
-        new_input_tags[cnt]  = input_tags[i];
-        cnt++;
+            f[j] = map_v_ids[input_faces[i][j]];
+        new_input_faces.push_back(f);
+        new_input_tags.push_back(input_tags[i]);
     }
     input_faces = new_input_faces;
     input_tags  = new_input_tags;

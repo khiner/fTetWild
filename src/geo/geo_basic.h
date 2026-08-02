@@ -66,28 +66,6 @@ namespace geo {
             return -max_float64();
         }
 
-        inline bool is_nan(float32 x) {
-            return std::isnan(x) || !std::isfinite(x);
-        }
-
-        inline bool is_nan(float64 x) {
-            return std::isnan(x) || !std::isfinite(x);
-        }
-
-        template <class T, bool is_numeric>
-        struct LimitsHelper : std::numeric_limits<T> {
-        };
-
-        template <class T>
-        struct LimitsHelper<T, true> : std::numeric_limits<T> {
-            static const size_t size = sizeof(T);
-            static const size_t numbits = 8 * sizeof(T);
-        };
-
-        template <class T>
-        struct Limits :
-            LimitsHelper<T, std::numeric_limits<T>::is_specialized> {
-        };
 
         /**
          * \brief The random engine that random_int32() draws from.

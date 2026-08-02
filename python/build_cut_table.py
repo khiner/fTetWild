@@ -58,23 +58,23 @@ class CutTable():
         self.create_two_vertex_on_plane_cut(5)
 
         # [0, 1, 3, 5]
-        self.create_three_edges_cut1([1, 3, 5])
-        self.create_three_edges_cut2([0, 3, 5])
-        self.create_three_edges_cut2([0, 1, 5])
-        self.create_three_edges_cut1([0, 1, 3])
+        self.create_three_edges_cut([1, 3, 5], 1)
+        self.create_three_edges_cut([0, 3, 5], 0)
+        self.create_three_edges_cut([0, 1, 5], 0)
+        self.create_three_edges_cut([0, 1, 3], 1)
 
         # [1, 2, 3, 4]
-        self.create_three_edges_cut1([2, 3, 4])
-        self.create_three_edges_cut1([1, 3, 4])
-        self.create_three_edges_cut1([1, 2, 4])
-        self.create_three_edges_cut1([1, 2, 3])
+        self.create_three_edges_cut([2, 3, 4], 1)
+        self.create_three_edges_cut([1, 3, 4], 1)
+        self.create_three_edges_cut([1, 2, 4], 1)
+        self.create_three_edges_cut([1, 2, 3], 1)
 
 
         # [0, 2, 4, 5]
-        self.create_three_edges_cut2([2, 4, 5])
-        self.create_three_edges_cut2([0, 4, 5])
-        self.create_three_edges_cut2([0, 2, 5])
-        self.create_three_edges_cut2([0, 2, 4])
+        self.create_three_edges_cut([2, 4, 5], 0)
+        self.create_three_edges_cut([0, 4, 5], 0)
+        self.create_three_edges_cut([0, 2, 5], 0)
+        self.create_three_edges_cut([0, 2, 4], 0)
 
 
 
@@ -763,7 +763,8 @@ class CutTable():
 
 
 
-    def create_three_edges_cut1(self, edges):
+    # The two orientations differ only in which of the two shared corners is taken as the tip.
+    def create_three_edges_cut(self, edges, tip_index):
         index = self.index_for_edges(edges)
         assert(self.table[index] is None)
 
@@ -809,8 +810,6 @@ class CutTable():
             face1 = face
 
 
-        # print(quad0, quad1)
-        # print(face0, face1)
 
         tmp = [False, False, False, False]
         tmp[face0] = True
@@ -839,184 +838,7 @@ class CutTable():
 
         # fix me tip
         tip = list(set(tri5).intersection(tri4))
-        tip = tip[1]
-
-        tri44 = list(tri4)
-        tri55 = list(tri5)
-        tri44.remove(tip)
-        tri55.remove(tip)
-
-        v1 = -1
-        v2 = -1
-        v3 = -1
-        if tip in e0 and (tri44[0] in e0 or tri44[1] in e0):
-            v1 = 4
-            if tri44[0] in e0:
-                v2 = tri44[0]
-                v3 = tri44[1]
-            else:
-                v2 = tri44[1]
-                v3 = tri44[0]
-        elif tip in e1 and (tri44[0] in e1 or tri44[1] in e1):
-            v1 = 5
-            if tri44[0] in e1:
-                v2 = tri44[0]
-                v3 = tri44[1]
-            else:
-                v2 = tri44[1]
-                v3 = tri44[0]
-        elif tip in e2 and (tri44[0] in e2 or tri44[1] in e2):
-            v1 = 6
-            if tri44[0] in e2:
-                v2 = tri44[0]
-                v3 = tri44[1]
-            else:
-                v2 = tri44[1]
-                v3 = tri44[0]
-        else:
-            assert(False)
-
-        v5 = -1
-        if v3 == tri55[0]:
-            v5 = tri55[1]
-        elif v3 == tri55[1]:
-            v5 = tri55[0]
-
-
-        v4 = -1
-
-        if v3 in e0 and v5 in e0:
-            v4 = 4
-        elif v3 in e1 and v5 in e1:
-            v4 = 5
-        elif v3 in e2 and v5 in e2:
-            v4 = 6
-        else:
-            assert(False)
-
-        v6 = -1
-
-        if v1 + v4 == 9:
-            v6 = 6
-        elif v1 + v4 == 10:
-            v6 = 5
-        elif v1 + v4 == 11:
-            v6 = 4
-        else:
-            assert(False)
-
-        self.add_tet(index, 0, [v3, v1, v6, v2], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 0, [v3, tip, v1, v6], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 0, [v6, tip, v4, v5], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 0, [v4, tip, v3, v6], [p0, p1, p2], [4, 5, 6], edges)
-
-        self.add_edge(index, [[tip, v6], [v6, v3]])
-
-
-
-
-        self.add_tet(index, 1, [v3, v1, v6, v2], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 1, [v1, v6, v5, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 1, [v1, v5, tip, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 1, [v3, v1, v6, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 1, [tip, v3, v1, v4], [p0, p1, p2], [4, 5, 6], edges)
-
-        self.add_edge(index, [[v1, v5], [v6, v3]])
-
-
-
-
-        self.add_tet(index, 2, [v1, v6, v5, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 2, [v1, v5, tip, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 2, [v1, v6, v2, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 2, [v2, v3, v4, tip], [p0, p1, p2], [4, 5, 6], edges)
-
-        self.add_edge(index, [[v1, v5], [v4, v2]])
-
-
-
-        self.add_tet(index, 3, [v1, v6, v2, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 3, [v2, v3, v4, tip], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 3, [v1, v6, tip, v4], [p0, p1, p2], [4, 5, 6], edges)
-        self.add_tet(index, 3, [tip, v6, v4, v5], [p0, p1, p2], [4, 5, 6], edges)
-
-        self.add_edge(index, [[tip, v6], [v4, v2]])
-
-
-    def create_three_edges_cut2(self, edges):
-        index = self.index_for_edges(edges)
-        assert(self.table[index] is None)
-
-
-        e0 = self.edges[edges[0], :]
-        e1 = self.edges[edges[1], :]
-        e2 = self.edges[edges[2], :]
-
-        quad0 = []
-        tri0 = []
-        quad1 = []
-        tri1 = []
-
-        tri4 = []
-        tri5 = []
-
-        face0 = -1
-        face1 = -1
-
-        quad, tri, face = self.get_quad(e0, e1, 4, 5)
-        if len(quad) > 0:
-            quad0 = quad
-            tri0 = tri
-            face0 = face
-
-        quad, tri, face = self.get_quad(e0, e2, 4, 6)
-        if len(quad) > 0:
-            if len(quad0) > 0:
-                assert(len(quad1) <= 0)
-                quad1 = quad
-                tri1 = tri
-                face1 = face
-            else:
-                quad0 = quad
-                tri0 = tri
-                face0 = face
-
-        quad, tri, face = self.get_quad(e1, e2, 5, 6)
-        if len(quad) > 0:
-            assert(len(quad0) > 0)
-            assert(len(quad1) <= 0)
-            quad1 = quad
-            tri1 = tri
-            face1 = face
-
-        tmp = [False, False, False, False]
-        tmp[face0] = True
-        tmp[face1] = True
-
-        for i in range(len(tmp)):
-            if not tmp[i]:
-                if len(tri4) <= 0:
-                    tri4 = self.tet[i].copy()
-                    assert(len(tri5) <= 0)
-                elif len(tri5) <= 0:
-                    assert(len(tri4) > 0)
-                    assert(len(tri5) <= 0)
-                    tri5 = self.tet[i].copy()
-
-        p0 = (self.vertices[e0[0], :]+self.vertices[e0[1], :]) / 2
-        p1 = (self.vertices[e1[0], :]+self.vertices[e1[1], :]) / 2
-        p2 = (self.vertices[e2[0], :]+self.vertices[e2[1], :]) / 2
-
-
-        self.new_points[index] = []
-
-
-        q00 = list(set(quad0).intersection(tri4).intersection(tri5))[0]
-        q10 = list(set(quad1).intersection(tri4).intersection(tri5))[0]
-
-        # fix me tip
-        tip = list(set(tri5).intersection(tri4))
-        tip = tip[0]
+        tip = tip[tip_index]
 
         tri44 = list(tri4)
         tri55 = list(tri5)

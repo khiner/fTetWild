@@ -1,3 +1,8 @@
+// Trimmed to the slice fTetWild reaches: the entry points are UT_SolidAngle::init and
+// ::computeSolidAngle, called from fast_winding_number.h. UT_SubtendedAngle, which computes
+// angles subtended by 2D curves, and the unreached parts of the supporting containers, SIMD
+// wrappers and BVH are gone, so the header no longer matches the amalgamation command below
+// or the README text that follows it. Everything kept is unmodified.
 // This header created by issuing: `echo "// This header created by issuing: \`$BASH_COMMAND\` $(echo "" | cat - LICENSE README.md | sed -e "s#^..*#\/\/ &#") $(echo "" | cat - SYS_Types.h SYS_Math.h VM_SSEFunc.h VM_SIMDFunc.h VM_SIMD.h UT_Array.h UT_ArrayImpl.h UT_SmallArray.h UT_FixedVector.h UT_ParallelUtil.h UT_BVH.h UT_BVHImpl.h UT_SolidAngle.h UT_Array.cpp UT_SolidAngle.cpp | sed -e "s/^#.*include  *\".*$//g")" > ~/Repos/libigl/include/igl/FastWindingNumberForSoups.h` 
 // MIT License
 
@@ -92,10 +97,6 @@ namespace floatTetWild {
 /*
  * Integer types
  */
-typedef signed char	int8;
-typedef	unsigned char	uint8;
-typedef short		int16;
-typedef unsigned short	uint16;
 typedef	int		int32;
 typedef unsigned int	uint32;
 
@@ -144,59 +145,9 @@ typedef float   fpreal32;
 typedef double  fpreal64;
 
 /// SYS_FPRealUnionT for type-safe casting with integral types
-template <typename T>
-union SYS_FPRealUnionT;
 
-template <>
-union SYS_FPRealUnionT<fpreal32>
-{
-    typedef int32	int_type;
-    typedef uint32	uint_type;
-    typedef fpreal32	fpreal_type;
 
-    enum {
-	EXPONENT_BITS = 8,
-	MANTISSA_BITS = 23,
-	EXPONENT_BIAS = 127 };
 
-    int_type		ival;
-    uint_type		uval;
-    fpreal_type		fval;
-    
-    struct
-    {
-	uint_type mantissa_val: 23;
-	uint_type exponent_val: 8;
-	uint_type sign_val: 1;
-    };
-};
-
-template <>
-union SYS_FPRealUnionT<fpreal64>
-{
-    typedef int64	int_type;
-    typedef uint64	uint_type;
-    typedef fpreal64	fpreal_type;
-
-    enum {
-	EXPONENT_BITS = 11,
-	MANTISSA_BITS = 52,
-	EXPONENT_BIAS = 1023 };
-
-    int_type		ival;
-    uint_type		uval;
-    fpreal_type		fval;
-    
-    struct
-    {
-	uint_type mantissa_val: 52;
-	uint_type exponent_val: 11;
-	uint_type sign_val: 1;
-    };
-};
-
-typedef union SYS_FPRealUnionT<fpreal32>    SYS_FPRealUnionF;
-typedef union SYS_FPRealUnionT<fpreal64>    SYS_FPRealUnionD;
 
 /// Asserts are disabled
 /// @{
@@ -257,28 +208,7 @@ namespace floatTetWild {
 // DO NOT CHANGE THE ABOVE WITHOUT READING THE COMMENT
 #define h_abs(a)	(((a) > 0) ? (a) : -(a))
 
-static constexpr inline  int16 SYSmin(int16 a, int16 b)		{ return h_min(a,b); }
-static constexpr inline  int16 SYSmax(int16 a, int16 b)		{ return h_max(a,b); }
-static constexpr inline  int16 SYSabs(int16 a)			{ return h_abs(a); }
-static constexpr inline  int32 SYSmin(int32 a, int32 b)		{ return h_min(a,b); }
-static constexpr inline  int32 SYSmax(int32 a, int32 b)		{ return h_max(a,b); }
-static constexpr inline  int32 SYSabs(int32 a)			{ return h_abs(a); }
-static constexpr inline  int64 SYSmin(int64 a, int64 b)		{ return h_min(a,b); }
-static constexpr inline  int64 SYSmax(int64 a, int64 b)		{ return h_max(a,b); }
-static constexpr inline  int64 SYSmin(int32 a, int64 b)		{ return h_min(a,b); }
-static constexpr inline  int64 SYSmax(int32 a, int64 b)		{ return h_max(a,b); }
-static constexpr inline  int64 SYSmin(int64 a, int32 b)		{ return h_min(a,b); }
-static constexpr inline  int64 SYSmax(int64 a, int32 b)		{ return h_max(a,b); }
-static constexpr inline  int64 SYSabs(int64 a)			{ return h_abs(a); }
-static constexpr inline uint16 SYSmin(uint16 a, uint16 b)		{ return h_min(a,b); }
-static constexpr inline uint16 SYSmax(uint16 a, uint16 b)		{ return h_max(a,b); }
 static constexpr inline uint32 SYSmin(uint32 a, uint32 b)		{ return h_min(a,b); }
-static constexpr inline uint32 SYSmax(uint32 a, uint32 b)		{ return h_max(a,b); }
-static constexpr inline uint64 SYSmin(uint64 a, uint64 b)		{ return h_min(a,b); }
-static constexpr inline uint64 SYSmax(uint64 a, uint64 b)		{ return h_max(a,b); }
-static constexpr inline fpreal32 SYSmin(fpreal32 a, fpreal32 b)	{ return h_min(a,b); }
-static constexpr inline fpreal32 SYSmax(fpreal32 a, fpreal32 b)	{ return h_max(a,b); }
-static constexpr inline fpreal64 SYSmin(fpreal64 a, fpreal64 b)	{ return h_min(a,b); }
 static constexpr inline fpreal64 SYSmax(fpreal64 a, fpreal64 b)	{ return h_max(a,b); }
 
 // Some systems have size_t as a seperate type from uint.  Some don't.
@@ -298,39 +228,18 @@ static constexpr inline size_t SYSmax(size_t a, size_t b)		{ return h_max(a,b); 
     SYSclamp(int v, int min, int max)
 	{ return h_clamp(v, min, max, 0); }
 
-    static constexpr inline uint
-    SYSclamp(uint v, uint min, uint max)
-	{ return h_clamp(v, min, max, 0); }
 
-    static constexpr inline int64
-    SYSclamp(int64 v, int64 min, int64 max)
-	{ return h_clamp(v, min, max, int64(0)); }
 
-    static constexpr inline uint64
-    SYSclamp(uint64 v, uint64 min, uint64 max)
-	{ return h_clamp(v, min, max, uint64(0)); }
 
-    static constexpr inline fpreal32
-    SYSclamp(fpreal32 v, fpreal32 min, fpreal32 max, fpreal32 tol=(fpreal32)0)
-	{ return h_clamp(v, min, max, tol); }
 
-    static constexpr inline fpreal64
-    SYSclamp(fpreal64 v, fpreal64 min, fpreal64 max, fpreal64 tol=(fpreal64)0)
-	{ return h_clamp(v, min, max, tol); }
 
 #undef h_clamp
 
-static inline fpreal64 SYSsqrt(fpreal64 arg)
-{ return ::sqrt(arg); }
 static inline fpreal32 SYSsqrt(fpreal32 arg)
 { return ::sqrtf(arg); }
-static inline fpreal64 SYSatan2(fpreal64 a, fpreal64 b)
-{ return ::atan2(a, b); }
 static inline fpreal32 SYSatan2(fpreal32 a, fpreal32 b)
 { return ::atan2(a, b); }
 
-static inline fpreal32 SYSabs(fpreal32 a) { return ::fabsf(a); }
-static inline fpreal64 SYSabs(fpreal64 a) { return ::fabs(a); }
 
 }}
 
@@ -1186,84 +1095,34 @@ namespace floatTetWild {
   /// @private
   namespace FastWindingNumber {
 
-class v4uf;
 
 class v4uu {
 public:
     SYS_FORCE_INLINE v4uu() {}
     SYS_FORCE_INLINE v4uu(const v4si &v) : vector(v) {}
-    SYS_FORCE_INLINE v4uu(const v4uu &v) : vector(v.vector) {}
     explicit SYS_FORCE_INLINE v4uu(int32 v) { vector = VM_SPLATS(v); }
-    explicit SYS_FORCE_INLINE v4uu(const int32 v[4])
-    { vector = VM_LOAD(v); }
-    SYS_FORCE_INLINE v4uu(int32 a, int32 b, int32 c, int32 d)
-    { vector = VM_SPLATS(a, b, c, d); }
 
     // Assignment
-    SYS_FORCE_INLINE v4uu operator=(int32 v)
-    { vector = v4uu(v).vector; return *this; }
-    SYS_FORCE_INLINE v4uu operator=(v4si v)
-    { vector = v; return *this; }
-    SYS_FORCE_INLINE v4uu operator=(const v4uu &v)
-    { vector = v.vector; return *this; }
 
-    SYS_FORCE_INLINE void condAssign(const v4uu &val, const v4uu &c)
-    { *this = (c & val) | ((!c) & *this); }
 
     // Comparison
-    SYS_FORCE_INLINE v4uu operator == (const v4uu &v) const
-    { return v4uu(VM_ICMPEQ(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator != (const v4uu &v) const
-    { return ~(*this == v); }
-    SYS_FORCE_INLINE v4uu operator >  (const v4uu &v) const
-    { return v4uu(VM_ICMPGT(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator <  (const v4uu &v) const
-    { return v4uu(VM_ICMPLT(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator >= (const v4uu &v) const
-    { return ~(*this < v); }
-    SYS_FORCE_INLINE v4uu operator <= (const v4uu &v) const
-    { return ~(*this > v); }
 
-    SYS_FORCE_INLINE v4uu operator == (int32 v) const { return *this == v4uu(v); }
-    SYS_FORCE_INLINE v4uu operator != (int32 v) const { return *this != v4uu(v); }
-    SYS_FORCE_INLINE v4uu operator >  (int32 v) const { return *this > v4uu(v); }
-    SYS_FORCE_INLINE v4uu operator <  (int32 v) const { return *this < v4uu(v); }
-    SYS_FORCE_INLINE v4uu operator >= (int32 v) const { return *this >= v4uu(v); }
-    SYS_FORCE_INLINE v4uu operator <= (int32 v) const { return *this <= v4uu(v); }
 
     // Basic math
-    SYS_FORCE_INLINE v4uu operator+(const v4uu &r) const
-    { return v4uu(VM_IADD(vector, r.vector)); }
-    SYS_FORCE_INLINE v4uu operator-(const v4uu &r) const
-    { return v4uu(VM_ISUB(vector, r.vector)); }
-    SYS_FORCE_INLINE v4uu operator+=(const v4uu &r) { return (*this = *this + r); }
-    SYS_FORCE_INLINE v4uu operator-=(const v4uu &r) { return (*this = *this - r); }
-    SYS_FORCE_INLINE v4uu operator+(int32 r) const { return *this + v4uu(r); }
-    SYS_FORCE_INLINE v4uu operator-(int32 r) const { return *this - v4uu(r); }
-    SYS_FORCE_INLINE v4uu operator+=(int32 r) { return (*this = *this + r); }
-    SYS_FORCE_INLINE v4uu operator-=(int32 r) { return (*this = *this - r); }
 
     // logical/bitwise
 
-    SYS_FORCE_INLINE v4uu operator||(const v4uu &r) const
-    { return v4uu(VM_OR(vector, r.vector)); }
     SYS_FORCE_INLINE v4uu operator&&(const v4uu &r) const
     { return v4uu(VM_AND(vector, r.vector)); }
     SYS_FORCE_INLINE v4uu operator^(const v4uu &r) const
     { return v4uu(VM_XOR(vector, r.vector)); }
-    SYS_FORCE_INLINE v4uu operator!() const
-    { return *this == v4uu(0); }
 
-    SYS_FORCE_INLINE v4uu operator|(const v4uu &r) const { return *this || r; }
     SYS_FORCE_INLINE v4uu operator&(const v4uu &r) const { return *this && r; }
     SYS_FORCE_INLINE v4uu operator~() const
     { return *this ^ v4uu(0xFFFFFFFF); }
 
     // component
-    SYS_FORCE_INLINE int32 operator[](int idx) const { return VM_EXTRACT(vector, idx); }
-    SYS_FORCE_INLINE void setComp(int idx, int32 v) { vector = VM_INSERT(vector, v, idx); }
 
-    v4uf toFloat() const;
 
 public:
     v4si vector;
@@ -1273,44 +1132,15 @@ class v4uf {
 public:
     SYS_FORCE_INLINE v4uf() {}
     SYS_FORCE_INLINE v4uf(const v4sf &v) : vector(v) {}
-    SYS_FORCE_INLINE v4uf(const v4uf &v) : vector(v.vector) {}
     explicit SYS_FORCE_INLINE v4uf(float v) { vector = VM_SPLATS(v); }
-    explicit SYS_FORCE_INLINE v4uf(const float v[4])
-    { vector = VM_LOAD(v); }
-    SYS_FORCE_INLINE v4uf(float a, float b, float c, float d)
-    { vector = VM_SPLATS(a, b, c, d); }
 
     // Assignment
-    SYS_FORCE_INLINE v4uf operator=(float v)
-    { vector = v4uf(v).vector; return *this; }
-    SYS_FORCE_INLINE v4uf operator=(v4sf v)
-    { vector = v; return *this; }
-    SYS_FORCE_INLINE v4uf operator=(const v4uf &v)
-    { vector = v.vector; return *this; }
 
-    SYS_FORCE_INLINE void condAssign(const v4uf &val, const v4uu &c)
-    { *this = (val & c) | (*this & ~c); }
 
     // Comparison
-    SYS_FORCE_INLINE v4uu operator == (const v4uf &v) const
-    { return v4uu(VM_CMPEQ(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator != (const v4uf &v) const
-    { return v4uu(VM_CMPNE(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator >  (const v4uf &v) const
-    { return v4uu(VM_CMPGT(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator <  (const v4uf &v) const
-    { return v4uu(VM_CMPLT(vector, v.vector)); }
-    SYS_FORCE_INLINE v4uu operator >= (const v4uf &v) const
-    { return v4uu(VM_CMPGE(vector, v.vector)); }
     SYS_FORCE_INLINE v4uu operator <= (const v4uf &v) const
     { return v4uu(VM_CMPLE(vector, v.vector)); }
 
-    SYS_FORCE_INLINE v4uu operator == (float v) const { return *this == v4uf(v); }
-    SYS_FORCE_INLINE v4uu operator != (float v) const { return *this != v4uf(v); }
-    SYS_FORCE_INLINE v4uu operator >  (float v) const { return *this > v4uf(v); }
-    SYS_FORCE_INLINE v4uu operator <  (float v) const { return *this < v4uf(v); }
-    SYS_FORCE_INLINE v4uu operator >= (float v) const { return *this >= v4uf(v); }
-    SYS_FORCE_INLINE v4uu operator <= (float v) const { return *this <= v4uf(v); }
 
 
     // Basic math
@@ -1328,77 +1158,28 @@ public:
     SYS_FORCE_INLINE v4uf operator+=(const v4uf &r) { return (*this = *this + r); }
     SYS_FORCE_INLINE v4uf operator-=(const v4uf &r) { return (*this = *this - r); }
     SYS_FORCE_INLINE v4uf operator*=(const v4uf &r) { return (*this = *this * r); }
-    SYS_FORCE_INLINE v4uf operator/=(const v4uf &r) { return (*this = *this / r); }
 
-    SYS_FORCE_INLINE v4uf operator+(float r) const { return *this + v4uf(r); }
-    SYS_FORCE_INLINE v4uf operator-(float r) const { return *this - v4uf(r); }
     SYS_FORCE_INLINE v4uf operator*(float r) const { return *this * v4uf(r); }
-    SYS_FORCE_INLINE v4uf operator/(float r) const { return *this / v4uf(r); }
-    SYS_FORCE_INLINE v4uf operator+=(float r) { return (*this = *this + r); }
-    SYS_FORCE_INLINE v4uf operator-=(float r) { return (*this = *this - r); }
-    SYS_FORCE_INLINE v4uf operator*=(float r) { return (*this = *this * r); }
-    SYS_FORCE_INLINE v4uf operator/=(float r) { return (*this = *this / r); }
 
     // logical/bitwise
 
-    SYS_FORCE_INLINE v4uf operator||(const v4uu &r) const
-    { return v4uf(V4SF(VM_OR(V4SI(vector), r.vector))); }
     SYS_FORCE_INLINE v4uf operator&&(const v4uu &r) const
     { return v4uf(V4SF(VM_AND(V4SI(vector), r.vector))); }
-    SYS_FORCE_INLINE v4uf operator^(const v4uu &r) const
-    { return v4uf(V4SF(VM_XOR(V4SI(vector), r.vector))); }
-    SYS_FORCE_INLINE v4uf operator!() const
-    { return v4uf(V4SF((*this == v4uf(0.0F)).vector)); }
 
-    SYS_FORCE_INLINE v4uf operator||(const v4uf &r) const
-    { return v4uf(V4SF(VM_OR(V4SI(vector), V4SI(r.vector)))); }
-    SYS_FORCE_INLINE v4uf operator&&(const v4uf &r) const
-    { return v4uf(V4SF(VM_AND(V4SI(vector), V4SI(r.vector)))); }
-    SYS_FORCE_INLINE v4uf operator^(const v4uf &r) const
-    { return v4uf(V4SF(VM_XOR(V4SI(vector), V4SI(r.vector)))); }
 
-    SYS_FORCE_INLINE v4uf operator|(const v4uu &r) const { return *this || r; }
     SYS_FORCE_INLINE v4uf operator&(const v4uu &r) const { return *this && r; }
-    SYS_FORCE_INLINE v4uf operator~() const
-    { return *this ^ v4uu(0xFFFFFFFF); }
 
-    SYS_FORCE_INLINE v4uf operator|(const v4uf &r) const { return *this || r; }
-    SYS_FORCE_INLINE v4uf operator&(const v4uf &r) const { return *this && r; }
 
     // component
     SYS_FORCE_INLINE float operator[](int idx) const { return VM_EXTRACT(vector, idx); }
-    SYS_FORCE_INLINE void setComp(int idx, float v) { vector = VM_INSERT(vector, v, idx); }
 
     // more math
-    SYS_FORCE_INLINE v4uf abs() const { return v4uf(VM_ABS(vector)); }
-    SYS_FORCE_INLINE v4uf clamp(const v4uf &low, const v4uf &high) const
-    { return v4uf(
-        VM_MIN(VM_MAX(vector, low.vector), high.vector)); }
-    SYS_FORCE_INLINE v4uf clamp(float low, float high) const
-    { return v4uf(VM_MIN(VM_MAX(vector,
-        v4uf(low).vector), v4uf(high).vector)); }
-    SYS_FORCE_INLINE v4uf recip() const { return v4uf(VM_INVERT(vector)); }
 
     /// This is a lie, it is a signed int.
-    SYS_FORCE_INLINE v4uu toUnsignedInt() const { return VM_INT(vector); }
-    SYS_FORCE_INLINE v4uu toSignedInt() const { return VM_INT(vector); }
 
-    v4uu floor() const
-    {
-        VM_P_FLOOR();
-        v4uu result = VM_FLOOR(vector);
-        VM_E_FLOOR();
-        return result;
-    }
 
     /// Returns the integer part of this float, this becomes the
     /// 0..1 fractional component.
-    v4uu splitFloat()
-    {
-        v4uu base = toSignedInt();
-        *this -= base.toFloat();
-        return base;
-    }
 
 #ifdef __SSE__
     template <int A, int B, int C, int D>
@@ -1419,11 +1200,6 @@ public:
     v4sf vector;
 };
 
-SYS_FORCE_INLINE v4uf
-v4uu::toFloat() const
-{
-    return v4uf(VM_IFLOAT(vector));
-}
 
 //
 // Custom vector operations
@@ -1435,163 +1211,36 @@ sqrt(const v4uf &a)
     return v4uf(VM_SQRT(a.vector));
 }
 
-static SYS_FORCE_INLINE v4uf
-fabs(const v4uf &a)
-{
-    return a.abs();
-}
 
 // Use this operation to mask disabled values to 0
 // rval = !a ? b : 0;
 
-static SYS_FORCE_INLINE v4uf
-andn(const v4uu &a, const v4uf &b)
-{
-    return v4uf(V4SF(VM_ANDNOT(a.vector, V4SI(b.vector))));
-}
 
-static SYS_FORCE_INLINE v4uu
-andn(const v4uu &a, const v4uu &b)
-{
-    return v4uu(VM_ANDNOT(a.vector, b.vector));
-}
 
 // rval = a ? b : c;
-static SYS_FORCE_INLINE v4uf
-ternary(const v4uu &a, const v4uf &b, const v4uf &c)
-{
-    return (b & a) | andn(a, c);
-}
 
-static SYS_FORCE_INLINE v4uu
-ternary(const v4uu &a, const v4uu &b, const v4uu &c)
-{
-    return (b & a) | andn(a, c);
-}
 
 // rval = !(a && b)
-static SYS_FORCE_INLINE v4uu
-nand(const v4uu &a, const v4uu &b)
-{
-    return !v4uu(VM_AND(a.vector, b.vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-vmin(const v4uf &a, const v4uf &b)
-{
-    return v4uf(VM_MIN(a.vector, b.vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-vmax(const v4uf &a, const v4uf &b)
-{
-    return v4uf(VM_MAX(a.vector, b.vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-clamp(const v4uf &a, const v4uf &b, const v4uf &c)
-{
-    return vmax(vmin(a, c), b);
-}
 
-static SYS_FORCE_INLINE v4uf
-clamp(const v4uf &a, float b, float c)
-{
-    return vmax(vmin(a, v4uf(c)), v4uf(b));
-}
 
-static SYS_FORCE_INLINE bool
-allbits(const v4uu &a)
-{
-    return vm_allbits(a.vector);
-}
 
-static SYS_FORCE_INLINE bool
-anybits(const v4uu &a)
-{
-    return !allbits(~a);
-}
 
-static SYS_FORCE_INLINE v4uf
-madd(const v4uf &v, const v4uf &f, const v4uf &a)
-{
-    return v4uf(VM_MADD(v.vector, f.vector, a.vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-madd(const v4uf &v, float f, float a)
-{
-    return v4uf(VM_MADD(v.vector, v4uf(f).vector, v4uf(a).vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-madd(const v4uf &v, float f, const v4uf &a)
-{
-    return v4uf(VM_MADD(v.vector, v4uf(f).vector, a.vector));
-}
 
-static SYS_FORCE_INLINE v4uf
-msub(const v4uf &v, const v4uf &f, const v4uf &s)
-{
-    return madd(v, f, -s);
-}
 
-static SYS_FORCE_INLINE v4uf
-msub(const v4uf &v, float f, float s)
-{
-    return madd(v, f, -s);
-}
 
-static SYS_FORCE_INLINE v4uf
-lerp(const v4uf &a, const v4uf &b, const v4uf &w)
-{
-    v4uf w1 = v4uf(1.0F) - w;
-    return madd(a, w1, b*w);
-}
 
-static SYS_FORCE_INLINE v4uf
-luminance(const v4uf &r, const v4uf &g, const v4uf &b,
-    float rw, float gw, float bw)
-{
-    return v4uf(madd(r, v4uf(rw), madd(g, v4uf(gw), b * bw)));
-}
 
-static SYS_FORCE_INLINE float
-dot3(const v4uf &a, const v4uf &b)
-{
-    v4uf res = a*b;
-    return res[0] + res[1] + res[2];
-}
 
-static SYS_FORCE_INLINE float
-dot4(const v4uf &a, const v4uf &b)
-{
-    v4uf res = a*b;
-    return res[0] + res[1] + res[2] + res[3];
-}
 
-static SYS_FORCE_INLINE float
-length(const v4uf &a)
-{
-    return SYSsqrt(dot3(a, a));
-}
 
-static SYS_FORCE_INLINE v4uf
-normalize(const v4uf &a)
-{
-    return a / length(a);
-}
 
-static SYS_FORCE_INLINE v4uf
-cross(const v4uf &a, const v4uf &b)
-{
-    return v4uf(a[1]*b[2] - a[2]*b[1],
-        a[2]*b[0] - a[0]*b[2],
-        a[0]*b[1] - a[1]*b[0], 0);
-}
 
 // Currently there is no specific support for signed integers
-typedef v4uu v4ui;
 
 // Assuming that ptr is an array of elements of type STYPE, this operation
 // will return the index of the first element that is aligned to (1<<ASIZE)
@@ -1688,7 +1337,6 @@ class UT_Array
 public:
     typedef T value_type;
 
-    typedef int (*Comparator)(const T *, const T *);
 
     /// Copy constructor. It duplicates the data.
     /// It's marked explicit so that it's not accidentally passed by value.
@@ -1698,21 +1346,10 @@ public:
     /// and it really does need to copy instead of referencing,
     /// you can rewrite it as:
     /// UT_Array<int> a(otherarray);
-    inline explicit UT_Array(const UT_Array<T> &a);
     
     /// Move constructor. Steals the working data from the original.
-    inline UT_Array(UT_Array<T> &&a) noexcept;
     
     /// Construct based on given capacity and size
-    UT_Array(exint capacity, exint size)
-    {
-        myData = capacity ? allocateCapacity(capacity) : NULL;
-        if (capacity < size)
-            size = capacity;
-        mySize = size;
-        myCapacity = capacity;
-        trivialConstructRange(myData, mySize);
-    }
 
     /// Construct based on given capacity with a size of 0
     explicit UT_Array(exint capacity = 0) : myCapacity(capacity), mySize(0)
@@ -1721,11 +1358,9 @@ public:
     }
 
     /// Construct with the contents of an initializer list
-    inline explicit UT_Array(std::initializer_list<T> init);
 
     inline ~UT_Array();
 
-    inline void	    swap(UT_Array<T> &other);
 
     /// Append an element to the current elements and return its index in the
     /// array, or insert the element at a specified position; if necessary,
@@ -1738,16 +1373,7 @@ public:
     /// Use the subscript operators instead of insert() if you are appending
     /// to the array, or if  you don't mind overwriting the element already 
     /// inserted at the given index.
-    exint           append(void) { return insert(mySize); }
     exint           append(const T &t) { return appendImpl(t); }
-    exint           append(T &&t) { return appendImpl(std::move(t)); }
-    inline void            append(const T *pt, exint count);
-    inline void	    appendMultiple(const T &t, exint count);
-    inline exint	    insert(exint index);
-    exint	    insert(const T &t, exint i)
-                        { return insertImpl(t, i); }
-    exint	    insert(T &&t, exint i)
-                        { return insertImpl(std::move(t), i); }
 
     /// Adds a new element to the array (resizing if necessary) and forwards
     /// the given arguments to T's constructor.
@@ -1755,76 +1381,44 @@ public:
     /// elements in the array. Checking for and handling such cases would
     /// remove most of the performance gain versus append(T(...)). Debug builds
     /// will assert that the arguments are valid.
-    template <typename... S>
-    inline exint	    emplace_back(S&&... s);
 
     /// Takes another T array and concatenate it onto my end
-    inline exint	    concat(const UT_Array<T> &a);
 
     /// Insert an element "count" times at the given index. Return the index.
-    inline exint	    multipleInsert(exint index, exint count);
 
     /// An alias for unique element insertion at a certain index. Also used by
     /// the other insertion methods.
-    exint	    insertAt(const T &t, exint index)
-                        { return insertImpl(t, index); }
 
     /// Return true if given index is valid.
-    bool	    isValidIndex(exint index) const
-			{ return (index >= 0 && index < mySize); }
 
     /// Remove one element from the array given its
     /// position in the list, and fill the gap by shifting the elements down
     /// by one position.  Return the index of the element removed or -1 if
     /// the index was out of bounds.
-    exint	    removeIndex(exint index)
-    {
-        return isValidIndex(index) ? removeAt(index) : -1;
-    }
-    void	    removeLast()
-    {
-        if (mySize) removeAt(mySize-1);
-    }
 
     /// Remove the range [begin_i,end_i) of elements from the array.
-    inline void	    removeRange(exint begin_i, exint end_i);
 
     /// Remove the range [begin_i, end_i) of elements from this array and place
     /// them in the dest array, shrinking/growing the dest array as necessary.
-    inline void            extractRange(exint begin_i, exint end_i,
-                                 UT_Array<T>& dest);
 
     /// Removes all matching elements from the list, shuffling down and changing
     /// the size appropriately.
     /// Returns the number of elements left.
-    template <typename IsEqual>
-    inline exint	    removeIf(IsEqual is_equal);
 
     /// Remove all matching elements. Also sets the capacity of the array.
-    template <typename IsEqual>
-    void	    collapseIf(IsEqual is_equal)
-    {
-        removeIf(is_equal);
-        setCapacity(size());
-    }
 
     /// Move howMany objects starting at index srcIndex to destIndex;
     /// This method will remove the elements at [srcIdx, srcIdx+howMany) and
     /// then insert them at destIdx.  This method can be used in place of
     /// the old shift() operation.
-    inline void	    move(exint srcIdx, exint destIdx, exint howMany);
 
     /// Cyclically shifts the entire array by howMany
-    inline void	    cycle(exint howMany);
 
     /// Quickly set the array to a single value.
-    inline void	    constant(const T &v);
     /// Zeros the array if a POD type, else trivial constructs if a class type.
-    inline void	    zero();
 
     /// The fastest search possible, which does pointer arithmetic to find the
     /// index of the element. WARNING: index() does no out-of-bounds checking.
-    exint	    index(const T &t) const { return &t - myData; }
     exint	    safeIndex(const T &t) const
     {
         return (&t >= myData && &t < (myData + mySize))
@@ -1860,17 +1454,8 @@ public:
     /// expanding either not at all or by at least a constant factor
     /// of the array's previous capacity,
     /// then set the size to newsize.
-    void            bumpSize(exint newsize)
-    {
-        bumpCapacity(newsize);
-        setSize(newsize);
-    }
     /// NOTE: bumpEntries() will be deprecated in favour of bumpSize() in a
     ///       future version.
-    void            bumpEntries(exint newsize)
-    {
-        bumpSize(newsize);
-    }
 
     /// Query the capacity, i.e. the allocated length of the array.
     /// NOTE: capacity() >= size().
@@ -1879,9 +1464,7 @@ public:
     /// NOTE: capacity() >= size().
     exint           size() const     { return mySize; }
     /// Alias of size().  size() is preferred.
-    exint           entries() const  { return mySize; }
     /// Returns true iff there are no occupied elements in the array.
-    bool            isEmpty() const  { return mySize==0; }
 
     /// Set the size, the number of occupied elements in the array.
     /// NOTE: This will not do bumpCapacity, so if you call this
@@ -1901,10 +1484,6 @@ public:
         mySize = newsize;
     }
     /// Alias of setSize().  setSize() is preferred.
-    void            entries(exint newsize)
-    {
-        setSize(newsize);
-    }
     /// Set the size, but unlike setSize(newsize), this function
     /// will not initialize new POD elements to zero. Non-POD data types
     /// will still have their constructors called.
@@ -1925,53 +1504,27 @@ public:
     }
 
     /// Decreases, but never expands, to the given maxsize.
-    void            truncate(exint maxsize)
-    {
-        if (maxsize >= 0 && size() > maxsize)
-            setSize(maxsize);
-    }
     /// Resets list to an empty list.
-    void            clear() {
-        // Don't call setSize(0) since that would require a valid default
-        // constructor.
-        trivialDestructRange(myData, mySize);
-        mySize = 0;
-    }
 
     /// Assign array a to this array by copying each of a's elements with
     /// memcpy for POD types, and with copy construction for class types.
-    inline UT_Array<T> &   operator=(const UT_Array<T> &a);
 
     /// Replace the contents with those from the initializer_list ilist
-    inline UT_Array<T> &   operator=(std::initializer_list<T> ilist);
 
     /// Move the contents of array a to this array. 
-    inline UT_Array<T> &   operator=(UT_Array<T> &&a);
 
     /// Compare two array and return true if they are equal and false otherwise.
     /// Two elements are checked against each other using operator '==' or
     /// compare() respectively.
     /// NOTE: The capacities of the arrays are not checked when
     ///       determining whether they are equal.
-    inline bool            operator==(const UT_Array<T> &a) const;
-    inline bool            operator!=(const UT_Array<T> &a) const;
      
     /// Subscript operator
     /// NOTE: This does NOT do any bounds checking unless paranoid
     ///       asserts are enabled.
-    T &		    operator()(exint i)
-    {
-        UT_IGL_ASSERT_P(i >= 0 && i < mySize);
-        return myData[i];
-    }
     /// Const subscript operator
     /// NOTE: This does NOT do any bounds checking unless paranoid
     ///       asserts are enabled.
-    const T &	    operator()(exint i) const
-    {
-	UT_IGL_ASSERT_P(i >= 0 && i < mySize);
-	return myData[i];
-    }
 
     /// Subscript operator
     /// NOTE: This does NOT do any bounds checking unless paranoid
@@ -1993,269 +1546,39 @@ public:
     /// forcedRef(exint) will grow the array if necessary, initializing any
     /// new elements to zero for POD types and default constructing for
     /// class types.
-    T &             forcedRef(exint i)
-    {
-        UT_IGL_ASSERT_P(i >= 0);
-        if (i >= mySize)
-            bumpSize(i+1);
-        return myData[i];
-    }
 
     /// forcedGet(exint) does NOT grow the array, and will return default
     /// objects for out of bound array indices.
-    T               forcedGet(exint i) const
-    {
-        return (i >= 0 && i < mySize) ? myData[i] : T();
-    }
 
-    T &		    last()
-    {
-        UT_IGL_ASSERT_P(mySize);
-        return myData[mySize-1];
-    }
-    const T &	    last() const
-    {
-        UT_IGL_ASSERT_P(mySize);
-        return myData[mySize-1];
-    }
 
-    T *		    getArray() const		    { return myData; }
-    const T *	    getRawArray() const		    { return myData; }
 
     T *		    array()			    { return myData; }
-    const T *	    array() const		    { return myData; }
 
-    T *		    data()			    { return myData; }
-    const T *	    data() const		    { return myData; }
 
     /// This method allows you to swap in a new raw T array, which must be
     /// the same size as myCapacity. Use caution with this method.
-    T *		    aliasArray(T *newdata)
-    { T *data = myData; myData = newdata; return data; }
 
-    template <typename IT, bool FORWARD>
-    class base_iterator : 
-	public std::iterator<std::random_access_iterator_tag, T, exint> 
-    {
-        public:
-	    typedef IT&		reference;
-	    typedef IT*		pointer;
-	
-	    // Note: When we drop gcc 4.4 support and allow range-based for
-	    // loops, we should also drop atEnd(), which means we can drop
-	    // myEnd here.
-	    base_iterator() : myCurrent(NULL), myEnd(NULL) {}
-	    
-	      // Allow iterator to const_iterator conversion
-	    template<typename EIT>
-	    base_iterator(const base_iterator<EIT, FORWARD> &src)
-		: myCurrent(src.myCurrent), myEnd(src.myEnd) {}
-	    
-	    pointer	operator->() const 
-			{ return FORWARD ? myCurrent : myCurrent - 1; }
-	    
-	    reference	operator*() const
-			{ return FORWARD ? *myCurrent : myCurrent[-1]; }
-
-	    reference	item() const
-			{ return FORWARD ? *myCurrent : myCurrent[-1]; }
-	    
-	    reference	operator[](exint n) const
-			{ return FORWARD ? myCurrent[n] : myCurrent[-n - 1]; } 
-
-	    /// Pre-increment operator
-            base_iterator &operator++()
-			{
-        		    if (FORWARD) ++myCurrent; else --myCurrent;
-			    return *this;
-			}
-	    /// Post-increment operator
-	    base_iterator operator++(int)
-			{
-			    base_iterator tmp = *this;
-        		    if (FORWARD) ++myCurrent; else --myCurrent;
-        		    return tmp;
-			}
-	    /// Pre-decrement operator
-	    base_iterator &operator--()
-			{
-			    if (FORWARD) --myCurrent; else ++myCurrent;
-			    return *this;
-			}
-	    /// Post-decrement operator
-	    base_iterator operator--(int)
-			{
-			    base_iterator tmp = *this;
-			    if (FORWARD) --myCurrent; else ++myCurrent;
-			    return tmp;
-			}
-
-	    base_iterator &operator+=(exint n)   
-			{
-			    if (FORWARD)
-				myCurrent += n;
-			    else
-				myCurrent -= n;
-			    return *this;
-			}
-            base_iterator operator+(exint n) const
-			{
-			    if (FORWARD)
-				return base_iterator(myCurrent + n, myEnd);
-			    else
-				return base_iterator(myCurrent - n, myEnd);
-			}
-	    
-            base_iterator &operator-=(exint n)
-        		{ return (*this) += (-n); }
-            base_iterator operator-(exint n) const
-			{ return (*this) + (-n); }
-            
-	    bool	 atEnd() const		{ return myCurrent == myEnd; }
-	    void	 advance()		{ this->operator++(); }
-	    
-	    // Comparators
-	    template<typename ITR, bool FR>
-	    bool 	 operator==(const base_iterator<ITR, FR> &r) const
-			 { return myCurrent == r.myCurrent; }
-	    
-	    template<typename ITR, bool FR>
-	    bool 	 operator!=(const base_iterator<ITR, FR> &r) const
-			 { return myCurrent != r.myCurrent; }
-	    
-	    template<typename ITR>
-	    bool	 operator<(const base_iterator<ITR, FORWARD> &r) const
-	    {
-		if (FORWARD) 
-		    return myCurrent < r.myCurrent;
-		else
-		    return r.myCurrent < myCurrent;
-	    }
-	    
-	    template<typename ITR>
-	    bool	 operator>(const base_iterator<ITR, FORWARD> &r) const
-	    {
-		if (FORWARD) 
-		    return myCurrent > r.myCurrent;
-		else
-		    return r.myCurrent > myCurrent;
-	    }
-
-	    template<typename ITR>
-	    bool	 operator<=(const base_iterator<ITR, FORWARD> &r) const
-	    {
-		if (FORWARD) 
-		    return myCurrent <= r.myCurrent;
-		else
-		    return r.myCurrent <= myCurrent;
-	    }
-
-	    template<typename ITR>
-	    bool	 operator>=(const base_iterator<ITR, FORWARD> &r) const
-	    {
-		if (FORWARD) 
-		    return myCurrent >= r.myCurrent;
-		else
-		    return r.myCurrent >= myCurrent;
-	    }
-	    
-	    // Difference operator for std::distance
-	    template<typename ITR>
-	    exint	 operator-(const base_iterator<ITR, FORWARD> &r) const
-	    {
-		if (FORWARD) 
-		    return exint(myCurrent - r.myCurrent);
-		else
-		    return exint(r.myCurrent - myCurrent);
-	    }
-	    
-	    
-        protected:
-	    friend class UT_Array<T>;
-	    base_iterator(IT *c, IT *e) : myCurrent(c), myEnd(e) {}
-	private:
-
-	    IT			*myCurrent;
-	    IT			*myEnd;
-    };
     
-    typedef base_iterator<T, true>		iterator;
-    typedef base_iterator<const T, true>	const_iterator;
-    typedef base_iterator<T, false>		reverse_iterator;
-    typedef base_iterator<const T, false>	const_reverse_iterator;
-    typedef const_iterator	traverser; // For backward compatibility
 
     /// Begin iterating over the array.  The contents of the array may be 
     /// modified during the traversal.
-    iterator		begin()
-			{
-			    return iterator(myData, myData + mySize);
-			}
     /// End iterator.
-    iterator		end()
-			{
-			    return iterator(myData + mySize,
-					    myData + mySize);
-			}
 
     /// Begin iterating over the array.  The array may not be modified during
     /// the traversal.
-    const_iterator	begin() const
-			{
-			    return const_iterator(myData, myData + mySize);
-			}
     /// End const iterator.  Consider using it.atEnd() instead.
-    const_iterator	end() const
-			{
-			    return const_iterator(myData + mySize,
-						  myData + mySize);
-			}
     
     /// Begin iterating over the array in reverse. 
-    reverse_iterator	rbegin()
-			{
-			    return reverse_iterator(myData + mySize,
-			                            myData);
-			}
     /// End reverse iterator.
-    reverse_iterator	rend()
-			{
-			    return reverse_iterator(myData, myData);
-			}
     /// Begin iterating over the array in reverse. 
-    const_reverse_iterator rbegin() const
-			{
-			    return const_reverse_iterator(myData + mySize,
-							  myData);
-			}
     /// End reverse iterator.  Consider using it.atEnd() instead.
-    const_reverse_iterator rend() const
-			{
-			    return const_reverse_iterator(myData, myData);
-			}
     
     /// Remove item specified by the reverse_iterator.
-    void		removeItem(const reverse_iterator &it)
-			{
-			    removeAt(&it.item() - myData);
-			}
 
 
     /// Very dangerous methods to share arrays.
     /// The array is not aware of the sharing, so ensure you clear
     /// out the array prior a destructor or setCapacity operation.
-    void	    unsafeShareData(UT_Array<T> &src)
-		    {
-			myData = src.myData;
-			myCapacity = src.myCapacity;
-			mySize = src.mySize;
-		    }
-    void	    unsafeShareData(T *src, exint srcsize)
-		    {
-			myData = src;
-			myCapacity = srcsize;
-			mySize = srcsize;
-		    }
     void	    unsafeShareData(T *src, exint size, exint capacity)
 		    {
 			myData = src;
@@ -2296,8 +1619,6 @@ protected:
     inline exint           appendImpl(S &&s);
 
     /// Similar to appendImpl() but for insertion.
-    template <typename S>
-    inline exint           insertImpl(S &&s, exint index);
 
     // Construct the given type
     template <typename... S>
@@ -2307,38 +1628,8 @@ protected:
 		    }
 
     // Copy construct the given type
-    static void	    copyConstruct(T &dst, const T &src)
-		    {
-			if (isPOD())
-			    dst = src;
-			else
-			    new (&dst) T(src);
-		    }
-    static void	    copyConstructRange(T *dst, const T *src, exint n)
-		    {
-			if (isPOD())
-                        {
-                            if (n > 0)
-                            {
-                                ::memcpy((void *)dst, (const void *)src,
-                                         n * sizeof(T));
-                            }
-                        }
-			else
-			{
-			    for (exint i = 0; i < n; i++)
-				new (&dst[i]) T(src[i]);
-			}
-		    }
 
     /// Element Constructor
-    static void	    trivialConstruct(T &dst)
-		    {
-			if (!isPOD())
-			    new (&dst) T();
-			else
-			    memset((void *)&dst, 0, sizeof(T));
-		    }
     static void	    trivialConstructRange(T *dst, exint n)
 		    {
 			if (!isPOD())
@@ -2362,11 +1653,6 @@ protected:
 		    }
 
     /// Element Destructor
-    static void	    trivialDestruct(T &dst)
-		    {
-			if (!isPOD())
-			    dst.~T();
-		    }
     static void	    trivialDestructRange(T *dst, exint n)
 		    {
 			if (!isPOD())
@@ -2387,7 +1673,6 @@ private:
     exint mySize;
 
     // The guts of the remove() methods.
-    inline exint	    removeAt(exint index);
 
     inline T *		    allocateCapacity(exint num_items);
 };
@@ -2443,54 +1728,8 @@ namespace floatTetWild {
 extern void ut_ArrayImplFree(void *p);
 
 
-template <typename T>
-inline UT_Array<T>::UT_Array(const UT_Array<T> &a)
-    : myCapacity(a.size()), mySize(a.size())
-{
-    if (myCapacity)
-    {
-	myData = allocateCapacity(myCapacity);
-	copyConstructRange(myData, a.array(), mySize);
-    }
-    else
-    {
-	myData = nullptr;
-    }
-}
 
-template <typename T>
-inline UT_Array<T>::UT_Array(std::initializer_list<T> init)
-    : myCapacity(init.size()), mySize(init.size())
-{
-    if (myCapacity)
-    {
-	myData = allocateCapacity(myCapacity);
-	copyConstructRange(myData, init.begin(), mySize);
-    }
-    else
-    {
-	myData = nullptr;
-    }
-}
 
-template <typename T>
-inline UT_Array<T>::UT_Array(UT_Array<T> &&a) noexcept
-{
-    if (!a.isHeapBuffer())
-    {
-	myData = nullptr;
-	myCapacity = 0;
-	mySize = 0;
-	operator=(std::move(a));
-	return;
-    }
-
-    myCapacity = a.myCapacity;
-    mySize = a.mySize;
-    myData = a.myData;
-    a.myCapacity = a.mySize = 0;
-    a.myData = nullptr;
-}
 
 
 template <typename T>
@@ -2516,40 +1755,8 @@ UT_Array<T>::allocateCapacity(exint capacity)
     return data;
 }
 
-template <typename T>
-inline void
-UT_Array<T>::swap( UT_Array<T> &other )
-{
-    std::swap( myData, other.myData );
-    std::swap( myCapacity, other.myCapacity );
-    std::swap( mySize, other.mySize );
-}
 
 
-template <typename T>
-inline exint	
-UT_Array<T>::insert(exint index)
-{
-    if (index >= mySize)
-    {
-	bumpCapacity(index + 1);
-
-	trivialConstructRange(myData + mySize, index - mySize + 1);
-
-	mySize = index+1;
-	return index;
-    }
-    bumpCapacity(mySize + 1);
-
-    UT_IGL_ASSERT_P(index >= 0);
-    ::memmove((void *)&myData[index+1], (void *)&myData[index],
-              ((mySize-index)*sizeof(T)));
-
-    trivialConstruct(myData[index]);
-
-    mySize++;
-    return index;
-}
 
 template <typename T>
 template <typename S>
@@ -2574,316 +1781,19 @@ UT_Array<T>::appendImpl(S &&s)
     return mySize++;
 }
 
-template <typename T>
-template <typename... S>
-inline exint
-UT_Array<T>::emplace_back(S&&... s)
-{
-    if (mySize == myCapacity)
-	setCapacity(UTbumpAlloc(myCapacity));
 
-    construct(myData[mySize], std::forward<S>(s)...);
-    return mySize++;
-}
 
-template <typename T>
-inline void
-UT_Array<T>::append(const T *pt, exint count)
-{
-    bumpCapacity(mySize + count);
-    copyConstructRange(myData + mySize, pt, count);
-    mySize += count;
-}
 
-template <typename T>
-inline void
-UT_Array<T>::appendMultiple(const T &t, exint count)
-{
-    UT_IGL_ASSERT_P(count >= 0);
-    if (count <= 0)
-	return;
-    if (mySize + count >= myCapacity)
-    {
-	exint tidx = safeIndex(t);
 
-        bumpCapacity(mySize + count);
 
-	for (exint i = 0; i < count; i++)
-	    copyConstruct(myData[mySize+i], tidx >= 0 ? myData[tidx] : t);
-    }
-    else
-    {
-	for (exint i = 0; i < count; i++)
-	    copyConstruct(myData[mySize+i], t);
-    }
-    mySize += count;
-}
 
-template <typename T>
-inline exint
-UT_Array<T>::concat(const UT_Array<T> &a)
-{
-    bumpCapacity(mySize + a.mySize);
-    copyConstructRange(myData + mySize, a.myData, a.mySize);
-    mySize += a.mySize;
 
-    return mySize;
-}
 
-template <typename T>
-inline exint
-UT_Array<T>::multipleInsert(exint beg_index, exint count)
-{
-    exint end_index = beg_index + count;
 
-    if (beg_index >= mySize)
-    {
-	bumpCapacity(end_index);
 
-	trivialConstructRange(myData + mySize, end_index - mySize);
 
-	mySize = end_index;
-	return beg_index;
-    }
-    bumpCapacity(mySize+count);
 
-    ::memmove((void *)&myData[end_index], (void *)&myData[beg_index],
-              ((mySize-beg_index)*sizeof(T)));
-    mySize += count;
 
-    trivialConstructRange(myData + beg_index, count);
-
-    return beg_index;
-}
-
-template <typename T>
-template <typename S>
-inline exint
-UT_Array<T>::insertImpl(S &&s, exint index)
-{
-    if (index == mySize)
-    {
-        // This case avoids an extraneous call to trivialConstructRange()
-        // which the compiler may not optimize out.
-        (void) appendImpl(std::forward<S>(s));
-    }
-    else if (index > mySize)
-    {
-	exint src_i = safeIndex(s);
-
-	bumpCapacity(index + 1);
-
-	trivialConstructRange(myData + mySize, index - mySize);
-
-        if (src_i >= 0)
-	    construct(myData[index], std::forward<S>(myData[src_i]));
-        else
-	    construct(myData[index], std::forward<S>(s));
-
-	mySize = index + 1;
-    }
-    else // (index < mySize)
-    {
-	exint src_i = safeIndex(s);
-
-        bumpCapacity(mySize + 1);
-
-        ::memmove((void *)&myData[index+1], (void *)&myData[index],
-                  ((mySize-index)*sizeof(T)));
-
-        if (src_i >= index)
-            ++src_i;
-
-        if (src_i >= 0)
-	    construct(myData[index], std::forward<S>(myData[src_i]));
-        else
-	    construct(myData[index], std::forward<S>(s));
-
-        ++mySize;
-    }
-
-    return index;
-}
-
-template <typename T>
-inline exint
-UT_Array<T>::removeAt(exint idx)
-{
-    trivialDestruct(myData[idx]);
-    if (idx != --mySize)
-    {
-	::memmove((void *)&myData[idx], (void *)&myData[idx+1],
-	          ((mySize-idx)*sizeof(T)));
-    }
-
-    return idx;
-}
-
-template <typename T>
-inline void
-UT_Array<T>::removeRange(exint begin_i, exint end_i)
-{
-    UT_IGL_ASSERT(begin_i <= end_i);
-    UT_IGL_ASSERT(end_i <= size());
-    if (end_i < size())
-    {
-	trivialDestructRange(myData + begin_i, end_i - begin_i);
-	::memmove((void *)&myData[begin_i], (void *)&myData[end_i],
-	          (mySize - end_i)*sizeof(T));
-    }
-    setSize(mySize - (end_i - begin_i));
-}
-
-template <typename T>
-inline void
-UT_Array<T>::extractRange(exint begin_i, exint end_i, UT_Array<T>& dest)
-{
-    UT_IGL_ASSERT_P(begin_i >= 0);
-    UT_IGL_ASSERT_P(begin_i <= end_i);
-    UT_IGL_ASSERT_P(end_i <= size());
-    UT_IGL_ASSERT(this != &dest);
-
-    exint nelements = end_i - begin_i;
-
-    // grow the raw array if necessary.
-    dest.setCapacityIfNeeded(nelements);
-
-    ::memmove((void*)dest.myData, (void*)&myData[begin_i],
-              nelements * sizeof(T));
-    dest.mySize = nelements;
-
-    // we just asserted this was true, but just in case
-    if (this != &dest)
-    {
-        if (end_i < size())
-        {
-            ::memmove((void*)&myData[begin_i], (void*)&myData[end_i],
-                      (mySize - end_i) * sizeof(T));
-        }
-        setSize(mySize - nelements);
-    }
-}
-
-template <typename T>
-inline void
-UT_Array<T>::move(exint srcIdx, exint destIdx, exint howMany)
-{
-    // Make sure all the parameters are valid.
-    if( srcIdx < 0 )
-	srcIdx = 0;
-    if( destIdx < 0 )
-	destIdx = 0;
-    // If we are told to move a set of elements that would extend beyond the
-    // end of the current array, trim the group.
-    if( srcIdx + howMany > size() )
-	howMany = size() - srcIdx;
-    // If the destIdx would have us move the source beyond the end of the
-    // current array, move the destIdx back.
-    if( destIdx + howMany > size() )
-	destIdx = size() - howMany;
-    if( srcIdx != destIdx && howMany > 0 )
-    {
-	void		**tmp = 0;
-	exint	  	savelen;
-
-	savelen = SYSabs(srcIdx - destIdx);
-	tmp = (void **)::malloc(savelen*sizeof(T));
-	if( srcIdx > destIdx && howMany > 0 )
-	{
-	    // We're moving the group backwards. Save all the stuff that
-	    // we would overwrite, plus everything beyond that to the
-	    // start of the source group. Then move the source group, then
-	    // tack the saved data onto the end of the moved group.
-	    ::memcpy(tmp, (void *)&myData[destIdx],  (savelen*sizeof(T)));
-	    ::memmove((void *)&myData[destIdx], (void *)&myData[srcIdx],
-	              (howMany*sizeof(T)));
-	    ::memcpy((void *)&myData[destIdx+howMany], tmp, (savelen*sizeof(T)));
-	}
-	if( srcIdx < destIdx && howMany > 0 )
-	{
-	    // We're moving the group forwards. Save from the end of the
-	    // group being moved to the end of the where the destination
-	    // group will end up. Then copy the source to the destination.
-	    // Then move back up to the original source location and drop
-	    // in our saved data.
-	    ::memcpy(tmp, (void *)&myData[srcIdx+howMany],  (savelen*sizeof(T)));
-	    ::memmove((void *)&myData[destIdx], (void *)&myData[srcIdx],
-	              (howMany*sizeof(T)));
-	    ::memcpy((void *)&myData[srcIdx], tmp, (savelen*sizeof(T)));
-	}
-	::free(tmp);
-    }
-}
-
-template <typename T>
-template <typename IsEqual>
-inline exint
-UT_Array<T>::removeIf(IsEqual is_equal)
-{
-    // Move dst to the first element to remove.
-    exint dst;
-    for (dst = 0; dst < mySize; dst++)
-    {
-	if (is_equal(myData[dst]))
-	    break;
-    }
-    // Now start looking at all the elements past the first one to remove.
-    for (exint idx = dst+1; idx < mySize; idx++)
-    {
-	if (!is_equal(myData[idx]))
-	{
-	    UT_IGL_ASSERT(idx != dst);
-	    myData[dst] = myData[idx];
-	    dst++;
-	}
-	// On match, ignore.
-    }
-    // New size
-    mySize = dst;
-    return mySize;
-}
-
-template <typename T>
-inline void
-UT_Array<T>::cycle(exint howMany)
-{
-    char	*tempPtr;
-    exint	 numShift;	//  The number of items we shift
-    exint   	 remaining;	//  mySize - numShift
-
-    if (howMany == 0 || mySize < 1) return;
-
-    numShift = howMany % (exint)mySize;
-    if (numShift < 0) numShift += mySize;
-    remaining = mySize - numShift;
-    tempPtr = new char[numShift*sizeof(T)];
-
-    ::memmove(tempPtr, (void *)&myData[remaining], (numShift * sizeof(T)));
-    ::memmove((void *)&myData[numShift], (void *)&myData[0], (remaining * sizeof(T)));
-    ::memmove((void *)&myData[0], tempPtr, (numShift * sizeof(T)));
-
-    delete [] tempPtr;
-}
-
-template <typename T>
-inline void
-UT_Array<T>::constant(const T &value)
-{
-    for (exint i = 0; i < mySize; i++)
-    {
-	myData[i] = value;
-    }
-}
-
-template <typename T>
-inline void
-UT_Array<T>::zero()
-{
-    if (isPOD())
-	::memset((void *)myData, 0, mySize*sizeof(T));
-    else
-	trivialConstructRange(myData, mySize);
-}
 
 template <typename T>
 inline void		
@@ -2958,109 +1868,11 @@ UT_Array<T>::setCapacity(exint capacity)
     UT_IGL_ASSERT(myData);
 }
 
-template <typename T>
-inline UT_Array<T> &
-UT_Array<T>::operator=(const UT_Array<T> &a)
-{
-    if (this == &a)
-	return *this;
-
-    // Grow the raw array if necessary.
-    setCapacityIfNeeded(a.size());
-
-    // Make sure destructors and constructors are called on all elements
-    // being removed/added.
-    trivialDestructRange(myData, mySize);
-    copyConstructRange(myData, a.myData, a.size());
-
-    mySize = a.size();
-
-    return *this;
-}
-
-template <typename T>
-inline UT_Array<T> &
-UT_Array<T>::operator=(std::initializer_list<T> a)
-{
-    const exint new_size = a.size();
-
-    // Grow the raw array if necessary.
-    setCapacityIfNeeded(new_size);
-
-    // Make sure destructors and constructors are called on all elements
-    // being removed/added.
-    trivialDestructRange(myData, mySize);
-
-    copyConstructRange(myData, a.begin(), new_size);
-
-    mySize = new_size;
-
-    return *this;
-}
-
-template <typename T>
-inline UT_Array<T> &
-UT_Array<T>::operator=(UT_Array<T> &&a)
-{
-    if (!a.isHeapBuffer())
-    {
-	// Cannot steal from non-heap buffers
-	clear();
-	const exint n = a.size();
-	setCapacityIfNeeded(n);
-	if (isPOD())
-	{
-	    if (n > 0)
-		memcpy(myData, a.myData, n * sizeof(T));
-	}
-	else
-	{
-	    for (exint i = 0; i < n; ++i)
-		new (&myData[i]) T(std::move(a.myData[i]));
-	}
-	mySize = a.mySize;
-	a.mySize = 0;
-	return *this;
-    }
-    // else, just steal even if we're a small buffer
-
-    // Destroy all the elements we're currently holding.
-    if (myData)
-    {
-	trivialDestructRange(myData, mySize);
-	if (isHeapBuffer())
-	    ::free(myData);
-    }
-    
-    // Move the contents of the other array to us and empty the other container
-    // so that it destructs cleanly.
-    myCapacity = a.myCapacity;
-    mySize = a.mySize;
-    myData = a.myData;
-    a.myCapacity = a.mySize = 0;
-    a.myData = nullptr;
-
-    return *this;
-}
 
 
-template <typename T>
-inline bool
-UT_Array<T>::operator==(const UT_Array<T> &a) const
-{
-    if (this == &a) return true;
-    if (mySize != a.size()) return false;
-    for (exint i = 0; i < mySize; i++)
-	if (!(myData[i] == a(i))) return false;
-    return true;
-}
 
-template <typename T>
-inline bool
-UT_Array<T>::operator!=(const UT_Array<T> &a) const
-{
-    return (!operator==(a));
-}
+
+
 
 }}
 
@@ -3591,16 +2403,6 @@ dot(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE,S_
     return a.dot(b);
 }
 
-template<typename T, exint SIZE, bool INSTANTIATED, typename S, bool S_INSTANTIATED>
-SYS_FORCE_INLINE auto
-SYSmin(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE,S_INSTANTIATED> &b) -> UT_FixedVector<decltype(a[0]+b[1]), SIZE>
-{
-    using Type = decltype(a[0]+b[1]);
-    UT_FixedVector<Type, SIZE> result;
-    for (exint i = 0; i < SIZE; ++i)
-        result[i] = SYSmin(Type(a[i]), Type(b[i]));
-    return result;
-}
 
 template<typename T, exint SIZE, bool INSTANTIATED, typename S, bool S_INSTANTIATED>
 SYS_FORCE_INLINE auto
@@ -3613,23 +2415,7 @@ SYSmax(const UT_FixedVector<T,SIZE,INSTANTIATED> &a, const UT_FixedVector<S,SIZE
     return result;
 }
 
-template<typename T>
-struct UT_FixedVectorTraits
-{
-    typedef UT_FixedVector<T,1> FixedVectorType;
-    typedef T DataType;
-    static const exint TupleSize = 1;
-    static const bool isVectorType = false;
-};
 
-template<typename T,exint SIZE,bool INSTANTIATED>
-struct UT_FixedVectorTraits<UT_FixedVector<T,SIZE,INSTANTIATED> >
-{
-    typedef UT_FixedVector<T,SIZE,INSTANTIATED> FixedVectorType;
-    typedef T DataType;
-    static const exint TupleSize = SIZE;
-    static const bool isVectorType = true;
-};
 }}
 
 #endif
@@ -3670,197 +2456,6 @@ namespace floatTetWild {
 namespace UT_Thread { inline int getNumProcessors() {
     return std::thread::hardware_concurrency();
 }}
-
-//#include "tbb/blocked_range.h"
-//#include "tbb/parallel_for.h"
-////namespace tbb { class split; }
-//
-///// Declare prior to use.
-//template <typename T> 
-//using UT_BlockedRange = tbb::blocked_range<T>;
-//
-//// Default implementation that calls range.size()
-//template< typename RANGE >
-//struct UT_EstimatorNumItems
-//{
-//    UT_EstimatorNumItems() {}
-//
-//    size_t operator()(const RANGE& range) const
-//    {
-//	return range.size();
-//    }
-//};
-//
-///// This is needed by UT_CoarsenedRange
-//template <typename RANGE>
-//inline size_t UTestimatedNumItems(const RANGE& range)
-//{
-//    return UT_EstimatorNumItems<RANGE>()(range);
-//}
-//
-///// UT_CoarsenedRange: This should be used only inside 
-///// UT_ParallelFor and UT_ParallelReduce
-///// This class wraps an existing range with a new range.
-///// This allows us to use simple_partitioner, rather than
-///// auto_partitioner, which has disastrous performance with
-///// the default grain size in ttb 4.
-//template< typename RANGE >
-//class UT_CoarsenedRange : public RANGE
-//{
-//public:
-//    // Compiler-generated versions are fine:
-//    // ~UT_CoarsenedRange();
-//    // UT_CoarsenedRange(const UT_CoarsenedRange&);
-//
-//    // Split into two sub-ranges:
-//    UT_CoarsenedRange(UT_CoarsenedRange& range, tbb::split spl) :
-//        RANGE(range, spl),
-//        myGrainSize(range.myGrainSize)
-//    {        
-//    }
-//
-//    // Inherited: bool empty() const
-//
-//    bool is_divisible() const
-//    {
-//        return 
-//            RANGE::is_divisible() &&
-//            (UTestimatedNumItems(static_cast<const RANGE&>(*this)) > myGrainSize);
-//    }
-//
-//private:
-//    size_t myGrainSize;
-//
-//    UT_CoarsenedRange(const RANGE& base_range, const size_t grain_size) :
-//        RANGE(base_range),
-//        myGrainSize(grain_size)
-//    {        
-//    }
-//
-//    template <typename Range, typename Body>
-//    friend void UTparallelFor(
-//        const Range &range, const Body &body,
-//        const int subscribe_ratio, const int min_grain_size
-//    );
-//};
-//
-///// Run the @c body function over a range in parallel.
-///// UTparallelFor attempts to spread the range out over at most 
-///// subscribe_ratio * num_processor tasks.
-///// The factor subscribe_ratio can be used to help balance the load.
-///// UTparallelFor() uses tbb for its implementation.
-///// The used grain size is the maximum of min_grain_size and
-///// if UTestimatedNumItems(range) / (subscribe_ratio * num_processor).
-///// If subscribe_ratio == 0, then a grain size of min_grain_size will be used.
-///// A range can be split only when UTestimatedNumItems(range) exceeds the
-///// grain size the range is divisible. 
-//
-/////
-///// Requirements for the Range functor are:
-/////   - the requirements of the tbb Range Concept
-/////   - UT_estimatorNumItems<Range> must return the the estimated number of work items
-/////     for the range. When Range::size() is not the correct estimate, then a 
-/////     (partial) specialization of UT_estimatorNumItemsimatorRange must be provided
-/////     for the type Range.
-/////
-///// Requirements for the Body function are:
-/////  - @code Body(const Body &); @endcode @n
-/////	Copy Constructor
-/////  - @code Body()::~Body(); @endcode @n
-/////	Destructor
-/////  - @code void Body::operator()(const Range &range) const; @endcode
-/////	Function call to perform operation on the range.  Note the operator is
-/////	@b const.
-/////
-///// The requirements for a Range object are:
-/////  - @code Range::Range(const Range&); @endcode @n
-/////	Copy constructor
-/////  - @code Range::~Range(); @endcode @n
-/////	Destructor
-/////  - @code bool Range::is_divisible() const; @endcode @n
-/////	True if the range can be partitioned into two sub-ranges
-/////  - @code bool Range::empty() const; @endcode @n
-/////	True if the range is empty
-/////  - @code Range::Range(Range &r, UT_Split) const; @endcode @n
-/////	Split the range @c r into two sub-ranges (i.e. modify @c r and *this)
-/////
-///// Example: @code
-/////     class Square {
-/////     public:
-/////         Square(double *data) : myData(data) {}
-/////         ~Square();
-/////         void operator()(const UT_BlockedRange<int64> &range) const
-/////         {
-/////             for (int64 i = range.begin(); i != range.end(); ++i)
-/////                 myData[i] *= myData[i];
-/////         }
-/////         double *myData;
-/////     };
-/////     ...
-/////
-/////     void
-/////     parallel_square(double *array, int64 length)
-/////     {
-/////         UTparallelFor(UT_BlockedRange<int64>(0, length), Square(array));
-/////     }
-///// @endcode
-/////	
-///// @see UTparallelReduce(), UT_BlockedRange()
-//
-//template <typename Range, typename Body>
-//void UTparallelFor(
-//    const Range &range, const Body &body,
-//    const int subscribe_ratio = 2,
-//    const int min_grain_size = 1
-//)
-//{
-//    const size_t num_processors( UT_Thread::getNumProcessors() );
-//
-//    UT_IGL_ASSERT( num_processors >= 1 );
-//    UT_IGL_ASSERT( min_grain_size >= 1 );
-//    UT_IGL_ASSERT( subscribe_ratio >= 0 );
-//
-//    const size_t est_range_size( UTestimatedNumItems(range) );
-//
-//    // Don't run on an empty range!
-//    if (est_range_size == 0)
-//        return;
-//
-//    // Avoid tbb overhead if entire range needs to be single threaded
-//    if (num_processors == 1 || est_range_size <= min_grain_size)
-//    {
-//        body(range);
-//        return;
-//    }
-//
-//    size_t grain_size(min_grain_size);
-//    if( subscribe_ratio > 0 )
-//        grain_size = std::max(
-//                         grain_size, 
-//                         est_range_size / (subscribe_ratio * num_processors)
-//                     );
-//
-//    UT_CoarsenedRange< Range > coarsened_range(range, grain_size);
-//
-//    tbb::parallel_for(coarsened_range, body, tbb::simple_partitioner());
-//}
-//
-///// Version of UTparallelFor that is tuned for the case where the range
-///// consists of lightweight items, for example,
-///// float additions or matrix-vector multiplications.
-//template <typename Range, typename Body>
-//void
-//UTparallelForLightItems(const Range &range, const Body &body)
-//{
-//    UTparallelFor(range, body, 2, 1024);
-//}
-//
-///// UTserialFor can be used as a debugging tool to quickly replace a parallel
-///// for with a serial for.
-//template <typename Range, typename Body>
-//void UTserialFor(const Range &range, const Body &body)
-//	{ body(range); }
-//
 }}
 #endif
 /*
@@ -3903,9 +2498,6 @@ namespace floatTetWild {
   /// @private
   namespace FastWindingNumber {
 
-template<typename T> class UT_Array;
-class v4uf;
-class v4uu;
 
 namespace HDK_Sample {
 
@@ -3916,21 +2508,7 @@ struct Box {
     T vals[NAXES][2];
 
     SYS_FORCE_INLINE Box() noexcept = default;
-    SYS_FORCE_INLINE constexpr Box(const Box &other) noexcept = default;
-    SYS_FORCE_INLINE constexpr Box(Box &&other) noexcept = default;
-    SYS_FORCE_INLINE Box& operator=(const Box &other) noexcept = default;
-    SYS_FORCE_INLINE Box& operator=(Box &&other) noexcept = default;
 
-    template<typename S>
-    SYS_FORCE_INLINE Box(const Box<S,NAXES>& other) noexcept {
-        static_assert((std::is_pod<Box<T,NAXES>>::value) || !std::is_pod<T>::value,
-            "UT::Box should be POD, for better performance in UT_Array, etc.");
-
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = T(other.vals[axis][0]);
-            vals[axis][1] = T(other.vals[axis][1]);
-        }
-    }
     template<typename S,bool INSTANTIATED>
     SYS_FORCE_INLINE Box(const UT_FixedVector<S,NAXES,INSTANTIATED>& pt) noexcept {
         for (uint axis = 0; axis < NAXES; ++axis) {
@@ -3938,23 +2516,7 @@ struct Box {
             vals[axis][1] = pt[axis];
         }
     }
-    template<typename S>
-    SYS_FORCE_INLINE Box& operator=(const Box<S,NAXES>& other) noexcept {
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = T(other.vals[axis][0]);
-            vals[axis][1] = T(other.vals[axis][1]);
-        }
-        return *this;
-    }
 
-    SYS_FORCE_INLINE const T* operator[](const size_t axis) const noexcept {
-        UT_IGL_ASSERT_P(axis < NAXES);
-        return vals[axis];
-    }
-    SYS_FORCE_INLINE T* operator[](const size_t axis) noexcept {
-        UT_IGL_ASSERT_P(axis < NAXES);
-        return vals[axis];
-    }
 
     SYS_FORCE_INLINE void initBounds() noexcept {
         for (uint axis = 0; axis < NAXES; ++axis) {
@@ -3974,12 +2536,6 @@ struct Box {
     /// Initialize with the union of the source boxes.
     /// NOTE: This is so that in templated code that may have Box's or a
     ///       UT_FixedVector's, it can call initBounds and still work.
-    SYS_FORCE_INLINE void initBoundsUnordered(const Box<T,NAXES>& src0, const Box<T,NAXES>& src1) noexcept {
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = SYSmin(src0.vals[axis][0], src1.vals[axis][0]);
-            vals[axis][1] = SYSmax(src0.vals[axis][1], src1.vals[axis][1]);
-        }
-    }
     SYS_FORCE_INLINE void combine(const Box<T,NAXES>& src) noexcept {
         for (uint axis = 0; axis < NAXES; ++axis) {
             T& minv = vals[axis][0];
@@ -3994,36 +2550,12 @@ struct Box {
         combine(src);
     }
 
-    template<typename S,bool INSTANTIATED>
-    SYS_FORCE_INLINE
-    void initBounds(const UT_FixedVector<S,NAXES,INSTANTIATED>& pt) noexcept {
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = pt[axis];
-            vals[axis][1] = pt[axis];
-        }
-    }
     template<bool INSTANTIATED>
     SYS_FORCE_INLINE
     void initBounds(const UT_FixedVector<T,NAXES,INSTANTIATED>& min, const UT_FixedVector<T,NAXES,INSTANTIATED>& max) noexcept {
         for (uint axis = 0; axis < NAXES; ++axis) {
             vals[axis][0] = min[axis];
             vals[axis][1] = max[axis];
-        }
-    }
-    template<bool INSTANTIATED>
-    SYS_FORCE_INLINE
-    void initBoundsUnordered(const UT_FixedVector<T,NAXES,INSTANTIATED>& p0, const UT_FixedVector<T,NAXES,INSTANTIATED>& p1) noexcept {
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = SYSmin(p0[axis], p1[axis]);
-            vals[axis][1] = SYSmax(p0[axis], p1[axis]);
-        }
-    }
-    template<bool INSTANTIATED>
-    SYS_FORCE_INLINE
-    void enlargeBounds(const UT_FixedVector<T,NAXES,INSTANTIATED>& pt) noexcept {
-        for (uint axis = 0; axis < NAXES; ++axis) {
-            vals[axis][0] = SYSmin(vals[axis][0], pt[axis]);
-            vals[axis][1] = SYSmax(vals[axis][1], pt[axis]);
         }
     }
 
@@ -4109,56 +2641,6 @@ struct Box {
         }
         return sum;
     }
-    template<bool INSTANTIATED0,bool INSTANTIATED1>
-    SYS_FORCE_INLINE void intersect(
-        T &box_tmin,
-        T &box_tmax,
-        const UT_FixedVector<uint,NAXES,INSTANTIATED0> &signs,
-        const UT_FixedVector<T,NAXES,INSTANTIATED1> &origin,
-        const UT_FixedVector<T,NAXES,INSTANTIATED1> &inverse_direction
-    ) const noexcept {
-        for (int axis = 0; axis < NAXES; ++axis)
-        {
-            uint sign = signs[axis];
-            T t1 = (vals[axis][sign]   - origin[axis]) * inverse_direction[axis];
-            T t2 = (vals[axis][sign^1] - origin[axis]) * inverse_direction[axis];
-            box_tmin = SYSmax(t1, box_tmin);
-            box_tmax = SYSmin(t2, box_tmax);
-        }
-    }
-    SYS_FORCE_INLINE void intersect(const Box& other, Box& dest) const noexcept {
-        for (int axis = 0; axis < NAXES; ++axis)
-        {
-            dest.vals[axis][0] = SYSmax(vals[axis][0], other.vals[axis][0]);
-            dest.vals[axis][1] = SYSmin(vals[axis][1], other.vals[axis][1]);
-        }
-    }
-    template<bool INSTANTIATED>
-    SYS_FORCE_INLINE T minDistance2(
-        const UT_FixedVector<T,NAXES,INSTANTIATED> &p
-    ) const noexcept {
-        T diff = SYSmax(SYSmax(vals[0][0]-p[0], p[0]-vals[0][1]), T(0.0f));
-        T d2 = diff*diff;
-        for (int axis = 1; axis < NAXES; ++axis)
-        {
-            diff = SYSmax(SYSmax(vals[axis][0]-p[axis], p[axis]-vals[axis][1]), T(0.0f));
-            d2 += diff*diff;
-        }
-        return d2;
-    }
-    template<bool INSTANTIATED>
-    SYS_FORCE_INLINE T maxDistance2(
-        const UT_FixedVector<T,NAXES,INSTANTIATED> &p
-    ) const noexcept {
-        T diff = SYSmax(p[0]-vals[0][0], vals[0][1]-p[0]);
-        T d2 = diff*diff;
-        for (int axis = 1; axis < NAXES; ++axis)
-        {
-            diff = SYSmax(p[axis]-vals[axis][0], vals[axis][1]-p[axis]);
-            d2 += diff*diff;
-        }
-        return d2;
-    }
 };
 
 /// Used by BVH::init to specify the heuristic to use for choosing between different box splits.
@@ -4217,7 +2699,6 @@ public:
     struct Node {
         INT_TYPE child[N];
 
-        static constexpr INT_TYPE theN = N;
         static constexpr INT_TYPE EMPTY = INT_TYPE(-1);
         static constexpr INT_TYPE INTERNAL_BIT = (INT_TYPE(1)<<(sizeof(INT_TYPE)*8 - 1));
         SYS_FORCE_INLINE static INT_TYPE markInternal(INT_TYPE internal_node_num) noexcept {
@@ -4257,11 +2738,6 @@ public:
     {
         return myNumNodes;
     }
-    SYS_FORCE_INLINE
-    const Node *getNodes() const noexcept
-    {
-        return myRoot.get();
-    }
 
     SYS_FORCE_INLINE
     void clear() noexcept {
@@ -4281,10 +2757,6 @@ public:
     ///         recurse(getnodei(child), local_data);
     /// }
     /// functors.post(nodei, parent_nodei, data_for_parent, num_children, local_data);
-    template<typename LOCAL_DATA,typename FUNCTORS>
-    inline void traverse(
-        FUNCTORS &functors,
-        LOCAL_DATA *data_for_parent=nullptr) const noexcept;
 
     /// This acts like the traverse function, except if the number of nodes in two subtrees
     /// of a node contain at least parallel_threshold nodes, they may be executed in parallel.
@@ -4318,7 +2790,6 @@ public:
         LOCAL_DATA *data_for_parent=nullptr) const noexcept;
 
     /// Prints a text representation of the tree to stdout.
-    inline void debugDump() const;
 
     template<typename SRC_INT_TYPE>
     static inline void createTrivialIndices(SRC_INT_TYPE* indices, const INT_TYPE n) noexcept;
@@ -4474,17 +2945,6 @@ namespace HDK_Sample {
 
 namespace UT {
 
-template<typename T,uint NAXES>
-SYS_FORCE_INLINE bool utBoxExclude(const UT::Box<T,NAXES>& box) noexcept {
-    bool has_nan_or_inf = !SYSisFinite(box[0][0]);
-    has_nan_or_inf |= !SYSisFinite(box[0][1]);
-    for (uint axis = 1; axis < NAXES; ++axis)
-    {
-        has_nan_or_inf |= !SYSisFinite(box[axis][0]);
-        has_nan_or_inf |= !SYSisFinite(box[axis][1]);
-    }
-    return has_nan_or_inf;
-}
 template<uint NAXES>
 SYS_FORCE_INLINE bool utBoxExclude(const UT::Box<fpreal32,NAXES>& box) noexcept {
     const int32 *pboxints = reinterpret_cast<const int32*>(&box);
@@ -4506,30 +2966,6 @@ SYS_FORCE_INLINE T utBoxCenter(const UT::Box<T,NAXES>& box, uint axis) noexcept 
 template<typename T>
 struct ut_BoxCentre {
     constexpr static uint scale = 2;
-};
-template<typename T,uint NAXES,bool INSTANTIATED>
-SYS_FORCE_INLINE T utBoxExclude(const UT_FixedVector<T,NAXES,INSTANTIATED>& position) noexcept {
-    bool has_nan_or_inf = !SYSisFinite(position[0]);
-    for (uint axis = 1; axis < NAXES; ++axis)
-        has_nan_or_inf |= !SYSisFinite(position[axis]);
-    return has_nan_or_inf;
-}
-template<uint NAXES,bool INSTANTIATED>
-SYS_FORCE_INLINE bool utBoxExclude(const UT_FixedVector<fpreal32,NAXES,INSTANTIATED>& position) noexcept {
-    const int32 *ppositionints = reinterpret_cast<const int32*>(&position);
-    // Fast check for NaN or infinity: check if exponent bits are 0xFF.
-    bool has_nan_or_inf = ((ppositionints[0] & 0x7F800000) == 0x7F800000);
-    for (uint axis = 1; axis < NAXES; ++axis)
-        has_nan_or_inf |= ((ppositionints[axis] & 0x7F800000) == 0x7F800000);
-    return has_nan_or_inf;
-}
-template<typename T,uint NAXES,bool INSTANTIATED>
-SYS_FORCE_INLINE T utBoxCenter(const UT_FixedVector<T,NAXES,INSTANTIATED>& position, uint axis) noexcept {
-    return position[axis];
-}
-template<typename T,uint NAXES,bool INSTANTIATED>
-struct ut_BoxCentre<UT_FixedVector<T,NAXES,INSTANTIATED>> {
-    constexpr static uint scale = 1;
 };
 
 template<typename BOX_TYPE,typename SRC_INT_TYPE,typename INT_TYPE>
@@ -4633,18 +3069,6 @@ inline void BVH<N>::init(Box<T,NAXES> axes_minmax, const BOX_TYPE* boxes, INT_TY
     nodes.unsafeClearData();
 }
 
-template<uint N>
-template<typename LOCAL_DATA,typename FUNCTORS>
-inline void BVH<N>::traverse(
-    FUNCTORS &functors,
-    LOCAL_DATA* data_for_parent) const noexcept
-{
-    if (!myRoot)
-        return;
-
-    // NOTE: The root is always index 0.
-    traverseHelper(0, INT_TYPE(-1), functors, data_for_parent);
-}
 template<uint N>
 template<typename LOCAL_DATA,typename FUNCTORS>
 inline void BVH<N>::traverseHelper(
@@ -5943,54 +4367,6 @@ void BVH<N>::partitionByCentre(const BOX_TYPE* boxes, SRC_INT_TYPE*const indices
     ppivot_end = pivot_end;
 }
 
-#if 0
-template<uint N>
-void BVH<N>::debugDump() const {
-    printf("\nNode 0: {\n");
-    UT_WorkBuffer indent;
-    indent.append(80, ' ');
-    UT_Array<INT_TYPE> stack;
-    stack.append(0);
-    stack.append(0);
-    while (!stack.isEmpty()) {
-        int depth = stack.size()/2;
-        if (indent.length() < 4*depth) {
-            indent.append(4, ' ');
-        }
-        INT_TYPE cur_nodei = stack[stack.size()-2];
-        INT_TYPE cur_i = stack[stack.size()-1];
-        if (cur_i == N) {
-            printf(indent.buffer()+indent.length()-(4*(depth-1)));
-            printf("}\n");
-            stack.removeLast();
-            stack.removeLast();
-            continue;
-        }
-        ++stack[stack.size()-1];
-        Node& cur_node = myRoot[cur_nodei];
-        INT_TYPE child_nodei = cur_node.child[cur_i];
-        if (Node::isInternal(child_nodei)) {
-            if (child_nodei == Node::EMPTY) {
-                printf(indent.buffer()+indent.length()-(4*(depth-1)));
-                printf("}\n");
-                stack.removeLast();
-                stack.removeLast();
-                continue;
-            }
-            INT_TYPE internal_node = Node::getInternalNum(child_nodei);
-            printf(indent.buffer()+indent.length()-(4*depth));
-            printf("Node %u: {\n", uint(internal_node));
-            stack.append(internal_node);
-            stack.append(0);
-            continue;
-        }
-        else {
-            printf(indent.buffer()+indent.length()-(4*depth));
-            printf("Tri %u\n", uint(child_nodei));
-        }
-    }
-}
-#endif
 
 } // UT namespace
 } // End HDK_Sample namespace
@@ -6038,15 +4414,8 @@ namespace floatTetWild {
 namespace HDK_Sample {
 
 template<typename T>
-using UT_Vector2T = UT_FixedVector<T,2>;
-template<typename T>
 using UT_Vector3T = UT_FixedVector<T,3>;
 
-template <typename T>
-SYS_FORCE_INLINE T cross(const UT_Vector2T<T> &v1, const UT_Vector2T<T> &v2)
-{
-    return v1[0]*v2[1] - v1[1]*v2[0];
-}
 
 template <typename T>
 SYS_FORCE_INLINE
@@ -6127,14 +4496,6 @@ public:
     /// NOTE: This does not take ownership over triangle_points or positions,
     ///       but does keep pointers to them, so the caller must keep them in
     ///       scope for the lifetime of this structure.
-    UT_SolidAngle(
-        const int ntriangles,
-        const int *const triangle_points,
-        const int npoints,
-        const UT_Vector3T<S> *const positions,
-        const int order = 2)
-        : UT_SolidAngle()
-    { init(ntriangles, triangle_points, npoints, positions, order); }
 
     /// Initialize the tree and data.
     /// NOTE: It is safe to call init on a UT_SolidAngle that has had init
@@ -6150,8 +4511,6 @@ public:
     inline void clear();
 
     /// Returns true if this is clear
-    bool isClear() const
-    { return myNTriangles == 0; }
 
     /// Returns an approximation of the signed solid angle of the mesh from the specified query_point
     /// accuracy_scale is the value of (maxP/q) beyond which the approximation of the box will be used.
@@ -6169,97 +4528,6 @@ private:
     const int *myTrianglePoints;
     int myNPoints;
     const UT_Vector3T<S> *myPositions;
-};
-
-template<typename T>
-inline T UTsignedAngleSegment(
-    const UT_Vector2T<T> &a,
-    const UT_Vector2T<T> &b,
-    const UT_Vector2T<T> &query)
-{
-    // Make a and b relative to query
-    UT_Vector2T<T> qa = a-query;
-    UT_Vector2T<T> qb = b-query;
-
-    // If any segment vertices are coincident with query,
-    // query is on the segment, which we treat as no angle.
-    if (qa.isZero() || qb.isZero())
-        return T(0);
-
-    // numerator = |qa||qb|sin(theta)
-    const T numerator = cross(qa, qb);
-
-    // If numerator is 0, regardless of denominator, query is on the
-    // surface, which we treat as no solid angle.
-    if (numerator == 0)
-        return T(0);
-
-    // denominator = |qa||qb|cos(theta)
-    const T denominator = dot(qa,qb);
-
-    // numerator/denominator = tan(theta)
-    return SYSatan2(numerator, denominator);
-}
-
-/// Class for quickly approximating signed subtended angle of a large curve
-/// from many query points.  This is useful for computing the
-/// generalized winding number at many points.
-///
-/// NOTE: This is currently only instantiated for <float,float>.
-template<typename T,typename S>
-class UT_SubtendedAngle
-{
-public:
-    /// This is outlined so that we don't need to include UT_BVHImpl.h
-    inline UT_SubtendedAngle();
-    /// This is outlined so that we don't need to include UT_BVHImpl.h
-    inline ~UT_SubtendedAngle();
-
-    /// NOTE: This does not take ownership over segment_points or positions,
-    ///       but does keep pointers to them, so the caller must keep them in
-    ///       scope for the lifetime of this structure.
-    UT_SubtendedAngle(
-        const int nsegments,
-        const int *const segment_points,
-        const int npoints,
-        const UT_Vector2T<S> *const positions,
-        const int order = 2)
-        : UT_SubtendedAngle()
-    { init(nsegments, segment_points, npoints, positions, order); }
-
-    /// Initialize the tree and data.
-    /// NOTE: It is safe to call init on a UT_SolidAngle that has had init
-    ///       called on it before, to re-initialize it.
-    inline void init(
-        const int nsegments,
-        const int *const segment_points,
-        const int npoints,
-        const UT_Vector2T<S> *const positions,
-        const int order = 2);
-
-    /// Frees myTree and myData, and clears the rest.
-    inline void clear();
-
-    /// Returns true if this is clear
-    bool isClear() const
-    { return myNSegments == 0; }
-
-    /// Returns an approximation of the signed solid angle of the mesh from the specified query_point
-    /// accuracy_scale is the value of (maxP/q) beyond which the approximation of the box will be used.
-    inline T computeAngle(const UT_Vector2T<T> &query_point, const T accuracy_scale = T(2.0)) const;
-
-private:
-    struct BoxData;
-
-    static constexpr uint BVH_N = 4;
-    UT_BVH<BVH_N> myTree;
-    int myNBoxes;
-    int myOrder;
-    std::unique_ptr<BoxData[]> myData;
-    int myNSegments;
-    const int *mySegmentPoints;
-    int myNPoints;
-    const UT_Vector2T<S> *myPositions;
 };
 
 } // End HDK_Sample namespace
@@ -6372,11 +4640,6 @@ namespace HDK_Sample {
 template<typename T,typename S>
 struct UT_SolidAngle<T,S>::BoxData
 {
-    void clear()
-    {
-        // Set everything to zero
-        memset(this,0,sizeof(*this));
-    }
 
     using Type  = typename std::conditional<BVH_N==4 && std::is_same<T,float>::value, v4uf, UT_FixedVector<T,BVH_N>>::type;
     using SType = typename std::conditional<BVH_N==4 && std::is_same<S,float>::value, v4uf, UT_FixedVector<S,BVH_N>>::type;
@@ -7178,545 +5441,6 @@ inline T UT_SolidAngle<T, S>::computeSolidAngle(const UT_Vector3T<T> &query_poin
     return sum;
 }
 
-template<typename T,typename S>
-struct UT_SubtendedAngle<T,S>::BoxData
-{
-    void clear()
-    {
-        // Set everything to zero
-        memset(this,0,sizeof(*this));
-    }
-
-    using Type  = typename std::conditional<BVH_N==4 && std::is_same<T,float>::value, v4uf, UT_FixedVector<T,BVH_N>>::type;
-    using SType = typename std::conditional<BVH_N==4 && std::is_same<S,float>::value, v4uf, UT_FixedVector<S,BVH_N>>::type;
-
-    /// An upper bound on the squared distance from myAverageP to the farthest point in the box.
-    SType myMaxPDist2;
-
-    /// Centre of mass of the mesh surface in this box
-    UT_FixedVector<Type,2> myAverageP;
-
-    /// Unnormalized, area-weighted normal of the mesh in this box
-    UT_FixedVector<Type,2> myN;
-
-    /// Values for Omega_1
-    /// @{
-    UT_FixedVector<Type,2> myNijDiag;  // Nxx, Nyy
-    Type myNxy_Nyx;               // Nxy+Nyx
-    /// @}
-
-    /// Values for Omega_2
-    /// @{
-    UT_FixedVector<Type,2> myNijkDiag; // Nxxx, Nyyy
-    Type my2Nxxy_Nyxx; // Nxxy+Nxyx+Nyxx = 2Nxxy+Nyxx
-    Type my2Nyyx_Nxyy; // Nyyx+Nyxy+Nxyy = 2Nyyx+Nxyy
-    /// @}
-};
-
-template<typename T,typename S>
-inline UT_SubtendedAngle<T,S>::UT_SubtendedAngle()
-    : myTree()
-    , myNBoxes(0)
-    , myOrder(2)
-    , myData(nullptr)
-    , myNSegments(0)
-    , mySegmentPoints(nullptr)
-    , myNPoints(0)
-    , myPositions(nullptr)
-{}
-
-template<typename T,typename S>
-inline UT_SubtendedAngle<T,S>::~UT_SubtendedAngle()
-{
-    // Default destruction works, but this needs to be outlined
-    // to avoid having to include UT_BVHImpl.h in the header,
-    // (for the UT_UniquePtr destructor.)
-}
-
-template<typename T,typename S>
-inline void UT_SubtendedAngle<T,S>::init(
-    const int nsegments,
-    const int *const segment_points,
-    const int npoints,
-    const UT_Vector2T<S> *const positions,
-    const int order)
-{
-#if SOLID_ANGLE_DEBUG
-    UTdebugFormat("");
-    UTdebugFormat("");
-    UTdebugFormat("Building BVH for {} segments on {} points:", nsegments, npoints);
-#endif
-    myOrder = order;
-    myNSegments = nsegments;
-    mySegmentPoints = segment_points;
-    myNPoints = npoints;
-    myPositions = positions;
-
-#if SOLID_ANGLE_TIME_PRECOMPUTE
-    UT_StopWatch timer;
-    timer.start();
-#endif
-    UT_SmallArray<UT::Box<S,2>> segment_boxes;
-    segment_boxes.setSizeNoInit(nsegments);
-    if (nsegments < 16*1024)
-    {
-        const int *cur_segment_points = segment_points;
-        for (int i = 0; i < nsegments; ++i, cur_segment_points += 2)
-        {
-            UT::Box<S,2> &box = segment_boxes[i];
-            box.initBounds(positions[cur_segment_points[0]]);
-            box.enlargeBounds(positions[cur_segment_points[1]]);
-        }
-    }
-    else
-    {
-      floatTetWild::parallel_for(nsegments,
-        [segment_points,&segment_boxes,positions](int i)
-        {
-          const int *cur_segment_points = segment_points + i*2;
-          UT::Box<S,2> &box = segment_boxes[i];
-          box.initBounds(positions[cur_segment_points[0]]);
-          box.enlargeBounds(positions[cur_segment_points[1]]);
-        });
-    }
-#if SOLID_ANGLE_TIME_PRECOMPUTE
-    double time = timer.stop();
-    UTdebugFormat("{} s to create bounding boxes.", time);
-    timer.start();
-#endif
-    myTree.template init<UT::BVH_Heuristic::BOX_AREA,S,2>(segment_boxes.array(), nsegments);
-#if SOLID_ANGLE_TIME_PRECOMPUTE
-    time = timer.stop();
-    UTdebugFormat("{} s to initialize UT_BVH structure.  {} nodes", time, myTree.getNumNodes());
-#endif
-
-    //myTree.debugDump();
-
-    const int nnodes = myTree.getNumNodes();
-
-    myNBoxes = nnodes;
-    BoxData *box_data = new BoxData[nnodes];
-    myData.reset(box_data);
-
-    // Some data are only needed during initialization.
-    struct LocalData
-    {
-        // Bounding box
-        UT::Box<S,2> myBox;
-
-        // P and N are needed from each child for computing Nij.
-        UT_Vector2T<T> myAverageP;
-        UT_Vector2T<T> myLengthP;
-        UT_Vector2T<T> myN;
-
-        // Unsigned length is needed for computing the average position.
-        T myLength;
-
-        // These are needed for computing Nijk.
-        UT_Vector2T<T> myNijDiag;
-        T myNxy; T myNyx;
-
-        UT_Vector2T<T> myNijkDiag; // Nxxx, Nyyy
-        T my2Nxxy_Nyxx;     // Nxxy+Nxyx+Nyxx = 2Nxxy+Nyxx
-        T my2Nyyx_Nxyy;     // Nyyx+Nyxy+Nxyy = 2Nyyx+Nxyy
-    };
-
-    struct PrecomputeFunctors
-    {
-        BoxData *const myBoxData;
-        const UT::Box<S,2> *const mySegmentBoxes;
-        const int *const mySegmentPoints;
-        const UT_Vector2T<S> *const myPositions;
-        const int myOrder;
-
-        PrecomputeFunctors(
-            BoxData *box_data,
-            const UT::Box<S,2> *segment_boxes,
-            const int *segment_points,
-            const UT_Vector2T<S> *positions,
-            const int order)
-            : myBoxData(box_data)
-            , mySegmentBoxes(segment_boxes)
-            , mySegmentPoints(segment_points)
-            , myPositions(positions)
-            , myOrder(order)
-        {}
-        constexpr SYS_FORCE_INLINE bool pre(const int /*nodei*/, LocalData * /*data_for_parent*/) const
-        {
-            return true;
-        }
-        void item(const int itemi, const int /*parent_nodei*/, LocalData &data_for_parent) const
-        {
-            const UT_Vector2T<S> *const positions = myPositions;
-            const int *const cur_segment_points = mySegmentPoints + 2*itemi;
-            const UT_Vector2T<T> a = positions[cur_segment_points[0]];
-            const UT_Vector2T<T> b = positions[cur_segment_points[1]];
-            const UT_Vector2T<T> ab = b-a;
-
-            const UT::Box<S,2> &segment_box = mySegmentBoxes[itemi];
-            data_for_parent.myBox = segment_box;
-
-            // Length-weighted normal (unnormalized)
-            UT_Vector2T<T> N;
-            N[0] = ab[1];
-            N[1] = -ab[0];
-            const T length2 = ab.length2();
-            const T length = SYSsqrt(length2);
-            const UT_Vector2T<T> P = T(0.5)*(a+b);
-            data_for_parent.myAverageP = P;
-            data_for_parent.myLengthP = P*length;
-            data_for_parent.myN = N;
-#if SOLID_ANGLE_DEBUG
-            UTdebugFormat("");
-            UTdebugFormat("Triangle {}: P = {}; N = {}; length = {}", itemi, P, N, length);
-            UTdebugFormat("             box = {}", data_for_parent.myBox);
-#endif
-
-            data_for_parent.myLength = length;
-            const int order = myOrder;
-            if (order < 1)
-                return;
-
-            // NOTE: Due to P being at the centroid, segments have Nij = 0
-            //       contributions to Nij.
-            data_for_parent.myNijDiag = T(0);
-            data_for_parent.myNxy = 0; data_for_parent.myNyx = 0;
-
-            if (order < 2)
-                return;
-
-            // If it's zero-length, the results are zero, so we can skip.
-            if (length == 0)
-            {
-                data_for_parent.myNijkDiag = T(0);
-                data_for_parent.my2Nxxy_Nyxx = 0;
-                data_for_parent.my2Nyyx_Nxyy = 0;
-                return;
-            }
-
-            T integral_xx = ab[0]*ab[0]/T(12);
-            T integral_xy = ab[0]*ab[1]/T(12);
-            T integral_yy = ab[1]*ab[1]/T(12);
-            data_for_parent.myNijkDiag[0] = integral_xx*N[0];
-            data_for_parent.myNijkDiag[1] = integral_yy*N[1];
-            T Nxxy = N[0]*integral_xy;
-            T Nyxx = N[1]*integral_xx;
-            T Nyyx = N[1]*integral_xy;
-            T Nxyy = N[0]*integral_yy;
-            data_for_parent.my2Nxxy_Nyxx = 2*Nxxy + Nyxx;
-            data_for_parent.my2Nyyx_Nxyy = 2*Nyyx + Nxyy;
-#if SOLID_ANGLE_DEBUG
-            UTdebugFormat("             integral_xx = {}; yy = {}", integral_xx, integral_yy);
-            UTdebugFormat("             integral_xy = {}", integral_xy);
-#endif
-        }
-
-        void post(const int nodei, const int /*parent_nodei*/, LocalData *data_for_parent, const int nchildren, const LocalData *child_data_array) const
-        {
-            // NOTE: Although in the general case, data_for_parent may be null for the root call,
-            //       this functor assumes that it's non-null, so the call below must pass a non-null pointer.
-
-            BoxData &current_box_data = myBoxData[nodei];
-
-            UT_Vector2T<T> N = child_data_array[0].myN;
-            ((T*)&current_box_data.myN[0])[0] = N[0];
-            ((T*)&current_box_data.myN[1])[0] = N[1];
-            UT_Vector2T<T> lengthP = child_data_array[0].myLengthP;
-            T length = child_data_array[0].myLength;
-            const UT_Vector2T<T> local_P = child_data_array[0].myAverageP;
-            ((T*)&current_box_data.myAverageP[0])[0] = local_P[0];
-            ((T*)&current_box_data.myAverageP[1])[0] = local_P[1];
-            for (int i = 1; i < nchildren; ++i)
-            {
-                const UT_Vector2T<T> local_N = child_data_array[i].myN;
-                N += local_N;
-                ((T*)&current_box_data.myN[0])[i] = local_N[0];
-                ((T*)&current_box_data.myN[1])[i] = local_N[1];
-                lengthP += child_data_array[i].myLengthP;
-                length += child_data_array[i].myLength;
-                const UT_Vector2T<T> local_P = child_data_array[i].myAverageP;
-                ((T*)&current_box_data.myAverageP[0])[i] = local_P[0];
-                ((T*)&current_box_data.myAverageP[1])[i] = local_P[1];
-            }
-            for (int i = nchildren; i < BVH_N; ++i)
-            {
-                // Set to zero, just to avoid false positives for uses of uninitialized memory.
-                ((T*)&current_box_data.myN[0])[i] = 0;
-                ((T*)&current_box_data.myN[1])[i] = 0;
-                ((T*)&current_box_data.myAverageP[0])[i] = 0;
-                ((T*)&current_box_data.myAverageP[1])[i] = 0;
-            }
-            data_for_parent->myN = N;
-            data_for_parent->myLengthP = lengthP;
-            data_for_parent->myLength = length;
-
-            UT::Box<S,2> box(child_data_array[0].myBox);
-            for (int i = 1; i < nchildren; ++i)
-                box.combine(child_data_array[i].myBox);
-
-            // Normalize P
-            UT_Vector2T<T> averageP;
-            if (length > 0)
-                averageP = lengthP/length;
-            else
-                averageP = T(0.5)*(box.getMin() + box.getMax());
-            data_for_parent->myAverageP = averageP;
-
-            data_for_parent->myBox = box;
-
-            for (int i = 0; i < nchildren; ++i)
-            {
-                const UT::Box<S,2> &local_box(child_data_array[i].myBox);
-                const UT_Vector2T<T> &local_P = child_data_array[i].myAverageP;
-                const UT_Vector2T<T> maxPDiff = SYSmax(local_P-UT_Vector2T<T>(local_box.getMin()), UT_Vector2T<T>(local_box.getMax())-local_P);
-                ((T*)&current_box_data.myMaxPDist2)[i] = maxPDiff.length2();
-            }
-            for (int i = nchildren; i < BVH_N; ++i)
-            {
-                // This child is non-existent.  If we set myMaxPDist2 to infinity, it will never
-                // use the approximation, and the traverseVector function can check for EMPTY.
-                ((T*)&current_box_data.myMaxPDist2)[i] = std::numeric_limits<T>::infinity();
-            }
-
-            const int order = myOrder;
-            if (order >= 1)
-            {
-                // We now have the current box's P, so we can adjust Nij and Nijk
-                data_for_parent->myNijDiag = child_data_array[0].myNijDiag;
-                data_for_parent->myNxy = 0;
-                data_for_parent->myNyx = 0;
-                data_for_parent->myNijkDiag = child_data_array[0].myNijkDiag;
-                data_for_parent->my2Nxxy_Nyxx = child_data_array[0].my2Nxxy_Nyxx;
-                data_for_parent->my2Nyyx_Nxyy = child_data_array[0].my2Nyyx_Nxyy;
-
-                for (int i = 1; i < nchildren; ++i)
-                {
-                    data_for_parent->myNijDiag += child_data_array[i].myNijDiag;
-                    data_for_parent->myNijkDiag += child_data_array[i].myNijkDiag;
-                    data_for_parent->my2Nxxy_Nyxx += child_data_array[i].my2Nxxy_Nyxx;
-                    data_for_parent->my2Nyyx_Nxyy += child_data_array[i].my2Nyyx_Nxyy;
-                }
-                for (int j = 0; j < 2; ++j)
-                    ((T*)&current_box_data.myNijDiag[j])[0] = child_data_array[0].myNijDiag[j];
-                ((T*)&current_box_data.myNxy_Nyx)[0] = child_data_array[0].myNxy + child_data_array[0].myNyx;
-                for (int j = 0; j < 2; ++j)
-                    ((T*)&current_box_data.myNijkDiag[j])[0] = child_data_array[0].myNijkDiag[j];
-                ((T*)&current_box_data.my2Nxxy_Nyxx)[0] = child_data_array[0].my2Nxxy_Nyxx;
-                ((T*)&current_box_data.my2Nyyx_Nxyy)[0] = child_data_array[0].my2Nyyx_Nxyy;
-                for (int i = 1; i < nchildren; ++i)
-                {
-                    for (int j = 0; j < 2; ++j)
-                        ((T*)&current_box_data.myNijDiag[j])[i] = child_data_array[i].myNijDiag[j];
-                    ((T*)&current_box_data.myNxy_Nyx)[i] = child_data_array[i].myNxy + child_data_array[i].myNyx;
-                    for (int j = 0; j < 2; ++j)
-                        ((T*)&current_box_data.myNijkDiag[j])[i] = child_data_array[i].myNijkDiag[j];
-                    ((T*)&current_box_data.my2Nxxy_Nyxx)[i] = child_data_array[i].my2Nxxy_Nyxx;
-                    ((T*)&current_box_data.my2Nyyx_Nxyy)[i] = child_data_array[i].my2Nyyx_Nxyy;
-                }
-                for (int i = nchildren; i < BVH_N; ++i)
-                {
-                    // Set to zero, just to avoid false positives for uses of uninitialized memory.
-                    for (int j = 0; j < 2; ++j)
-                        ((T*)&current_box_data.myNijDiag[j])[i] = 0;
-                    ((T*)&current_box_data.myNxy_Nyx)[i] = 0;
-                    for (int j = 0; j < 2; ++j)
-                        ((T*)&current_box_data.myNijkDiag[j])[i] = 0;
-                    ((T*)&current_box_data.my2Nxxy_Nyxx)[i] = 0;
-                    ((T*)&current_box_data.my2Nyyx_Nxyy)[i] = 0;
-                }
-
-                for (int i = 0; i < nchildren; ++i)
-                {
-                    const LocalData &child_data = child_data_array[i];
-                    UT_Vector2T<T> displacement = child_data.myAverageP - UT_Vector2T<T>(data_for_parent->myAverageP);
-                    UT_Vector2T<T> N = child_data.myN;
-
-                    // Adjust Nij for the change in centre P
-                    data_for_parent->myNijDiag += N*displacement;
-                    T Nxy = child_data.myNxy + N[0]*displacement[1];
-                    T Nyx = child_data.myNyx + N[1]*displacement[0];
-
-                    data_for_parent->myNxy += Nxy;
-                    data_for_parent->myNyx += Nyx;
-
-                    if (order >= 2)
-                    {
-                        // Adjust Nijk for the change in centre P
-                        data_for_parent->myNijkDiag += T(2)*displacement*child_data.myNijDiag + displacement*displacement*child_data.myN;
-                        data_for_parent->my2Nxxy_Nyxx +=
-                            2*(displacement[1]*child_data.myNijDiag[0] + displacement[0]*child_data.myNxy + N[0]*displacement[0]*displacement[1])
-                            + 2*child_data.myNyx*displacement[0] + N[1]*displacement[0]*displacement[0];
-                        data_for_parent->my2Nyyx_Nxyy +=
-                            2*(displacement[0]*child_data.myNijDiag[1] + displacement[1]*child_data.myNyx + N[1]*displacement[1]*displacement[0])
-                            + 2*child_data.myNxy*displacement[1] + N[0]*displacement[1]*displacement[1];
-                    }
-                }
-            }
-#if SOLID_ANGLE_DEBUG
-            UTdebugFormat("");
-            UTdebugFormat("Node {}: nchildren = {}; maxP = {}", nodei, nchildren, SYSsqrt(current_box_data.myMaxPDist2));
-            UTdebugFormat("         P = {}; N = {}", current_box_data.myAverageP, current_box_data.myN);
-            UTdebugFormat("         Nii = {}", current_box_data.myNijDiag);
-            UTdebugFormat("         Nxy+Nyx = {}", current_box_data.myNxy_Nyx);
-            UTdebugFormat("         Niii = {}", current_box_data.myNijkDiag);
-            UTdebugFormat("         2Nxxy+Nyxx = {}; 2Nyyx+Nxyy = {}", current_box_data.my2Nxxy_Nyxx, current_box_data.my2Nyyx_Nxyy);
-#endif
-        }
-    };
-
-#if SOLID_ANGLE_TIME_PRECOMPUTE
-    timer.start();
-#endif
-    const PrecomputeFunctors functors(box_data, segment_boxes.array(), segment_points, positions, order);
-    // NOTE: post-functor relies on non-null data_for_parent, so we have to pass one.
-    LocalData local_data;
-    myTree.template traverseParallel<LocalData>(4096, functors, &local_data);
-    //myTree.template traverse<LocalData>(functors);
-#if SOLID_ANGLE_TIME_PRECOMPUTE
-    time = timer.stop();
-    UTdebugFormat("{} s to precompute coefficients.", time);
-#endif
-}
-
-template<typename T,typename S>
-inline void UT_SubtendedAngle<T, S>::clear()
-{
-    myTree.clear();
-    myNBoxes = 0;
-    myOrder = 2;
-    myData.reset();
-    myNSegments = 0;
-    mySegmentPoints = nullptr;
-    myNPoints = 0;
-    myPositions = nullptr;
-}
-
-template<typename T,typename S>
-inline T UT_SubtendedAngle<T, S>::computeAngle(const UT_Vector2T<T> &query_point, const T accuracy_scale) const
-{
-    const T accuracy_scale2 = accuracy_scale*accuracy_scale;
-
-    struct AngleFunctors
-    {
-        const BoxData *const myBoxData;
-        const UT_Vector2T<T> myQueryPoint;
-        const T myAccuracyScale2;
-        const UT_Vector2T<S> *const myPositions;
-        const int *const mySegmentPoints;
-        const int myOrder;
-
-        AngleFunctors(
-            const BoxData *const box_data,
-            const UT_Vector2T<T> &query_point,
-            const T accuracy_scale2,
-            const int order,
-            const UT_Vector2T<S> *const positions,
-            const int *const segment_points)
-            : myBoxData(box_data)
-            , myQueryPoint(query_point)
-            , myAccuracyScale2(accuracy_scale2)
-            , myOrder(order)
-            , myPositions(positions)
-            , mySegmentPoints(segment_points)
-        {}
-        uint pre(const int nodei, T *data_for_parent) const
-        {
-            const BoxData &data = myBoxData[nodei];
-            const typename BoxData::Type maxP2 = data.myMaxPDist2;
-            UT_FixedVector<typename BoxData::Type,2> q;
-            q[0] = typename BoxData::Type(myQueryPoint[0]);
-            q[1] = typename BoxData::Type(myQueryPoint[1]);
-            q -= data.myAverageP;
-            const typename BoxData::Type qlength2 = q[0]*q[0] + q[1]*q[1];
-
-            // If the query point is within a factor of accuracy_scale of the box radius,
-            // it's assumed to be not a good enough approximation, so it needs to descend.
-            // TODO: Is there a way to estimate the error?
-            static_assert((std::is_same<typename BoxData::Type,v4uf>::value), "FIXME: Implement support for other tuple types!");
-            v4uu descend_mask = (qlength2 <= maxP2*myAccuracyScale2);
-            uint descend_bitmask = _mm_movemask_ps(V4SF(descend_mask.vector));
-            constexpr uint allchildbits = ((uint(1)<<BVH_N)-1);
-            if (descend_bitmask == allchildbits)
-            {
-                *data_for_parent = 0;
-                return allchildbits;
-            }
-
-            // qlength2 must be non-zero, since it's strictly greater than something.
-            // We still need to be careful for NaNs, though, because the 4th power might cause problems.
-            const typename BoxData::Type qlength_m2 = typename BoxData::Type(1.0)/qlength2;
-            const typename BoxData::Type qlength_m1 = sqrt(qlength_m2);
-
-            // Normalize q to reduce issues with overflow/underflow, since we'd need the 6th power
-            // if we didn't normalize, and (1e-7)^-6 = 1e42, which overflows single-precision.
-            q *= qlength_m1;
-
-            typename BoxData::Type Omega_approx = -qlength_m1*dot(q,data.myN);
-            const int order = myOrder;
-            if (order >= 1)
-            {
-                const UT_FixedVector<typename BoxData::Type,2> q2 = q*q;
-                const typename BoxData::Type Omega_1 =
-                    qlength_m2*(data.myNijDiag[0] + data.myNijDiag[1]
-                        -typename BoxData::Type(2.0)*(dot(q2,data.myNijDiag) +
-                            q[0]*q[1]*data.myNxy_Nyx));
-                Omega_approx += Omega_1;
-                if (order >= 2)
-                {
-                    const UT_FixedVector<typename BoxData::Type,2> q3 = q2*q;
-                    const typename BoxData::Type qlength_m3 = qlength_m2*qlength_m1;
-                    typename BoxData::Type temp0[2] = {
-                        data.my2Nyyx_Nxyy,
-                        data.my2Nxxy_Nyxx
-                    };
-                    typename BoxData::Type temp1[2] = {
-                        q[1]*data.my2Nxxy_Nyxx,
-                        q[0]*data.my2Nyyx_Nxyy
-                    };
-                    const typename BoxData::Type Omega_2 =
-                        qlength_m3*(dot(q, typename BoxData::Type(3)*data.myNijkDiag + UT_FixedVector<typename BoxData::Type,2>(temp0))
-                            -typename BoxData::Type(4.0)*(dot(q3,data.myNijkDiag) + dot(q2, UT_FixedVector<typename BoxData::Type,2>(temp1))));
-                    Omega_approx += Omega_2;
-                }
-            }
-
-            // If q is so small that we got NaNs and we just have a
-            // small bounding box, it needs to descend.
-            const v4uu mask = Omega_approx.isFinite() & ~descend_mask;
-            Omega_approx = Omega_approx & mask;
-            descend_bitmask = (~_mm_movemask_ps(V4SF(mask.vector))) & allchildbits;
-
-            T sum = Omega_approx[0];
-            for (int i = 1; i < BVH_N; ++i)
-                sum += Omega_approx[i];
-            *data_for_parent = sum;
-
-            return descend_bitmask;
-        }
-        void item(const int itemi, const int /*parent_nodei*/, T &data_for_parent) const
-        {
-            const UT_Vector2T<S> *const positions = myPositions;
-            const int *const cur_segment_points = mySegmentPoints + 2*itemi;
-            const UT_Vector2T<T> a = positions[cur_segment_points[0]];
-            const UT_Vector2T<T> b = positions[cur_segment_points[1]];
-
-            data_for_parent = UTsignedAngleSegment(a, b, myQueryPoint);
-        }
-        SYS_FORCE_INLINE void post(const int /*nodei*/, const int /*parent_nodei*/, T *data_for_parent, const int nchildren, const T *child_data_array, const uint descend_bits) const
-        {
-            T sum = (descend_bits&1) ? child_data_array[0] : 0;
-            for (int i = 1; i < nchildren; ++i)
-                sum += ((descend_bits>>i)&1) ? child_data_array[i] : 0;
-
-            *data_for_parent += sum;
-        }
-    };
-    const AngleFunctors functors(myData.get(), query_point, accuracy_scale2, myOrder, myPositions, mySegmentPoints);
-
-    T sum;
-    myTree.traverseVector(functors, &sum);
-    return sum;
-}
 
 // Instantiate our templates.
 //template class UT_SolidAngle<fpreal32,fpreal32>;

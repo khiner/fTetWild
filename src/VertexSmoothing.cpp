@@ -94,11 +94,7 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
     }
 
     // check inversion & quality
-    double max_q = 0;
-    for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
-        if (mesh.tets[t_id].quality > max_q)
-            max_q = mesh.tets[t_id].quality;
-    }
+    const Scalar max_q = get_max_quality(mesh, mesh.tet_vertices[v_id].conn_tets);
     for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
         auto& t = mesh.tets[t_id];
         int   j = t.find(v_id);
