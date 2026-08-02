@@ -145,23 +145,28 @@ namespace detail
     }
   }
 
-  // Remove duplicate vertices upto a uniqueness tolerance (epsilon)
+  // Remove duplicate vertices upto a uniqueness tolerance (epsilon), remapping the given faces
+  // (F) --> (SF) so that SF index SV
   //
   // Inputs:
   //  V  #V by dim list of vertex positions
+  //  F  #F by dim list of face indices into V
   //  epsilon  uniqueness tolerance used coordinate-wise: 1e0 --> integer
   //    match, 1e-1 --> match up to first decimal, ... , 0 --> exact match.
   // Outputs:
   //  SV  #SV by dim new list of vertex positions
   //  SVI #SV by 1 list of indices so SV = V(SVI,:)
   //  SVJ #V by 1 list of indices so V = SV(SVJ,:)
+  //  SF  #F by dim list of face indices into SV
   template <typename T, typename U>
   inline void remove_duplicate_vertices(
     const MatrixX<T>& V,
+    const MatrixXi& F,
     const double epsilon,
     MatrixX<U>& SV,
     MatrixXi& SVI,
-    MatrixXi& SVJ)
+    MatrixXi& SVJ,
+    MatrixXi& SF)
   {
     if(epsilon > 0)
     {
@@ -181,23 +186,7 @@ namespace detail
     {
       unique_rows(V,SV,SVI,SVJ);
     }
-  }
 
-  // Wrapper that also remaps given faces (F) --> (SF) so that SF index SV
-  //
-  // Outputs:
-  //  SF  #F by dim list of face indices into SV
-  template <typename T, typename U>
-  inline void remove_duplicate_vertices(
-    const MatrixX<T>& V,
-    const MatrixXi& F,
-    const double epsilon,
-    MatrixX<U>& SV,
-    MatrixXi& SVI,
-    MatrixXi& SVJ,
-    MatrixXi& SF)
-  {
-    remove_duplicate_vertices(V,epsilon,SV,SVI,SVJ);
     SF.resize(F.rows(),F.cols());
     for(int f = 0;f<F.rows();f++)
     {

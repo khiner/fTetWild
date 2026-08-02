@@ -15,12 +15,6 @@
 // in my hash function, but for large
 // pointsets, more then 99% of queries are
 // in the first slot (seems to be good enough).
-//#define CAVITY_WITH_STATS
-#ifdef CAVITY_WITH_STATS
-#define CAVITY_STATS(x) x
-#else
-#define CAVITY_STATS(x)
-#endif
 
 namespace floatTetWild {
 namespace geo {
@@ -43,10 +37,6 @@ namespace geo {
          */
         Cavity() {
             clear();
-#ifdef CAVITY_WITH_STATS
-            Memory::clear(stats_set_, sizeof(stats_set_));
-            Memory::clear(stats_get_, sizeof(stats_get_));
-#endif
         }
 
         /**
@@ -56,15 +46,6 @@ namespace geo {
             nb_f_ = 0;
             OK_ = true;
             ::memset(h2t_, END_OF_LIST, sizeof(h2t_));
-        }
-
-        ~Cavity() {
-#ifdef CAVITY_WITH_STATS
-            for(index_t i=0; i<MAX_H; ++i) {
-                std::cerr << i  << ": get=" << stats_get_[i]
-                          << "   set=" << stats_set_[i] << std::endl;
-            }
-#endif
         }
 
         /**
@@ -215,25 +196,17 @@ namespace geo {
         void set_vv2t(
             index_t v1, index_t v2, local_index_t f
         ) {
-            CAVITY_STATS(index_t cnt = 0;)
-                index_t h = hash(v1,v2);
+            index_t h = hash(v1,v2);
             index_t cur = h;
             do {
                 if(h2t_[cur] == END_OF_LIST) {
                     h2t_[cur] = f;
-#ifdef GARGANTUA
-                    h2v_[cur][0] = v1;
-                    h2v_[cur][1] = v2;
-#else
                     h2v_[cur] = (Numeric::uint64(v1+1) << 32) |
                         Numeric::uint64(v2+1);
-#endif
-                    CAVITY_STATS(++stats_set_[cnt];)
-                        return;
+                    return;
                 }
                 cur = (cur+1)%MAX_H;
-                CAVITY_STATS(++cnt;)
-                    } while(cur != h);
+            } while(cur != h);
             OK_ = false;
         }
 
@@ -244,60 +217,43 @@ namespace geo {
          * \return the local facet index.
          */
         local_index_t get_vv2t(index_t v1, index_t v2) const {
-#ifndef GARGANTUA
             Numeric::uint64 K = (Numeric::uint64(v1+1) << 32) |
                 Numeric::uint64(v2+1);
-#endif
-            CAVITY_STATS(index_t cnt = 0;)
-                index_t h = hash(v1,v2);
+            index_t h = hash(v1,v2);
             index_t cur = h;
             do {
-#ifdef GARGANTUA
-                if((h2v_[cur][0] == v1) && (h2v_[cur][1] == v2)) {
-#else
-                    if(h2v_[cur] == K) {
-#endif
-                        CAVITY_STATS(++stats_get_[cnt];)
-                            return h2t_[cur];
-                    }
-                    cur = (cur+1)%MAX_H;
-                    CAVITY_STATS(++cnt;)
-                        } while(cur != h);
-                geo_assert_not_reached;
-            }
+                if(h2v_[cur] == K) {
+                    return h2t_[cur];
+                }
+                cur = (cur+1)%MAX_H;
+            } while(cur != h);
+            geo_assert_not_reached;
+        }
 
-            /** \brief Hash index to local facet id. */
-            local_index_t  h2t_[MAX_H];
+        /** \brief Hash index to local facet id. */
+        local_index_t  h2t_[MAX_H];
 
-            /** \brief Hash index to global vertex id. */
-#ifdef GARGANTUA
-            index_t h2v_[MAX_H][2];
-#else
-            Numeric::uint64 h2v_[MAX_H];
-#endif
+        /** \brief Hash index to global vertex id. */
+        Numeric::uint64 h2v_[MAX_H];
 
-            /** \brief Number of facets. */
-            index_t nb_f_;
+        /** \brief Number of facets. */
+        index_t nb_f_;
 
-            /** \brief Local facet index to tetrahedra index. */
-            index_t tglobal_[MAX_F];
+        /** \brief Local facet index to tetrahedra index. */
+        index_t tglobal_[MAX_F];
 
-            /** \brief Local facet index to facet on border index. */
-            index_t boundary_f_[MAX_F];
+        /** \brief Local facet index to facet on border index. */
+        index_t boundary_f_[MAX_F];
 
-            /** \brief Local facet index to three global vertex indices. */
-            index_t f2v_[MAX_F][3];
+        /** \brief Local facet index to three global vertex indices. */
+        index_t f2v_[MAX_F][3];
 
-
-            /**
-             * \brief True if the structure is correct, false
-             *  otherwise, if capacity was exceeded.
-             */
-            bool OK_;
-
-            CAVITY_STATS(mutable index_t stats_set_[MAX_H];)
-                CAVITY_STATS(mutable index_t stats_get_[MAX_H];)
-                };
+        /**
+         * \brief True if the structure is correct, false
+         *  otherwise, if capacity was exceeded.
+         */
+        bool OK_;
+    };
 
     }
 

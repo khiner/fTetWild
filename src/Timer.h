@@ -36,8 +36,6 @@ class Timer
         return std::chrono::duration<double>(end - start_).count();
     }
 
-    double getElapsedTime() const { return getElapsedTimeInSec(); }
-
   private:
     using Clock = std::chrono::steady_clock;
 

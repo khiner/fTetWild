@@ -11,6 +11,8 @@
 
 #include <floattetwild/Matrix.hpp>
 
+#include <vector>
+
 
 namespace floatTetWild {
 #ifdef FLOAT_TETWILD_USE_FLOAT
@@ -41,4 +43,14 @@ namespace floatTetWild {
     typedef Vector<int, 4> Vector4i;
     typedef Vector<int, 3> Vector3i;
     typedef Vector<int, 2> Vector2i;
-	}
+
+    // A list of points or faces as a matrix with one row each, which is the form the surface
+    // cleanup and the winding number take.
+    template<typename T, int N>
+    inline MatrixX<T> to_matrix(const std::vector<Vector<T, N>>& rows) {
+        MatrixX<T> m(int(rows.size()), N);
+        for (int i = 0; i < int(rows.size()); i++)
+            m.row(i) = rows[i];
+        return m;
+    }
+}

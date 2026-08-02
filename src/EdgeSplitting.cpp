@@ -23,36 +23,29 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
     get_all_edges(mesh, edges);
 
     std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
-    for (auto& e:edges) {
+
+    // An edge is worth splitting once it is longer than the threshold scaled by the sizing field
+    // averaged over its two ends.
+    const auto push_if_long = [&](const std::array<int, 2>& e) {
         Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
-        Scalar sizing_scalar = (tet_vertices[e[0]].sizing_scalar + tet_vertices[e[1]].sizing_scalar) / 2;
+        Scalar sizing_scalar = avg_sizing_scalar(mesh, e[0], e[1]);
         if (l_2 > mesh.params.split_threshold_2 * sizing_scalar * sizing_scalar)
             es_queue.push(ElementInQueue(e, l_2));
-    }
+    };
+
+    for (auto& e:edges)
+        push_if_long(e);
     edges.clear();
 
     ////split
-    int budget = -1;//input
-    if (budget > 0) {
-        int v_slots = mesh.v_empty_size();
-        v_slots = budget - v_slots;
-        if (v_slots > 0) {
-            tet_vertices.reserve(tet_vertices.size() + v_slots);
-        }
-        int t_slots = mesh.t_empty_size();
-        t_slots = budget * 6 - t_slots;
-        if (t_slots > 0) {
-            tets.reserve(tet_vertices.size() + t_slots);
-        }
-    } else {
-        // reserve space
-        int v_slots = mesh.v_empty_size();
-        int t_slots = mesh.t_empty_size();
-        if (v_slots < es_queue.size() * 2)
-            tet_vertices.reserve(tet_vertices.size() + es_queue.size() * 2 - v_slots);
-        if (t_slots < es_queue.size() * 6 * 2)
-            tets.reserve(tets.size() + es_queue.size() * 6 * 2 - t_slots + 1);
-    }
+    // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
+    // it stands and leave the empty slots already in the mesh to be reused.
+    const int v_slots = mesh.v_empty_size();
+    const int t_slots = mesh.t_empty_size();
+    if (v_slots < es_queue.size() * 2)
+        tet_vertices.reserve(tet_vertices.size() + es_queue.size() * 2 - v_slots);
+    if (t_slots < es_queue.size() * 6 * 2)
+        tets.reserve(tets.size() + es_queue.size() * 6 * 2 - t_slots + 1);
 
     std::vector<bool> is_splittable(mesh.tets.size(), true);
     bool is_repush = true;
@@ -67,19 +60,8 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
         if (!split_an_edge(mesh, v_ids[0], v_ids[1], is_repush, new_edges, is_splittable, tree))
             is_repush = false;
 
-        for (auto &e:new_edges) {
-            Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
-            Scalar sizing_scalar = (tet_vertices[e[0]].sizing_scalar + tet_vertices[e[1]].sizing_scalar) / 2;
-            if (l_2 > mesh.params.split_threshold_2 * sizing_scalar * sizing_scalar) {
-                es_queue.push(ElementInQueue(e, l_2));
-            }
-        }
-
-        if (budget > 0) {
-            budget--;
-            if (budget == 0)
-                break;
-        }
+        for (auto &e:new_edges)
+            push_if_long(e);
     }
 
     for(auto& t: tets){
@@ -139,30 +121,21 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
         tets[t_id].reset();
 
     //update indices & tags
+    // Each old tet keeps its v1 end and each new copy keeps its v2 end, with the other end moved
+    // onto the new vertex. The face opposite the end that was moved away is new, so its marks go.
+    const auto move_end = [&](MeshTet &t, int moved_v_id, int dropped_v_id) {
+        for (int j = 0; j < 4; j++) {
+            if (t[j] == moved_v_id)
+                t[j] = v_id;
+            else if (t[j] == dropped_v_id)
+                clear_face_marks(t, j);
+        }
+        t.scalar = TET_MODIFIED;//marks it for a quality update
+    };
     for (int i = 0; i < old_t_ids.size(); i++) {
         tets[new_t_ids[i]] = tets[old_t_ids[i]];
-        for (int j = 0; j < 4; j++) {
-            if (tets[old_t_ids[i]][j] == v1_id)
-                tets[old_t_ids[i]][j] = v_id;
-            else if (tets[old_t_ids[i]][j] == v2_id) {
-                tets[old_t_ids[i]].is_surface_fs[j] = NOT_SURFACE;
-                tets[old_t_ids[i]].surface_tags[j] = NO_SURFACE_TAG;
-                tets[old_t_ids[i]].is_bbox_fs[j] = NOT_BBOX;
-            }
-
-            if (tets[new_t_ids[i]][j] == v2_id)
-                tets[new_t_ids[i]][j] = v_id;
-            else if (tets[new_t_ids[i]][j] == v1_id) {
-                tets[new_t_ids[i]].is_surface_fs[j] = NOT_SURFACE;
-                tets[new_t_ids[i]].surface_tags[j] = NO_SURFACE_TAG;
-                tets[new_t_ids[i]].is_bbox_fs[j] = NOT_BBOX;
-            }
-        }
-    }
-    //update quality
-    for (int i = 0; i < old_t_ids.size(); i++) {
-        tets[old_t_ids[i]].scalar = TET_MODIFIED;
-        tets[new_t_ids[i]].scalar = TET_MODIFIED;
+        move_end(tets[old_t_ids[i]], v1_id, v2_id);
+        move_end(tets[new_t_ids[i]], v2_id, v1_id);
     }
     //update conectivity
     relink_split_tets(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);

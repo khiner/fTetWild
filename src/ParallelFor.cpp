@@ -171,8 +171,9 @@ void ThreadPool::join_workers()
     workers_.clear();
 }
 #else
-// std::thread gives no control over stack size. On Windows the reserve in the executable
-// header applies to every thread instead, which CMakeLists sets to match WorkerStackSize.
+// std::thread gives no control over stack size, and nothing here sets the /STACK reserve in the
+// executable header, so a Windows worker gets the default 1 MB rather than WorkerStackSize.
+// Linking with /STACK would close that, and would apply to every thread including the main one.
 void ThreadPool::spawn_worker()
 {
     workers_.emplace_back([this] { worker_loop(); });

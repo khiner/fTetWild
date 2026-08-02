@@ -40,19 +40,12 @@ struct FaceMarks
         }
     }
 
-    static void clear(MeshTet& t, int j)
-    {
-        t.is_surface_fs[j] = NOT_SURFACE;
-        t.surface_tags[j]  = NO_SURFACE_TAG;
-        t.is_bbox_fs[j]    = NOT_BBOX;
-    }
-
     // Copies the recorded marks onto face j of t, or clears them when that face was not recorded.
     void apply(MeshTet& t, int j) const
     {
         const auto it = std::find(fs.begin(), fs.end(), corners(t, j));
         if (it == fs.end()) {
-            clear(t, j);
+            clear_face_marks(t, j);
             return;
         }
         const size_t k     = it - fs.begin();
@@ -211,17 +204,13 @@ bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std
 
     ////check
     for(auto& t:new_tets) {
-        if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]))
+        if (is_inverted(mesh, t))
             return false;
     }
     std::vector<Scalar> new_qs;
-    Scalar old_max_quality = 0;
-    for(int t_id: old_t_ids) {
-        if (tets[t_id].quality > old_max_quality)
-            old_max_quality = tets[t_id].quality;
-    }
+    Scalar old_max_quality = get_max_quality(mesh, old_t_ids);
     for(auto& t:new_tets) {
-        Scalar q = get_quality(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]);
+        Scalar q = get_quality(mesh, t);
         if (q >= old_max_quality)//or use > ???
             return false;
         new_qs.push_back(q);
@@ -244,12 +233,12 @@ bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std
         if (tets[t_ids[0]][i] != v2_id)
             marks.apply(tets[t_ids[0]], i);
         else
-            FaceMarks::clear(tets[t_ids[0]], i);
+            clear_face_marks(tets[t_ids[0]], i);
 
         if (tets[t_ids[1]][i] != v1_id)
             marks.apply(tets[t_ids[1]], i);
         else
-            FaceMarks::clear(tets[t_ids[1]], i);
+            clear_face_marks(tets[t_ids[1]], i);
     }
 
     vector_erase(tet_vertices[v_ids[0]].conn_tets, old_t_ids[0]);
@@ -295,12 +284,8 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
     std::vector<int> tags;
     std::array<int, 2> v_ids;
     std::vector<Scalar> new_qs;
-    Scalar old_max_quality = 0;
+    Scalar old_max_quality = get_max_quality(mesh, old_t_ids);
     Scalar new_max_quality = 0;
-    for (int t_id: old_t_ids) {
-        if (tets[t_id].quality > old_max_quality)
-            old_max_quality = tets[t_id].quality;
-    }
     for (int i = 0; i < 2; i++) {
         std::vector<Vector4i> tmp_new_tets;
         std::vector<int> tmp_tags;
@@ -319,7 +304,7 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
                 t[jt] = tmp_v_ids[0];
                 tmp_tags.push_back(0);
             }
-            if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]])) {
+            if (is_inverted(mesh, t)) {
                 is_break = true;
                 break;
             }
@@ -330,7 +315,7 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
 
         std::vector<Scalar> tmp_new_qs;
         for (auto &t: tmp_new_tets) {
-            Scalar q = get_quality(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]);
+            Scalar q = get_quality(mesh, t);
             if (q >= old_max_quality) {
                 is_break = true;
                 break;
@@ -374,7 +359,7 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
             if (tets[t_id][j] == v_ids[0] || tets[t_id][j] == v_ids[1])
                 marks.apply(tets[t_id], j);
             else
-                FaceMarks::clear(tets[t_id], j);
+                clear_face_marks(tets[t_id], j);
         }
     }
 
@@ -400,12 +385,8 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
     order_edge_ring(mesh, v1_id, v2_id, old_t_ids, n12_v_ids, n12_t_ids);
 
     ////check
-    Scalar old_max_quality = 0;
+    Scalar old_max_quality = get_max_quality(mesh, old_t_ids);
     Scalar new_max_quality = 0;
-    for (int t_id: old_t_ids) {
-        if (tets[t_id].quality > old_max_quality)
-            old_max_quality = tets[t_id].quality;
-    }
 
     std::unordered_map<int, std::array<Scalar, 2>> tet_qs;
     std::unordered_map<int, std::array<Vector4i, 2>> new_tets;
@@ -419,7 +400,7 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         auto t = tets[n12_t_ids[i]];
         int it = t.find(v1_id);
         t[it] = n12_v_ids[(i - 1 + 5) % 5];
-        if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]])) {
+        if (is_inverted(mesh, t)) {
             is_v_valid[(i + 1) % 5] = false;
             is_v_valid[(i - 1 + 5) % 5] = false;
             continue;
@@ -429,7 +410,7 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         t = tets[n12_t_ids[i]];
         it = t.find(v2_id);
         t[it] = n12_v_ids[(i - 1 + 5) % 5];
-        if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]])) {
+        if (is_inverted(mesh, t)) {
             is_v_valid[(i + 1) % 5] = false;
             is_v_valid[(i - 1 + 5) % 5] = false;
             continue;
@@ -440,7 +421,7 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         std::vector<Scalar> qs;
         for (auto &nt: new_ts) {
             qs.emplace_back(
-                    get_quality(tet_vertices[nt[0]], tet_vertices[nt[1]], tet_vertices[nt[2]], tet_vertices[nt[3]]));
+                    get_quality(mesh, nt));
         }
         tet_qs[i] = std::array<Scalar, 2>({{qs[0], qs[1]}});
     }
@@ -457,19 +438,19 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
         auto t = tets[n12_t_ids[(i + 2) % 5]];
         int it = t.find(v1_id);
         t[it] = n12_v_ids[i];
-        if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]))
+        if (is_inverted(mesh, t))
             continue;
         new_ts.push_back(t.indices);
         t = tets[n12_t_ids[(i + 2) % 5]];
         it = t.find(v2_id);
         t[it] = n12_v_ids[i];
-        if (is_inverted(tet_vertices[t[0]], tet_vertices[t[1]], tet_vertices[t[2]], tet_vertices[t[3]]))
+        if (is_inverted(mesh, t))
             continue;
         new_ts.push_back(t.indices);
 
         std::vector<Scalar> qs;
         for (auto &nt:new_ts) {
-            qs.push_back(get_quality(tet_vertices[nt[0]], tet_vertices[nt[1]], tet_vertices[nt[2]], tet_vertices[nt[3]]));
+            qs.push_back(get_quality(mesh, nt));
         }
         for (int j = 0; j < 2; j++) {
             qs.push_back(tet_qs[(i + 1) % 5][j]);
@@ -522,7 +503,7 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
                 && tets[t_id][j] != n12_v_ids[(selected_id - 1 + 5) % 5])
                 marks.apply(tets[t_id], j);
             else
-                FaceMarks::clear(tets[t_id], j);
+                clear_face_marks(tets[t_id], j);
         }
     }
 

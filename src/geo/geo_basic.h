@@ -45,14 +45,6 @@ namespace geo {
         );
     }
 
-    /**
-     * \brief Compares two values
-     */
-    template <class T>
-    inline Sign geo_cmp(const T& a, const T& b) {
-        return Sign((a > b) * POSITIVE + (a < b) * NEGATIVE);
-    }
-
     namespace Numeric {
         typedef void* pointer;
         typedef int8_t int8;
@@ -65,11 +57,6 @@ namespace geo {
         typedef uint64_t uint64;
         typedef float float32;
         typedef double float64;
-
-        inline float32 max_float32() {
-            return std::numeric_limits<float32>::max();
-        }
-
 
         inline float64 max_float64() {
             return std::numeric_limits<float64>::max();

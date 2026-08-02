@@ -153,14 +153,19 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
     Vector3 J;
     Matrix3 H;
 
-    for (int newton_it = 0; newton_it < max_newton_it; newton_it++) {
-        if (newton_it > 0) {
-            for (auto& T : Ts) {
-                T[0] = x(0);
-                T[1] = x(1);
-                T[2] = x(2);
-            }
+    // The vertex being moved is the first corner of every T, so a candidate position is tried by
+    // writing it there.
+    const auto set_candidate = [&Ts](const Vector3& p) {
+        for (auto& T : Ts) {
+            T[0] = p(0);
+            T[1] = p(1);
+            T[2] = p(2);
         }
+    };
+
+    for (int newton_it = 0; newton_it < max_newton_it; newton_it++) {
+        if (newton_it > 0)
+            set_candidate(x);
 
         // f
         Scalar f = 0;
@@ -197,11 +202,7 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             x_next = solve_col_piv_householder_qr(H, H * x - a * J);
             if (!x_next.allFinite())
                 break;
-            for (auto& T : Ts) {
-                T[0] = x_next(0);
-                T[1] = x_next(1);
-                T[2] = x_next(2);
-            }
+            set_candidate(x_next);
 
             // check inversion
             bool is_valid = true;

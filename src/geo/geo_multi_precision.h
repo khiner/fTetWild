@@ -983,21 +983,6 @@ namespace geo {
     }
 
     /**
-     * \brief Multiplies this expansion by a power of two.
-     * \param[in] s the factor to be used to scale this expansion.
-     * \return the new value of this expansion
-     * \note Does not check for overflows/underflows
-     * \pre \p s should be a (possibly negative) power of two.
-     */
-    expansion& scale_fast(double s) {
-        // TODO: debug assert is_power_of_two(s)
-        for(index_t i = 0; i < length_; ++i) {
-            x_[i] *= s;
-        }
-        return *this;
-    }
-
-    /**
      * \brief Computes an approximation of the stored
      *  value in this expansion.
      * \return an approximation of the stored value.
@@ -1052,26 +1037,6 @@ namespace geo {
      * \return the sign of this expansion minus rhs.
      */
     Sign compare(double rhs) const;
-
-    /**
-     * \brief Compares two expansions
-     * \retval true if the two expansions represent the same
-     *  number
-     * \retval false otherwise
-     */
-    bool equals(const expansion& rhs) const {
-        return (compare(rhs) == ZERO);
-    }
-
-    /**
-     * \brief Compares an expansion and a double
-     * \retval true if the expansion and \p rhs represent
-     *  the same number
-     * \retval false otherwise
-     */
-    bool equals(double rhs) const {
-        return (compare(rhs) == ZERO);
-    }
 
     /**
      * \brief Displays all the components of this expansion
@@ -1150,12 +1115,10 @@ namespace geo {
      * \brief Threshold in terms of expansion length for
      *  allocating an expansion on the stack (if smaller)
      *  or on the heap (if larger).
+     * \details geogram drops to 256 on Apple, where a default pthread stack is 512 KB. The thread
+     *  pool here gives every worker 64 MB, so fTetWild keeps 1024 on every platform.
      */
-#ifdef GEO_OS_APPLE
-    static constexpr index_t MAX_CAPACITY_ON_STACK = 256;
-#else
     static constexpr index_t MAX_CAPACITY_ON_STACK = 1024;
-#endif
     index_t length_;
     index_t capacity_;
     double x_[2];  // x_ is in fact of size [capacity_]

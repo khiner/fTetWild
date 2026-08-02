@@ -23,8 +23,6 @@ namespace floatTetWild {
     class StateInfo {
     public:
         enum OpId {
-            tetgen_id = -1,
-
             init_id = 0,
             preprocessing_id = 1,
             tetrahedralization_id = 2,

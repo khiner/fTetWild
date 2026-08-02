@@ -127,7 +127,7 @@ namespace floatTetWild {
                 V_d[i * 3 + j] = tet_vertices[i].pos[j];
         }
 
-        geo::Delaunay3d T(3);
+        geo::Delaunay3d T;
         T.set_vertices(n_pts, V_d.data());
         tets.resize(T.nb_cells());
         const auto &tet2v = T.cell_to_v();

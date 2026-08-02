@@ -18,10 +18,6 @@ namespace {
 
     using namespace floatTetWild::geo;
 
-#ifdef PCK_STATS
-    std::vector<index_t> expansion_length_histo_;
-#endif
-
     /************************************************************************/
 
     /**
@@ -192,23 +188,6 @@ namespace {
         double bvirt = x - a;
         y = b - bvirt;
     }
-
-#ifdef REMOVE_ME
-    /**
-     * \brief Computes the difference of two doubles into a length 2 expansion.
-     * \details By Jonathan Shewchuk.
-     * \param[in] a first argument
-     * \param[in] b second argument
-     * \param[out] x high-magnitude component of the result
-     * \param[out] y low-magnitude component of the result
-     * \pre | \p a| > | \p b |
-     */
-    inline void fast_two_diff(double a, double b, double& x, double& y) {
-        x = a - b;
-        double bvirt = a - x;
-        y = bvirt - b;
-    }
-#endif
 
     /**
      * \brief Computes the sum of a length 2 expansion and a double
@@ -733,12 +712,6 @@ namespace geo {
 
     expansion* expansion::new_expansion_on_heap(index_t capa) {
         Process::acquire_spinlock(expansions_lock);
-#ifdef PCK_STATS
-        if(capa >= expansion_length_histo_.size()) {
-            expansion_length_histo_.resize(capa + 1);
-        }
-        expansion_length_histo_[capa]++;
-#endif
         Memory::pointer addr = Memory::pointer(
             pools_.malloc(expansion::bytes(capa))
         );

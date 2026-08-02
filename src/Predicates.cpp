@@ -43,6 +43,16 @@ namespace floatTetWild {
                 return 0;
         }
 
+        inline int sign_to_ori(Scalar r)
+        {
+            if (r > 0)
+                return Predicates::ORI_POSITIVE;
+            else if (r < 0)
+                return Predicates::ORI_NEGATIVE;
+            else
+                return Predicates::ORI_ZERO;
+        }
+
         inline Scalar orient_3d_raw(const Vector3& p1,
                                     const Vector3& p2,
                                     const Vector3& p3,
@@ -62,31 +72,7 @@ namespace floatTetWild {
     const int Predicates::ORI_UNKNOWN;
 
     int Predicates::orient_3d(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p4) {
-        const Scalar result = orient_3d_raw(p1, p2, p3, p4);
-
-        if (result > 0)
-            return ORI_POSITIVE;
-        else if (result < 0)
-            return ORI_NEGATIVE;
-        else
-            return ORI_ZERO;
-    }
-
-    int Predicates::orient_3d_tolerance(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p) {
-        const Scalar result = orient_3d_raw(p1, p2, p3, p);
-
-        if (result == 0)
-            return ORI_ZERO;
-
-        Vector3 n = ((p2 - p3).cross(p1 - p3)).normalized();
-        Scalar d = std::abs(n.dot(p - p1));
-        if (d <= SCALAR_ZERO)
-            return Predicates::ORI_ZERO;
-
-        if (result > 0)
-            return ORI_POSITIVE;
-        else
-            return ORI_NEGATIVE;
+        return sign_to_ori(orient_3d_raw(p1, p2, p3, p4));
     }
 
     Scalar Predicates::orient_3d_volume(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& p4) {
@@ -100,17 +86,9 @@ namespace floatTetWild {
 
     int Predicates::orient_2d(const Vector2& p1, const Vector2& p2, const Vector2& p3) {
         init_predicates();
-        const Scalar result = predicate_sign(
-          orient2d(const_cast<Scalar*>(p1.data()),
-                   const_cast<Scalar*>(p2.data()),
-                   const_cast<Scalar*>(p3.data())));
-
-        if (result > 0)
-            return ORI_POSITIVE;
-        else if (result < 0)
-            return ORI_NEGATIVE;
-        else
-            return ORI_ZERO;
+        return sign_to_ori(orient2d(const_cast<Scalar*>(p1.data()),
+                                    const_cast<Scalar*>(p2.data()),
+                                    const_cast<Scalar*>(p3.data())));
     }
 
 } // namespace floatTetWild

@@ -194,6 +194,16 @@ Scalar floatTetWild::get_quality(const Vector3& v0,
     return AMIPS_energy(T);
 }
 
+Scalar floatTetWild::get_max_quality(const Mesh& mesh, const std::vector<int>& t_ids)
+{
+    Scalar max_quality = 0;
+    for (int t_id : t_ids) {
+        if (mesh.tets[t_id].quality > max_quality)
+            max_quality = mesh.tets[t_id].quality;
+    }
+    return max_quality;
+}
+
 void floatTetWild::get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scalar& avg_energy)
 {
     max_energy = 0;
@@ -212,10 +222,15 @@ void floatTetWild::get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scal
 
 bool floatTetWild::is_inverted(const Mesh& mesh, int t_id)
 {
-    return is_inverted(mesh.tet_vertices[mesh.tets[t_id][0]].pos,
-                       mesh.tet_vertices[mesh.tets[t_id][1]].pos,
-                       mesh.tet_vertices[mesh.tets[t_id][2]].pos,
-                       mesh.tet_vertices[mesh.tets[t_id][3]].pos);
+    return is_inverted(mesh, mesh.tets[t_id]);
+}
+
+bool floatTetWild::is_inverted(const Mesh& mesh, const MeshTet& t)
+{
+    return is_inverted(mesh.tet_vertices[t[0]].pos,
+                       mesh.tet_vertices[t[1]].pos,
+                       mesh.tet_vertices[t[2]].pos,
+                       mesh.tet_vertices[t[3]].pos);
 }
 
 // The tet with its j-th corner moved to new_p.
@@ -592,7 +607,7 @@ Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
     const expansion& a32 = expansion_diff(p3[1], p0[1]);
     const expansion& a33 = expansion_diff(p3[2], p0[2]);
 
-    // Capacity 192, under the 512 that new_expansion_on_stack() allows.
+    // Capacity 192, under the 1024 that new_expansion_on_stack() allows.
     const expansion& det = expansion_det3x3(a11, a12, a13, a21, a22, a23, a31, a32, a33);
     if (det.sign() == floatTetWild::geo::ZERO)
         return std::numeric_limits<double>::infinity();

@@ -13,10 +13,15 @@
 
 namespace floatTetWild {
 
-	void Mesh::one_ring_vertex_coloring(std::vector<Scalar> &colors) const
+	namespace {
+	// Greedy graph colouring over the one-ring adjacency, so that same-coloured vertices are never
+	// neighbours and can be smoothed at the same time. -1 marks a removed vertex.
+	void one_ring_vertex_coloring(const Mesh &mesh, std::vector<int> &colors)
 	{
-		colors.resize(tet_vertices.size());
-		std::fill(colors.begin(), colors.end(), -1);
+		const auto &tet_vertices = mesh.tet_vertices;
+		const auto &tets = mesh.tets;
+
+		colors.assign(tet_vertices.size(), -1);
 		colors[0] = 0;
 
 		std::vector<bool> available(tet_vertices.size(), true);
@@ -62,14 +67,15 @@ namespace floatTetWild {
 
 		}
 	}
+	}  // namespace
 
 	void Mesh::one_ring_vertex_sets(const int threshold, std::vector<std::vector<int>> &concurrent_sets, std::vector<int> &serial_set) const
 	{
-		std::vector<Scalar> colors;
-		one_ring_vertex_coloring(colors);
+		std::vector<int> colors;
+		one_ring_vertex_coloring(*this, colors);
 		int max_c = -1;
 		for(const auto c : colors)
-			max_c = std::max(max_c, int(c));
+			max_c = std::max(max_c, c);
 
 		concurrent_sets.clear();
 		concurrent_sets.resize(max_c+1);
@@ -97,11 +103,11 @@ namespace floatTetWild {
 	}
 
 
+	// A random subset of the edges whose incident faces are pairwise disjoint, so that collapsing
+	// all of them at once is the same as collapsing them one at a time.
 	void Mesh::one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char>& v_is_removed, const std::vector<char>& f_is_removed,
-	        const std::vector<std::unordered_set<int>>& conn_fs, const std::vector<Vector3>& input_vertices, std::vector<int> &safe_set)
+	        const std::vector<std::unordered_set<int>>& conn_fs, std::vector<int> &safe_set)
 	{
-
-
 		std::vector<int> indices(edges.size());
 		std::iota(std::begin(indices), std::end(indices), 0);
 		floatTetWild::Random::shuffle(indices);
@@ -115,51 +121,31 @@ namespace floatTetWild {
 				continue;
 
 			bool ok = true;
-
-
-			for(const int f : conn_fs[e[0]])
+			for(const int v : e)
 			{
-				if(f_is_removed[f])
-					continue;
-
-				if(unsafe_face[f])
+				for(const int f : conn_fs[v])
 				{
-					ok=false;
-					break;
+					if(!f_is_removed[f] && unsafe_face[f])
+					{
+						ok=false;
+						break;
+					}
 				}
-			}
-			if(!ok)
-				continue;
-			for(const int f : conn_fs[e[1]])
-			{
-				if(f_is_removed[f])
-					continue;
-
-				if(unsafe_face[f])
-				{
-					ok=false;
+				if(!ok)
 					break;
-				}
 			}
 			if(!ok)
 				continue;
 
 			safe_set.push_back(e_id);
 
-			for(const int f : conn_fs[e[0]])
+			for(const int v : e)
 			{
-				if(f_is_removed[f])
-					continue;
-
-				assert(!unsafe_face[f]);
-				unsafe_face[f]=true;
-			}
-			for(const int f : conn_fs[e[1]])
-			{
-				if(f_is_removed[f])
-					continue;
-
-				unsafe_face[f]=true;
+				for(const int f : conn_fs[v])
+				{
+					if(!f_is_removed[f])
+						unsafe_face[f]=true;
+				}
 			}
 		}
 	}

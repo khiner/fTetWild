@@ -19,6 +19,38 @@
 
 namespace floatTetWild {
 
+void reorder_and_read_back(geo::Mesh&             mesh,
+                           std::vector<Vector3>&  points,
+                           std::vector<Vector3i>& faces,
+                           std::vector<int>&      tags)
+{
+    const bool has_tags = (tags.size() == mesh.facets.nb());
+    if (has_tags) {
+        geo::Attribute<int> bflags(mesh.facets.attributes(), "bbflags");
+        for (int index = 0; index < (int)mesh.facets.nb(); ++index)
+            bflags[index] = tags[index];
+    }
+
+    geo::mesh_reorder(mesh, geo::MESH_ORDER_MORTON);
+
+    if (has_tags) {
+        geo::Attribute<int> bflags(mesh.facets.attributes(), "bbflags");
+        tags.assign(mesh.facets.nb(), 0);
+        for (int index = 0; index < (int)mesh.facets.nb(); ++index)
+            tags[index] = bflags[index];
+    }
+
+    points.resize(mesh.vertices.nb());
+    for (size_t i = 0; i < points.size(); i++)
+        points[i] << mesh.vertices.point(i)[0], mesh.vertices.point(i)[1],
+          mesh.vertices.point(i)[2];
+
+    faces.resize(mesh.facets.nb());
+    for (size_t i = 0; i < faces.size(); i++)
+        faces[i] << int(mesh.facets.vertex(i, 0)), int(mesh.facets.vertex(i, 1)),
+          int(mesh.facets.vertex(i, 2));
+}
+
 bool MeshIO::load_mesh(const std::string&     path,
                        std::vector<Vector3>&  points,
                        std::vector<Vector3i>& faces,
@@ -26,47 +58,16 @@ bool MeshIO::load_mesh(const std::string&     path,
                        std::vector<int>&      flags)
 {
     logger().debug("Loading mesh at {}...", path);
-    Timer timer;
-    timer.start();
 
     if (!load_surface_mesh(path, input))
         return false;
 
-    bool is_valid = (flags.size() == input.facets.nb());
-    if (is_valid) {
-        assert(flags.size() == input.facets.nb());
-        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
-        for (int index = 0; index < (int)input.facets.nb(); ++index) {
-            bflags[index] = flags[index];
-        }
-    }
-
-    geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);
-
-    if (is_valid) {
-        flags.clear();
-        flags.resize(input.facets.nb());
-        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
-        for (int index = 0; index < (int)input.facets.nb(); ++index) {
-            flags[index] = bflags[index];
-        }
-    }
-
-    points.resize(input.vertices.nb());
-    for (size_t i = 0; i < points.size(); i++)
-        points[i] << (input.vertices.point(i))[0], (input.vertices.point(i))[1],
-          (input.vertices.point(i))[2];
-
-    faces.resize(input.facets.nb());
-    for (size_t i = 0; i < faces.size(); i++)
-        faces[i] << input.facets.vertex(i, 0), input.facets.vertex(i, 1), input.facets.vertex(i, 2);
-
+    reorder_and_read_back(input, points, faces, flags);
     return true;
 }
 
 void MeshIO::write_mesh(const std::string&         path,
                         const Mesh&                mesh,
-                        const bool                 only_interior,
                         const std::vector<Scalar>& color,
                         const bool                 binary,
                         const bool                 separate_components)
@@ -78,26 +79,17 @@ void MeshIO::write_mesh(const std::string&         path,
     Timer timer;
     timer.start();
 
-    // Only the interior wanted means dropping what lies outside the surface, otherwise it means
-    // dropping the slots the mesher has freed.
-    const auto skip_tet = [&](size_t i) {
-        return only_interior ? mesh.tets[i].is_outside : mesh.tets[i].is_removed;
-    };
-    const auto skip_vertex = [&](size_t i) {
-        return only_interior ? mesh.tet_vertices[i].is_outside : mesh.tet_vertices[i].is_removed;
-    };
-
     PyMesh::MshSaver mesh_saver(path, binary);
 
     std::vector<int> old_2_new(mesh.tet_vertices.size(), -1);
     int              cnt_v = 0;
     for (size_t i = 0; i < mesh.tet_vertices.size(); i++) {
-        if (!skip_vertex(i))
+        if (!mesh.tet_vertices[i].is_removed)
             old_2_new[i] = cnt_v++;
     }
     int cnt_t = 0;
     for (size_t i = 0; i < mesh.tets.size(); i++) {
-        if (!skip_tet(i))
+        if (!mesh.tets[i].is_removed)
             cnt_t++;
     }
 
@@ -109,7 +101,7 @@ void MeshIO::write_mesh(const std::string&         path,
 
     size_t index = 0;
     for (size_t i = 0; i < mesh.tet_vertices.size(); ++i) {
-        if (skip_vertex(i))
+        if (mesh.tet_vertices[i].is_removed)
             continue;
         for (int j = 0; j < 3; j++)
             V_flat[index * 3 + j] = mesh.tet_vertices[i][j];
@@ -118,7 +110,7 @@ void MeshIO::write_mesh(const std::string&         path,
 
     index = 0;
     for (size_t i = 0; i < mesh.tets.size(); ++i) {
-        if (skip_tet(i))
+        if (mesh.tets[i].is_removed)
             continue;
         // The saver wants the opposite orientation, so the last two corners are swapped.
         T_flat[index * 4 + 0] = old_2_new[mesh.tets[i][0]];
@@ -136,7 +128,7 @@ void MeshIO::write_mesh(const std::string&         path,
         PyMesh::VectorF color_flat(cnt_t);
         index = 0;
         for (size_t i = 0; i < mesh.tets.size(); i++) {
-            if (!skip_tet(i))
+            if (!mesh.tets[i].is_removed)
                 color_flat[index++] = color[i];
         }
         mesh_saver.save_elem_scalar_field("color", color_flat);
@@ -145,14 +137,14 @@ void MeshIO::write_mesh(const std::string&         path,
         PyMesh::VectorF color_flat(cnt_v);
         index = 0;
         for (size_t i = 0; i < mesh.tet_vertices.size(); i++) {
-            if (!skip_vertex(i))
+            if (!mesh.tet_vertices[i].is_removed)
                 color_flat[index++] = color[i];
         }
         mesh_saver.save_scalar_field("color", color_flat);
     }
 
     timer.stop();
-    logger().info(" took {}s", timer.getElapsedTime());
+    logger().info(" took {}s", timer.getElapsedTimeInSec());
 }
 
 }  // namespace floatTetWild

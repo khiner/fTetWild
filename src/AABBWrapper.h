@@ -63,10 +63,6 @@ namespace floatTetWild {
             return is_out(sf_tree, p, eps_2, prev_facet);
         }
 
-        inline bool is_out_b_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
-            return is_out(*b_tree, p, eps_2, prev_facet);
-        }
-
         inline bool is_out_tmp_b_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
             return is_out(*tmp_b_tree, p, eps_2, prev_facet);
         }

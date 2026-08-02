@@ -153,7 +153,6 @@ int main(int argc, char** argv)
     std::vector<int>      input_tags;
 
     if (!params.tag_path.empty()) {
-        input_tags.reserve(input_faces.size());
         std::string   line;
         std::ifstream fin(params.tag_path);
         if (fin.is_open()) {
@@ -207,11 +206,11 @@ int main(int argc, char** argv)
         if (!MeshIO::load_mesh(
               params.input_path, input_vertices, input_faces, sf_mesh, input_tags)) {
             logger().error("Unable to load mesh at {}", params.input_path);
-            MeshIO::write_mesh(output_mesh_name, mesh, false);
+            MeshIO::write_mesh(output_mesh_name, mesh);
             return EXIT_FAILURE;
         }
         else if (input_vertices.empty() || input_faces.empty()) {
-            MeshIO::write_mesh(output_mesh_name, mesh, false);
+            MeshIO::write_mesh(output_mesh_name, mesh);
             return EXIT_FAILURE;
         }
 
@@ -224,7 +223,7 @@ int main(int argc, char** argv)
 
     if (tetrahedralization(tree, input_vertices, input_faces, input_tags, mesh, skip_simplify) !=
         0) {
-        MeshIO::write_mesh(output_mesh_name, mesh, false);
+        MeshIO::write_mesh(output_mesh_name, mesh);
         return EXIT_FAILURE;
     }
 
@@ -248,7 +247,7 @@ int main(int argc, char** argv)
             get_tracked_surface(mesh, Vt, Ft);
             writeOBJ(out_prefix + "_all.obj", Vt, Ft);
         }
-        MeshIO::write_mesh(out_prefix + "_all.msh", mesh, false);
+        MeshIO::write_mesh(out_prefix + "_all.msh", mesh);
     }
 
     MatrixXs Vt;
@@ -260,26 +259,20 @@ int main(int argc, char** argv)
         boolean_operation(mesh, tree_with_ids, csg_Vs, csg_Fs);
     else if (boolean_op >= 0)
         boolean_operation(mesh, boolean_op);
-    else {
-        if (params.smooth_open_boundary) {
-            smooth_open_boundary(mesh, tree);
-            for (auto& t : mesh.tets) {
-                if (t.is_outside)
-                    t.is_removed = true;
-            }
+    else if (params.smooth_open_boundary) {
+        smooth_open_boundary(mesh, tree);
+        for (auto& t : mesh.tets) {
+            if (t.is_outside)
+                t.is_removed = true;
         }
-        else {
-            if (!params.disable_filtering) {
-                if (params.use_floodfill) {
-                    filter_outside_floodfill(mesh);
-                }
-                else if (params.use_input_for_wn) {
-                    filter_outside(mesh, input_vertices, input_faces);
-                }
-                else
-                    filter_outside(mesh, Vt, Ft);
-            }
-        }
+    }
+    else if (!params.disable_filtering) {
+        if (params.use_floodfill)
+            filter_outside_floodfill(mesh);
+        else if (params.use_input_for_wn)
+            filter_outside(mesh, input_vertices, input_faces);
+        else
+            filter_outside(mesh, Vt, Ft);
     }
     MatrixXd V_sf;
     MatrixXi F_sf;
@@ -310,7 +303,7 @@ int main(int argc, char** argv)
             colors[i] = mesh.tets[i].quality;
         }
     }
-    MeshIO::write_mesh(output_mesh_name, mesh, false, colors, !nobinary, !csg_file.empty());
+    MeshIO::write_mesh(output_mesh_name, mesh, colors, !nobinary, !csg_file.empty());
     writeOBJ(out_prefix + "_sf.obj", V_sf, F_sf);
 
     std::ofstream fout(params.log_path + "_" + params.postfix + ".csv");

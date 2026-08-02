@@ -107,8 +107,9 @@ namespace geo {
     };
 
     /**
-     * \brief The corners of the facets of a Mesh: for each one, the vertex it points at and the
-     *  facet on the other side of the edge that starts there.
+     * \brief The corners of the facets of a Mesh: for each one, the vertex it points at.
+     * \details geogram also keeps the facet on the other side of the edge that starts at the
+     *  corner. Nothing here reads facet adjacency, so it is not stored.
      */
     class MeshFacetCorners {
     public:
@@ -129,16 +130,6 @@ namespace geo {
             corner_vertex_[c] = v;
         }
 
-        index_t adjacent_facet(index_t c) const {
-            geo_debug_assert(c < nb());
-            return corner_adjacent_facet_[c];
-        }
-
-        void set_adjacent_facet(index_t c, index_t f) {
-            geo_debug_assert(c < nb());
-            corner_adjacent_facet_[c] = f;
-        }
-
         AttributesManager& attributes() {
             return attributes_;
         }
@@ -152,36 +143,33 @@ namespace geo {
         }
 
     private:
-        friend class MeshVertices;
         friend class MeshFacets;
 
         index_t create_sub_elements(index_t nb_to_create) {
             index_t first = nb();
             corner_vertex_.resize(first + nb_to_create, NO_VERTEX);
-            corner_adjacent_facet_.resize(first + nb_to_create, NO_FACET);
             attributes_.resize(nb());
             return first;
         }
 
         void clear(bool keep_attributes, bool keep_memory) {
             corner_vertex_.clear();
-            corner_adjacent_facet_.clear();
             if(!keep_memory) {
                 corner_vertex_.shrink_to_fit();
-                corner_adjacent_facet_.shrink_to_fit();
             }
             attributes_.clear(keep_attributes);
         }
 
         std::vector<index_t> corner_vertex_;
-        std::vector<index_t> corner_adjacent_facet_;
         AttributesManager attributes_;
     };
 
     /**
-     * \brief The facets of a Mesh.
-     * \details As in geogram, a mesh whose facets are all triangles keeps them in a simplicial
-     *  representation with the corners of facet f at 3f, 3f+1, 3f+2 and no facet pointer array.
+     * \brief The facets of a Mesh, all of them triangles.
+     * \details geogram switches to a general polygonal representation as soon as a facet with
+     *  another number of vertices is created. Every facet built here is a triangle -- the loaders
+     *  fan polygons as they read them -- so only geogram's simplicial representation is kept, with
+     *  the corners of facet f at 3f, 3f+1, 3f+2.
      */
     class MeshFacets {
     public:
@@ -193,18 +181,14 @@ namespace geo {
             return nb_;
         }
 
-        bool are_simplices() const {
-            return is_simplicial_;
-        }
-
         index_t corners_begin(index_t f) const {
             geo_debug_assert(f < nb());
-            return is_simplicial_ ? 3 * f : facet_ptr_[f];
+            return 3 * f;
         }
 
         index_t corners_end(index_t f) const {
             geo_debug_assert(f < nb());
-            return is_simplicial_ ? 3 * (f + 1) : facet_ptr_[f + 1];
+            return 3 * (f + 1);
         }
 
         index_t nb_vertices(index_t f) const {
@@ -233,42 +217,17 @@ namespace geo {
             facet_corners_.set_vertex(corners_begin(f) + lv, v);
         }
 
-        index_t adjacent(index_t f, index_t le) const {
-            geo_debug_assert(le < nb_vertices(f));
-            return facet_corners_.adjacent_facet(corners_begin(f) + le);
-        }
-
-        void set_adjacent(index_t f, index_t le, index_t f2) {
-            geo_debug_assert(le < nb_vertices(f));
-            facet_corners_.set_adjacent_facet(corners_begin(f) + le, f2);
-        }
-
         /**
-         * \brief Creates a contiguous chunk of facets with the same number of vertices each.
-         * \return the index of the first facet
+         * \brief Creates a contiguous chunk of triangles.
+         * \return the index of the first triangle
          */
-        index_t create_facets(index_t nb_facets, index_t nb_vertices_per_polygon);
-
-        index_t create_triangles(index_t nb_triangles) {
-            return create_facets(nb_triangles, 3);
-        }
-
-        /**
-         * \brief Creates one facet.
-         * \return the index of the created facet
-         */
-        index_t create_polygon(index_t nb_facet_vertices) {
-            return create_facets(1, nb_facet_vertices);
-        }
-
-
+        index_t create_triangles(index_t nb_triangles);
 
         void clear(bool keep_attributes = true, bool keep_memory = false);
 
         /**
          * \brief Reorders the facets so that facet \p k becomes the facet that was at
          *  \p permutation[k].
-         * \details \p permutation is inverted in place, as in geogram.
          */
         void permute_elements(vector<index_t>& permutation);
 
@@ -277,22 +236,8 @@ namespace geo {
         }
 
     private:
-        friend class Mesh;
-
-        /**
-         * \brief Switches to the general representation, materialising facet_ptr_.
-         */
-        void is_not_simplicial();
-
-        /**
-         * \brief Replaces the facets with the triangles given as a flat list of vertex indices.
-         */
-        void assign_triangle_mesh(vector<index_t>& triangle_vertex_index);
-
         MeshFacetCorners& facet_corners_;
         index_t nb_ = 0;
-        bool is_simplicial_ = true;
-        std::vector<index_t> facet_ptr_;
         AttributesManager attributes_;
     };
 

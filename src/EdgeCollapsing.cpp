@@ -9,17 +9,6 @@
 #include <floattetwild/EdgeCollapsing.h>
 #include <floattetwild/LocalOperations.h>
 
-#define EC_FAIL_INVERSION -1
-#define EC_FAIL_QUALITY -2
-#define EC_FAIL_ENVELOPE0 -3
-#define EC_FAIL_ENVELOPE1 -4
-#define EC_FAIL_ENVELOPE2 -5
-#define EC_FAIL_ENVELOPE3 -6
-#define EC_SUCCESS 1
-#define EC_SUCCESS_ENVELOPE 2
-
-#define EC_POSTPROCESS true
-
 namespace floatTetWild {
 namespace {
 void edge_collapsing_aux(Mesh&                            mesh,
@@ -33,13 +22,16 @@ void edge_collapsing_aux(Mesh&                            mesh,
 
     ////init
     std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ec_queue;
+    // A collapse moves the first end onto the second, so an edge goes in once per direction.
+    const auto push_both_ends = [&](const std::array<int, 2>& e, Scalar l_2) {
+        ec_queue.push(ElementInQueue(e, l_2));
+        ec_queue.push(ElementInQueue({{e[1], e[0]}}, l_2));
+    };
     for (auto& e : edges) {
         Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
         if (is_collapsable_length(mesh, e[0], e[1], l_2) &&
-            is_collapsable_boundary(mesh, e[0], e[1], tree)) {
-            ec_queue.push(ElementInQueue(e, l_2));
-            ec_queue.push(ElementInQueue({{e[1], e[0]}}, l_2));
-        }
+            is_collapsable_boundary(mesh, e[0], e[1], tree))
+            push_both_ends(e, l_2);
     }
     edges.clear();
 
@@ -81,8 +73,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
                 continue;
 
             std::vector<std::array<int, 2>> new_edges;
-            int result = collapse_an_edge(mesh, v_ids[0], v_ids[1], tree, new_edges, ts, tet_tss);
-            if (result == EC_SUCCESS || result == EC_SUCCESS_ENVELOPE) {
+            if (collapse_an_edge(mesh, v_ids[0], v_ids[1], tree, new_edges, ts, tet_tss)) {
                 suc_counter++;
 
                 for (auto& e : new_edges) {
@@ -90,27 +81,19 @@ void edge_collapsing_aux(Mesh&                            mesh,
                         continue;
 
                     Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
-                    if (is_collapsable_length(mesh, e[0], e[1], l_2)) {
-                        ec_queue.push(ElementInQueue(e, l_2));
-                        ec_queue.push(ElementInQueue({{e[1], e[0]}}, l_2));
-                    }
+                    if (is_collapsable_length(mesh, e[0], e[1], l_2))
+                        push_both_ends(e, l_2);
                 }
             }
-#if EC_POSTPROCESS
             else {
-
                 inf_es.push_back(v_ids);
                 inf_e_tss.push_back(ts);
             }
-#endif
         }
 
-#if EC_POSTPROCESS
         if (suc_counter == 0)
-#endif
             break;
 
-#if EC_POSTPROCESS
         ////postprocess
         std::vector<std::array<int, 2>> tmp_inf_es;
         const unsigned int              inf_es_size = inf_es.size();
@@ -147,7 +130,6 @@ void edge_collapsing_aux(Mesh&                            mesh,
 
         ts++;
         inf_e_tss = std::vector<int>(inf_es.size(), ts);
-#endif
     } while (suc_counter > 0);
 }
 
@@ -161,15 +143,18 @@ void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
     edge_collapsing_aux(mesh, tree, edges);
 }
 
-int floatTetWild::collapse_an_edge(Mesh&                            mesh,
-                                   int                              v1_id,
-                                   int                              v2_id,
-                                   const AABBWrapper&               tree,
-                                   std::vector<std::array<int, 2>>& new_edges,
-                                   int                              ts,
-                                   std::vector<int>&                tet_tss,
-                                   bool                             is_check_quality,
-                                   bool                             is_update_tss)
+// Moves v1 onto v2, or leaves the mesh untouched and returns false when the collapse would
+// invert a tet, worsen the worst quality around v1, or take v1's surface or boundary out of its
+// envelope.
+bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
+                                    int                              v1_id,
+                                    int                              v2_id,
+                                    const AABBWrapper&               tree,
+                                    std::vector<std::array<int, 2>>& new_edges,
+                                    int                              ts,
+                                    std::vector<int>&                tet_tss,
+                                    bool                             is_check_quality,
+                                    bool                             is_update_tss)
 {
     auto& tet_vertices = mesh.tet_vertices;
     auto& tets         = mesh.tets;
@@ -186,16 +171,16 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
           mesh,
           tet_vertices[v2_id].pos,
           tree))  // todo: you should check/unmark is_on_boundary around here
-        return EC_FAIL_ENVELOPE0;
+        return false;
     if (tet_vertices[v1_id].is_on_surface &&
         is_point_out_envelope(mesh, tet_vertices[v2_id].pos, tree))
-        return EC_FAIL_ENVELOPE1;
+        return false;
 
     ////check tets
     std::vector<int> n12_t_ids;
     set_intersection(tet_vertices[v1_id].conn_tets, tet_vertices[v2_id].conn_tets, n12_t_ids);
     if (n12_t_ids.empty())
-        return EC_FAIL_INVERSION;
+        return false;
     std::vector<int> n1_t_ids;  // v1.conn_tets - n12_t_ids
     std::sort(tet_vertices[v1_id].conn_tets.begin(), tet_vertices[v1_id].conn_tets.end());
     std::sort(n12_t_ids.begin(), n12_t_ids.end());
@@ -212,7 +197,7 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
         js_n1_t_ids.push_back(j);
         assert(j < 4);
         if (is_inverted(mesh, t_id, j, tet_vertices[v2_id].pos))
-            return EC_FAIL_INVERSION;
+            return false;
     }
 
     // quality
@@ -238,7 +223,7 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
                                    tet_vertices[tets[t_id][mod4(j + 2)]],
                                    tet_vertices[tets[t_id][mod4(j + 3)]]);
         if (is_check_quality && new_q > old_max_quality)
-            return EC_FAIL_QUALITY;
+            return false;
         new_qs.push_back(new_q);
     }
 
@@ -247,11 +232,11 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
     if (l > 0) {
         if (tet_vertices[v1_id].is_on_boundary) {
             if (is_out_boundary_envelope(mesh, v1_id, tet_vertices[v2_id].pos, tree))
-                return EC_FAIL_ENVELOPE2;
+                return false;
         }
         if (tet_vertices[v1_id].is_on_surface) {
             if (is_out_envelope(mesh, v1_id, tet_vertices[v2_id].pos, tree))
-                return EC_FAIL_ENVELOPE3;
+                return false;
         }
     }
 
@@ -287,81 +272,68 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
     // update tags
 
     for (int t_id : n12_t_ids) {
-        int sf_facing_v1   = NOT_SURFACE;
-        int sf_facing_v2   = NOT_SURFACE;
-        int tag_facing_v1  = NO_SURFACE_TAG;
-        int tag_facing_v2  = NO_SURFACE_TAG;
-        int bbox_facing_v1 = NOT_BBOX;
-        int bbox_facing_v2 = NOT_BBOX;
-
-        std::array<int, 2> j12;
+        // The marks on the two faces of this tet that face v1 and v2, indexed 0 for v1 and 1 for
+        // v2. The collapse merges them onto the two faces that connect the two ends.
+        std::array<int, 2> j12         = {{-1, -1}};
+        std::array<int, 2> sf_facing   = {{NOT_SURFACE, NOT_SURFACE}};
+        std::array<int, 2> tag_facing  = {{NO_SURFACE_TAG, NO_SURFACE_TAG}};
+        std::array<int, 2> bbox_facing = {{NOT_BBOX, NOT_BBOX}};
         for (int j = 0; j < 4; j++) {
-            if (tets[t_id][j] == v1_id) {
-                sf_facing_v1   = tets[t_id].is_surface_fs[j];
-                tag_facing_v1  = tets[t_id].surface_tags[j];
-                bbox_facing_v1 = tets[t_id].is_bbox_fs[j];
-                j12[0]         = j;
-            }
-            else if (tets[t_id][j] == v2_id) {
-                sf_facing_v2   = tets[t_id].is_surface_fs[j];
-                tag_facing_v2  = tets[t_id].surface_tags[j];
-                bbox_facing_v2 = tets[t_id].is_bbox_fs[j];
-                j12[1]         = j;
-            }
+            const int i = tets[t_id][j] == v1_id ? 0 : (tets[t_id][j] == v2_id ? 1 : -1);
+            if (i < 0)
+                continue;
+            sf_facing[i]   = tets[t_id].is_surface_fs[j];
+            tag_facing[i]  = tets[t_id].surface_tags[j];
+            bbox_facing[i] = tets[t_id].is_bbox_fs[j];
+            j12[i]         = j;
         }
 
         std::array<int, 2> sf_connecting_v12  = {{NOT_SURFACE, NOT_SURFACE}};
         std::array<int, 2> tag_connecting_v12 = {{NO_SURFACE_TAG, NO_SURFACE_TAG}};
-        if (sf_facing_v2 != NOT_SURFACE && sf_facing_v1 != NOT_SURFACE) {
-            int new_tag = -sf_facing_v2 + sf_facing_v1;
-            if (new_tag == 0)
-                sf_connecting_v12[0] = 0;
-            else if (new_tag > 0)
-                sf_connecting_v12[0] = 1;
-            else
-                sf_connecting_v12[0] = -1;
-            tag_connecting_v12[0] = tag_facing_v1;
+        if (sf_facing[1] != NOT_SURFACE && sf_facing[0] != NOT_SURFACE) {
+            const int new_tag     = sf_facing[0] - sf_facing[1];
+            sf_connecting_v12[0]  = (new_tag > 0) - (new_tag < 0);
+            tag_connecting_v12[0] = tag_facing[0];
         }
-        else if (sf_facing_v2 != NOT_SURFACE) {
-            sf_connecting_v12[0]  = -sf_facing_v2;
-            tag_connecting_v12[0] = tag_facing_v2;
+        else if (sf_facing[1] != NOT_SURFACE) {
+            sf_connecting_v12[0]  = -sf_facing[1];
+            tag_connecting_v12[0] = tag_facing[1];
         }
-        else if (sf_facing_v1 != NOT_SURFACE) {
-            sf_connecting_v12[0]  = sf_facing_v1;
-            tag_connecting_v12[0] = tag_facing_v1;
+        else if (sf_facing[0] != NOT_SURFACE) {
+            sf_connecting_v12[0]  = sf_facing[0];
+            tag_connecting_v12[0] = tag_facing[0];
         }
         if (sf_connecting_v12[0] != NOT_SURFACE) {
             sf_connecting_v12[1]  = -sf_connecting_v12[0];
             tag_connecting_v12[1] = tag_connecting_v12[0];
         }
 
-        std::array<int, 2> bbox_connecting_v12;
-        bbox_connecting_v12[0] = NOT_BBOX;
-        if (bbox_facing_v2 != NOT_BBOX)
-            bbox_connecting_v12[0] = bbox_facing_v2;
-        else if (sf_facing_v1 != NOT_BBOX)
-            bbox_connecting_v12[0] = bbox_facing_v1;
-        bbox_connecting_v12[1] = bbox_connecting_v12[0];
+        int bbox_connecting_v12 = NOT_BBOX;
+        if (bbox_facing[1] != NOT_BBOX)
+            bbox_connecting_v12 = bbox_facing[1];
+        else if (bbox_facing[0] != NOT_BBOX)
+            bbox_connecting_v12 = bbox_facing[0];
 
         for (int i = 0; i < 2; i++) {
+            // Face i is the one facing the other end, so it is the one the collapse keeps.
+            const int          jj = j12[(i + 1) % 2];
+            std::array<int, 3> f  = {{tets[t_id][mod4(jj + 1)],
+                                      tets[t_id][mod4(jj + 2)],
+                                      tets[t_id][mod4(jj + 3)]}};
+
             std::vector<int> pair;
-            set_intersection(tet_vertices[tets[t_id][mod4(j12[mod2(i + 1)] + 1)]].conn_tets,
-                             tet_vertices[tets[t_id][mod4(j12[mod2(i + 1)] + 2)]].conn_tets,
-                             tet_vertices[tets[t_id][mod4(j12[mod2(i + 1)] + 3)]].conn_tets,
+            set_intersection(tet_vertices[f[0]].conn_tets,
+                             tet_vertices[f[1]].conn_tets,
+                             tet_vertices[f[2]].conn_tets,
                              pair);
-            if (pair.size() > 1) {
-                int opp_t_id = pair[0] == t_id ? pair[1] : pair[0];
-                for (int j = 0; j < 4; j++) {
-                    if (tets[opp_t_id][j] != tets[t_id][mod4(j12[mod2(i + 1)] + 1)] &&
-                        tets[opp_t_id][j] != tets[t_id][mod4(j12[mod2(i + 1)] + 2)] &&
-                        tets[opp_t_id][j] != tets[t_id][mod4(j12[mod2(i + 1)] + 3)]) {
-                        tets[opp_t_id].is_surface_fs[j] = sf_connecting_v12[i];
-                        tets[opp_t_id].surface_tags[j]  = tag_connecting_v12[i];
-                        tets[opp_t_id].is_bbox_fs[j]    = bbox_connecting_v12[i];
-                        break;
-                    }
-                }
-            }
+            if (pair.size() <= 1)
+                continue;
+
+            const int opp_t_id = pair[0] == t_id ? pair[1] : pair[0];
+            const int j = get_local_f_id(opp_t_id, f[0], f[1], f[2], mesh);
+            tets[opp_t_id].is_surface_fs[j] = sf_connecting_v12[i];
+            tets[opp_t_id].surface_tags[j]  = tag_connecting_v12[i];
+            tets[opp_t_id].is_bbox_fs[j]    = bbox_connecting_v12;
         }
     }
 
@@ -391,9 +363,7 @@ int floatTetWild::collapse_an_edge(Mesh&                            mesh,
             new_edges.push_back({{v2_id, v_id}});
     }
 
-    if (tet_vertices[v1_id].is_on_surface)
-        return EC_SUCCESS_ENVELOPE;
-    return EC_SUCCESS;
+    return true;
 }
 
 bool floatTetWild::is_edge_freezed(Mesh& mesh, int v1_id, int v2_id)
@@ -432,8 +402,7 @@ bool floatTetWild::is_collapsable_bbox(Mesh& mesh, int v1_id, int v2_id)
 
 bool floatTetWild::is_collapsable_length(Mesh& mesh, int v1_id, int v2_id, Scalar l_2)
 {
-    Scalar sizing_scalar =
-      (mesh.tet_vertices[v1_id].sizing_scalar + mesh.tet_vertices[v2_id].sizing_scalar) / 2;
+    Scalar sizing_scalar = avg_sizing_scalar(mesh, v1_id, v2_id);
     return l_2 <= mesh.params.collapse_threshold_2 * sizing_scalar * sizing_scalar;
 }
 

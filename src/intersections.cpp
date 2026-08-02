@@ -9,37 +9,15 @@
 #include <floattetwild/intersections.h>
 
 #include <floattetwild/Predicates.hpp>
-#include <floattetwild/LocalOperations.h>
 
-bool floatTetWild::seg_line_intersection_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 2> &line, Scalar& t_seg){
-    //assumptions:
-    //segs are not degenerate
-    //not coplanar
-
-    const Scalar& x1 = seg[0][0];
-    const Scalar& y1 = seg[0][1];
-    const Scalar& x2 = seg[1][0];
-    const Scalar& y2 = seg[1][1];
-
-    const Scalar& x3 = line[0][0];
-    const Scalar& y3 = line[0][1];
-    const Scalar& x4 = line[1][0];
-    const Scalar& y4 = line[1][1];
-
-    Scalar n1 = (y3 - y4) * (x1 - x3) + (x4 - x3) * (y1 - y3);
-    Scalar d1 = (x4 - x3) * (y1 - y2) - (x1 - x2) * (y4 - y3);
-    if(d1 == 0)
-        return false;
-    t_seg = n1 / d1;
-
-    return t_seg >= 0 && t_seg <= 1;
-}
-
-bool floatTetWild::seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2, Scalar& t2){
-    //assumptions:
-    //segs are not degenerate
-    //not coplanar
-
+namespace floatTetWild {
+namespace {
+// Where the lines through seg1 and seg2 meet, as t1 along seg1 and t2 along seg2. False when the
+// two are parallel.
+//
+// Assumptions: the segments are not degenerate and not coplanar.
+bool line_line_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2,
+                               Scalar& t1, Scalar& t2) {
     const Scalar& x1 = seg1[0][0];
     const Scalar& y1 = seg1[0][1];
     const Scalar& x2 = seg1[1][0];
@@ -50,17 +28,27 @@ bool floatTetWild::seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, c
     const Scalar& x4 = seg2[1][0];
     const Scalar& y4 = seg2[1][1];
 
-    Scalar n1 = (y3 - y4) * (x1 - x3) + (x4 - x3) * (y1 - y3);
-    Scalar d1 = (x4 - x3) * (y1 - y2) - (x1 - x2) * (y4 - y3);
-    if(d1 == 0)
+    Scalar d = (x4 - x3) * (y1 - y2) - (x1 - x2) * (y4 - y3);
+    if(d == 0)
         return false;
-    Scalar t1 = n1 / d1;
-    Scalar n2 = (y1 - y2) * (x1 - x3) + (x2 - x1) * (y1 - y3);
-    Scalar d2 = (x4 - x3) * (y1 - y2) - (x1 - x2) * (y4 - y3);
-    if(d2 == 0)
-        return false;
-    t2 = n2 / d2;
+    t1 = ((y3 - y4) * (x1 - x3) + (x4 - x3) * (y1 - y3)) / d;
+    t2 = ((y1 - y2) * (x1 - x3) + (x2 - x1) * (y1 - y3)) / d;
+    return true;
+}
+}  // namespace
+}  // namespace floatTetWild
 
+bool floatTetWild::seg_line_intersection_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 2> &line, Scalar& t_seg){
+    Scalar _;
+    if (!line_line_intersection_2d(seg, line, t_seg, _))
+        return false;
+    return t_seg >= 0 && t_seg <= 1;
+}
+
+bool floatTetWild::seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2, Scalar& t2){
+    Scalar t1;
+    if (!line_line_intersection_2d(seg1, seg2, t1, t2))
+        return false;
     return t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1;
 }
 
@@ -84,17 +72,10 @@ bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, 
     Scalar D = n.dot(u);
     d1 = -n.dot(w);
 
-    Scalar t;
-    if (fabs(D) == 0) {// segment is parallel to plane
-        if (d1 == 0)// segment lies in plane
-            t = INT_MAX;
-        else
-            t = INT_MIN;
-//        else // no intersection
+    if (fabs(D) == 0)// segment is parallel to the plane, whether or not it lies in it
         return false;
-    }
 
-    t = d1 / D;
+    Scalar t = d1 / D;
     if (t <= 0 || t >= 1) {
         return false;
     }
@@ -207,21 +188,7 @@ extern "C++" int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatT
 
 
 int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, const Vector3& p3,
-                                         const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint, bool is_debug) {
-    std::array<Scalar, 3> p_1 = {{0, 0, 0}}, q_1 = {{1, 0, 0}}, r_1 = {{0, 1, 0}};
-    std::array<Scalar, 3> p_2 = {{0, 0, 0}}, q_2 = {{-1, -1, 0}}, r_2 = {{1, 1, 0}};
-    int coplanar = 0;
-    std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
-
-    for (int j = 0; j < 3; j++) {
-        p_1[j] = p1[j];
-        q_1[j] = p2[j];
-        r_1[j] = p3[j];
-        p_2[j] = q1[j];
-        q_2[j] = q2[j];
-        r_2[j] = q3[j];
-    }
-
+                                         const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint) {
     if(hint == CUT_COPLANAR){
 
         //todo: to2d
@@ -233,6 +200,18 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
         return CUT_EMPTY;
     }
 
+    std::array<Scalar, 3> p_1, q_1, r_1, p_2, q_2, r_2;
+    for (int j = 0; j < 3; j++) {
+        p_1[j] = p1[j];
+        q_1[j] = p2[j];
+        r_1[j] = p3[j];
+        p_2[j] = q1[j];
+        q_2[j] = q2[j];
+        r_2[j] = q3[j];
+    }
+
+    int coplanar = 0;
+    std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
     int result = tri_tri_intersection_test_3d(&p_1[0], &q_1[0], &r_1[0], &p_2[0], &q_2[0], &r_2[0], &coplanar, &s[0], &t[0]);
     if (result != 1) {
         return CUT_EMPTY;
@@ -241,20 +220,16 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
     if (std::abs(s[0] - t[0]) <= SCALAR_ZERO && std::abs(s[1] - t[1]) <= SCALAR_ZERO && std::abs(s[2] - t[2]) <= SCALAR_ZERO)
         return CUT_EMPTY;
 
-
-    if (hint == CUT_EDGE_0)
-        return CUT_EDGE_0;
-    if (hint == CUT_EDGE_1)
-        return CUT_EDGE_1;
-    if (hint == CUT_EDGE_2)
-        return CUT_EDGE_2;
-
+    // The caller only asks about one kind of cut at a time, so an edge hint that got this far is
+    // confirmed and anything else is a face cut.
+    if (hint == CUT_EDGE_0 || hint == CUT_EDGE_1 || hint == CUT_EDGE_2)
+        return hint;
     return CUT_FACE;
 }
 
 namespace {
 void get_bbox(const floatTetWild::Vector3* ps, int n, floatTetWild::Vector3& min,
-              floatTetWild::Vector3& max, floatTetWild::Scalar eps) {
+              floatTetWild::Vector3& max) {
     min = ps[0];
     max = ps[0];
     for (int i = 1; i < n; i++) {
@@ -265,26 +240,19 @@ void get_bbox(const floatTetWild::Vector3* ps, int n, floatTetWild::Vector3& min
                 max[j] = ps[i][j];
         }
     }
-
-    if (eps != 0) {
-        for (int j = 0; j < 3; j++) {
-            min[j] -= eps;
-            max[j] += eps;
-        }
-    }
 }
 }  // namespace
 
 void floatTetWild::get_bbox_face(const Vector3& p0, const Vector3& p1, const Vector3& p2,
-        Vector3& min, Vector3& max, Scalar eps) {
+        Vector3& min, Vector3& max) {
     const Vector3 ps[3] = {p0, p1, p2};
-    get_bbox(ps, 3, min, max, eps);
+    get_bbox(ps, 3, min, max);
 }
 
 void floatTetWild::get_bbox_tet(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3,
-        Vector3& min, Vector3& max, Scalar eps) {
+        Vector3& min, Vector3& max) {
     const Vector3 ps[4] = {p0, p1, p2, p3};
-    get_bbox(ps, 4, min, max, eps);
+    get_bbox(ps, 4, min, max);
 }
 
 bool floatTetWild::is_bbox_intersected(const Vector3& min1, const Vector3& max1, const Vector3& min2, const Vector3& max2) {

@@ -39,18 +39,29 @@ int tetrahedralization(AABBWrapper&           tree,
 
     Timer timer;
 
+    // Closes off a step: logs how long it took and records the state it left behind. v_num and
+    // t_num count the input for preprocessing, which runs before there is a mesh, and the mesh
+    // itself after that. The energies are -1 until there are tets to measure.
+    const auto finish_step = [&](int         id,
+                                 const char* label,
+                                 int         v_num,
+                                 int         t_num,
+                                 Scalar      max_energy             = -1,
+                                 Scalar      avg_energy             = -1,
+                                 int         cnt_fail_inserted_face = -1) {
+        const double elapsed = timer.getElapsedTimeInSec();
+        logger().info("{} {}s", label, elapsed);
+        logger().info("");
+        stats().record(id, elapsed, v_num, t_num, max_energy, avg_energy, cnt_fail_inserted_face);
+    };
 
     timer.start();
     simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);
     tree.init_b_mesh_and_tree(input_vertices, input_faces, mesh);
-    logger().info("preprocessing {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::preprocessing_id,
-                   timer.getElapsedTimeInSec(),
-                   input_vertices.size(),
-                   input_faces.size(),
-                   -1,
-                   -1);
+    finish_step(StateInfo::preprocessing_id,
+                "preprocessing",
+                input_vertices.size(),
+                input_faces.size());
 
     ///////////////////////////////////////
     // STEP 2: Volume tetrahedralization //
@@ -61,14 +72,10 @@ int tetrahedralization(AABBWrapper&           tree,
     FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
     logger().info("#v = {}", mesh.get_v_num());
     logger().info("#t = {}", mesh.get_t_num());
-    logger().info("tetrahedralizing {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::tetrahedralization_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   -1,
-                   -1);
+    finish_step(StateInfo::tetrahedralization_id,
+                "tetrahedralizing",
+                mesh.get_v_num(),
+                mesh.get_t_num());
 
     /////////////////////
     // STEP 3: Cutting //
@@ -76,15 +83,13 @@ int tetrahedralization(AABBWrapper&           tree,
 
     timer.start();
     insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, false);
-    logger().info("cutting {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::cutting_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy(),
-                   std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
+    finish_step(StateInfo::cutting_id,
+                "cutting",
+                mesh.get_v_num(),
+                mesh.get_t_num(),
+                mesh.get_max_energy(),
+                mesh.get_avg_energy(),
+                std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
 
     //////////////////////////////////////
     // STEP 4: Volume mesh optimization //
@@ -93,14 +98,12 @@ int tetrahedralization(AABBWrapper&           tree,
     timer.start();
     optimization(
       input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
-    logger().info("mesh optimization {}s", timer.getElapsedTimeInSec());
-    logger().info("");
-    stats().record(StateInfo::optimization_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy());
+    finish_step(StateInfo::optimization_id,
+                "mesh optimization",
+                mesh.get_v_num(),
+                mesh.get_t_num(),
+                mesh.get_max_energy(),
+                mesh.get_avg_energy());
 
     correct_tracked_surface_orientation(mesh, tree);
     logger().info("correct_tracked_surface_orientation done");

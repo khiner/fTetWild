@@ -36,23 +36,13 @@ namespace geo {
         {1, 0, 2}
     };
 
-    Delaunay3d::Delaunay3d(coord_index_t dimension) :
-        Delaunay(dimension)
-    {
-
-        geo_assert(dimension == 3 || dimension == 4);
+    // geogram also had a weighted mode, entered by asking for dimension 4, where the vertices are
+    // 4d and the combinatorics stay 3d, and a keep_infinite mode that published the virtual
+    // tetrahedra incident to the vertex at infinity. Nothing here asks for either, so this is
+    // plain 3d and publishes only the real tetrahedra.
+    Delaunay3d::Delaunay3d() {
         first_free_ = END_OF_LIST;
-        weighted_ = (dimension == 4);
-        // In weighted mode, vertices are 4d but combinatorics is 3d.
-        if(weighted_) {
-            cell_size_ = 4;
-            cell_v_stride_ = 4;
-            cell_neigh_stride_ = 4;
-        }
         cur_stamp_ = 0;
-        debug_mode_ = false;
-        verbose_debug_mode_ = false;
-        benchmark_mode_ = false;
     }
 
     Delaunay3d::~Delaunay3d() {
@@ -60,25 +50,9 @@ namespace geo {
 
     void Delaunay3d::set_vertices(index_t nb_vertices, const double* vertices) {
         cur_stamp_ = 0;
-        if(weighted_) {
-            heights_.resize(nb_vertices);
-            for(index_t i = 0; i < nb_vertices; ++i) {
-                // Client code uses 4d embedding with ti = sqrt(W - wi)
-                //   where W = max(wi)
-                // We recompute the standard "shifted" lifting on
-                // the paraboloid from it.
-                // (we use wi - W, everything is shifted by W, but
-                // we do not care since the power diagram is invariant
-                // by a translation of all weights).
-                double w = -geo_sqr(vertices[4 * i + 3]);
-                heights_[i] = -w +
-                    geo_sqr(vertices[4 * i]) +
-                    geo_sqr(vertices[4 * i + 1]) +
-                    geo_sqr(vertices[4 * i + 2]);
-            }
-        }
 
-        Delaunay::set_vertices(nb_vertices, vertices);
+        nb_vertices_ = nb_vertices;
+        vertices_ = vertices;
 
         index_t expected_tetra = nb_vertices * 7;
 
@@ -92,17 +66,9 @@ namespace geo {
         first_free_ = END_OF_LIST;
 
         //   Sort the vertices spatially. This makes localisation
-        // faster.
-        if(do_reorder_) {
-            compute_BRIO_order(
-                nb_vertices, vertex_ptr(0), reorder_, 3, dimension_
-            );
-        } else {
-            reorder_.resize(nb_vertices);
-            for(index_t i = 0; i < nb_vertices; ++i) {
-                reorder_[i] = i;
-            }
-        }
+        // faster. geogram could be asked to skip this, which changes the insertion order and with
+        // it the triangulation of cospherical input.
+        compute_BRIO_order(nb_vertices, vertex_ptr(0), reorder_, 3, 3);
 
         // The indices of the vertices of the first tetrahedron.
         index_t v0, v1, v2, v3;
@@ -125,11 +91,6 @@ namespace geo {
         }
 
 
-        if(debug_mode_) {
-            check_combinatorics(verbose_debug_mode_);
-            check_geometry(verbose_debug_mode_);
-        }
-
         //   Compress cell_to_v_store_ and cell_to_cell_store_
         // (remove free and virtual tetrahedra).
         //   Since cell_next_ is not used at this point,
@@ -146,10 +107,7 @@ namespace geo {
 
         {
             for(index_t t = 0; t < max_t(); ++t) {
-                if(
-                    (keep_infinite_ && !tet_is_free(t)) ||
-                    tet_is_real(t)
-                ) {
+                if(tet_is_real(t)) {
                     if(t != nb_tets) {
                         Memory::copy(
                             &cell_to_v_store_[nb_tets * 4],
@@ -178,54 +136,6 @@ namespace geo {
                 // adjacent to a virtual one (and this is how the
                 // rest of Vorpaline expects to see tets on the
                 // border).
-                cell_to_cell_store_[i] = t;
-            }
-        }
-
-        // In "keep_infinite" mode, we reorder the cells in such
-        // a way that finite cells have indices [0..nb_finite_cells_-1]
-        // and infinite cells have indices [nb_finite_cells_ .. nb_cells_-1]
-
-        if(keep_infinite_) {
-            nb_finite_cells_ = 0;
-            index_t finite_ptr = 0;
-            index_t infinite_ptr = nb_tets - 1;
-            for(;;) {
-                while(tet_is_finite(finite_ptr)) {
-                    old2new[finite_ptr] = finite_ptr;
-                    ++finite_ptr;
-                    ++nb_finite_cells_;
-                }
-                while(!tet_is_finite(infinite_ptr)) {
-                    old2new[infinite_ptr] = infinite_ptr;
-                    --infinite_ptr;
-                }
-                if(finite_ptr > infinite_ptr) {
-                    break;
-                }
-                old2new[finite_ptr] = infinite_ptr;
-                old2new[infinite_ptr] = finite_ptr;
-                ++nb_finite_cells_;
-                for(index_t lf=0; lf<4; ++lf) {
-                    std::swap(
-                        cell_to_cell_store_[4*finite_ptr + lf],
-                        cell_to_cell_store_[4*infinite_ptr + lf]
-                    );
-                }
-                for(index_t lv=0; lv<4; ++lv) {
-                    std::swap(
-                        cell_to_v_store_[4*finite_ptr + lv],
-                        cell_to_v_store_[4*infinite_ptr + lv]
-                    );
-                }
-                ++finite_ptr;
-                --infinite_ptr;
-            }
-            for(index_t i = 0; i < 4 * nb_tets; ++i) {
-                index_t t = cell_to_cell_store_[i];
-                geo_debug_assert(t != NO_INDEX);
-                t = old2new[t];
-                geo_debug_assert(t != NO_INDEX);
                 cell_to_cell_store_[i] = t;
             }
         }
@@ -511,14 +421,6 @@ namespace geo {
             return;
         }
 
-        //  Weighted triangulations can have dangling
-        // vertices. Such vertices p are characterized by
-        // the fact that p is not in conflict with the
-        // tetrahedron returned by locate().
-        if(weighted_ && !tet_is_conflict(t, p)) {
-            return;
-        }
-
         // Note: points on edges and on facets are
         // handled by the way tet_is_in_conflict()
         // is implemented, that naturally inserts
@@ -534,7 +436,7 @@ namespace geo {
         // It saves a couple of calls to the predicates in this
         // specific case (combinatorics are in general less
         // expensive than the predicates).
-        if(!weighted_ && nb_zero != 0) {
+        if(nb_zero != 0) {
             for(index_t lf = 0; lf < 4; ++lf) {
                 if(orient[lf] == ZERO) {
                     index_t t2 = tet_adjacent(t, lf);
@@ -871,169 +773,6 @@ namespace geo {
         }
 
         return true;
-    }
-
-    /************************************************************************/
-
-    void Delaunay3d::show_tet(index_t t) const {
-        std::cerr << "tet"
-                  << (tet_is_in_list(t) ? '*' : ' ')
-                  << t
-                  << ", v=["
-                  << tet_vertex(t, 0)
-                  << ' '
-                  << tet_vertex(t, 1)
-                  << ' '
-                  << tet_vertex(t, 2)
-                  << ' '
-                  << tet_vertex(t, 3)
-                  << "]  adj=[";
-        show_tet_adjacent(t, 0);
-        show_tet_adjacent(t, 1);
-        show_tet_adjacent(t, 2);
-        show_tet_adjacent(t, 3);
-        std::cerr << "] ";
-
-        for(index_t f = 0; f < 4; ++f) {
-            std::cerr << 'f' << f << ':';
-            for(index_t v = 0; v < 3; ++v) {
-                std::cerr << tet_vertex(t, tet_facet_vertex(f,v))
-                          << ',';
-            }
-            std::cerr << ' ';
-        }
-        std::cerr << std::endl;
-    }
-
-    void Delaunay3d::show_tet_adjacent(index_t t, index_t lf) const {
-        index_t adj = tet_adjacent(t, lf);
-        if(adj != NO_INDEX) {
-            std::cerr << (tet_is_in_list(adj) ? '*' : ' ');
-        }
-        std::cerr << adj;
-        std::cerr << ' ';
-    }
-
-    void Delaunay3d::show_list(
-        index_t first, const std::string& list_name
-    ) const {
-        index_t t = first;
-        std::cerr << "tet list: " << list_name << std::endl;
-        while(t != END_OF_LIST) {
-            show_tet(t);
-            t = tet_next(t);
-        }
-        std::cerr << "-------------" << std::endl;
-    }
-
-    void Delaunay3d::check_combinatorics(bool verbose) const {
-        if(verbose) {
-            std::cerr << std::endl;
-        }
-        bool ok = true;
-        std::vector<bool> v_has_tet(nb_vertices(), false);
-        for(index_t t = 0; t < max_t(); ++t) {
-            if(tet_is_free(t)) {
-/*
-  if(verbose) {
-  std::cerr << "-Deleted tet: ";
-  show_tet(t);
-  }
-*/
-            } else {
-/*
-  if(verbose) {
-  std::cerr << "Checking tet: ";
-  show_tet(t);
-  }
-*/
-                for(index_t lf = 0; lf < 4; ++lf) {
-                    if(tet_adjacent(t, lf) == NO_INDEX) {
-                        std::cerr << lf << ":Missing adjacent tet"
-                                  << std::endl;
-                        ok = false;
-                    } else if(tet_adjacent(t, lf) == t) {
-                        std::cerr << lf << ":Tet is adjacent to itself"
-                                  << std::endl;
-                        ok = false;
-                    } else {
-                        index_t t2 = tet_adjacent(t, lf);
-                        bool found = false;
-                        for(index_t lf2 = 0; lf2 < 4; ++lf2) {
-                            if(tet_adjacent(t2, lf2) == t) {
-                                found = true;
-                            }
-                        }
-                        if(!found) {
-                            std::cerr
-                                << lf << ":Adjacent link is not bidirectional"
-                                << std::endl;
-                            ok = false;
-                        }
-                    }
-                }
-                index_t nb_infinite = 0;
-                for(index_t lv = 0; lv < 4; ++lv) {
-                    if(tet_vertex(t, lv) == NO_INDEX) {
-                        ++nb_infinite;
-                    }
-                }
-                if(nb_infinite > 1) {
-                    ok = false;
-                    std::cerr << "More than one infinite vertex"
-                              << std::endl;
-                }
-            }
-            for(index_t lv = 0; lv < 4; ++lv) {
-                index_t v = tet_vertex(t, lv);
-                if(v != NO_INDEX) {
-                    v_has_tet[v] = true;
-                }
-            }
-        }
-        for(index_t v = 0; v < nb_vertices(); ++v) {
-            if(!v_has_tet[v]) {
-                if(verbose) {
-                    std::cerr << "Vertex " << v
-                              << " is isolated (duplicated ?)" << std::endl;
-                }
-            }
-        }
-        geo_assert(ok);
-        if(verbose) {
-            std::cerr << std::endl;
-        }
-        std::cerr << std::endl << "Delaunay Combi OK" << std::endl;
-    }
-
-    void Delaunay3d::check_geometry(bool verbose) const {
-        bool ok = true;
-        for(index_t t = 0; t < max_t(); ++t) {
-            if(!tet_is_free(t)) {
-                index_t v0 = tet_vertex(t, 0);
-                index_t v1 = tet_vertex(t, 1);
-                index_t v2 = tet_vertex(t, 2);
-                index_t v3 = tet_vertex(t, 3);
-                for(index_t v = 0; v < nb_vertices(); ++v) {
-                    if(v == v0 || v == v1 || v == v2 || v == v3) {
-                        continue;
-                    }
-                    if(tet_is_conflict(t, vertex_ptr(v))) {
-                        ok = false;
-                        if(verbose) {
-                            std::cerr << "Tet " << t <<
-                                " is in conflict with vertex " << v
-                                      << std::endl;
-
-                            std::cerr << "  offending tet: ";
-                            show_tet(t);
-                        }
-                    }
-                }
-            }
-        }
-        geo_assert(ok);
-        std::cerr << std::endl << "Delaunay Geo OK" << std::endl;
     }
 
 

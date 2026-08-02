@@ -17,10 +17,9 @@ namespace floatTetWild {
 
     inline int mod4(int j) { return j % 4; }
     inline int mod3(int j) { return j % 3; }
-    inline int mod2(int j) { return j % 2; }
 
     int get_opp_t_id(const Mesh& mesh, int t_id, int j);
-    inline int get_local_f_id(int t_id, int v1_id, int v2_id, int v3_id, Mesh &mesh) {
+    inline int get_local_f_id(int t_id, int v1_id, int v2_id, int v3_id, const Mesh &mesh) {
         for (int j = 0; j < 4; j++) {
             if (mesh.tets[t_id][j] != v1_id && mesh.tets[t_id][j] != v2_id && mesh.tets[t_id][j] != v3_id)
                 return j;
@@ -29,8 +28,31 @@ namespace floatTetWild {
         return -1;
     }
 
+    // The face on the other side of face j of tet t_id: the neighbouring tet and the local index
+    // the shared face has there. Returns false and leaves both alone when face j is on the
+    // boundary, which every caller has to handle.
+    inline bool get_opp_face(const Mesh& mesh, int t_id, int j, int& opp_t_id, int& opp_j) {
+        const int opp = get_opp_t_id(mesh, t_id, j);
+        if (opp < 0)
+            return false;
+        opp_t_id = opp;
+        opp_j    = get_local_f_id(opp,
+                                  mesh.tets[t_id][(j + 1) % 4],
+                                  mesh.tets[t_id][(j + 2) % 4],
+                                  mesh.tets[t_id][(j + 3) % 4],
+                                  mesh);
+        return true;
+    }
+
     inline geo::vec3 to_geo_p(const Vector3& p){
         return geo::vec3(p[0], p[1], p[2]);
+    }
+
+    // A face a local operation has just created carries none of the old marks.
+    inline void clear_face_marks(MeshTet& t, int j) {
+        t.is_surface_fs[j] = NOT_SURFACE;
+        t.surface_tags[j]  = NO_SURFACE_TAG;
+        t.is_bbox_fs[j]    = NOT_BBOX;
     }
 
     // The two endpoints in ascending order, so an edge has one spelling wherever it is collected.
@@ -59,13 +81,22 @@ namespace floatTetWild {
     Scalar get_edge_length(const Mesh& mesh, int v1_id, int v2_id);
     Scalar get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id);
 
+    // What the split and collapse thresholds are scaled by for a given edge: the sizing field
+    // averaged over its two ends.
+    inline Scalar avg_sizing_scalar(const Mesh& mesh, int v1_id, int v2_id) {
+        return (mesh.tet_vertices[v1_id].sizing_scalar + mesh.tet_vertices[v2_id].sizing_scalar) / 2;
+    }
+
     Scalar get_quality(const Mesh& mesh, const MeshTet& t);
     Scalar get_quality(const Mesh& mesh, int t_id);
+    // The largest quality among the given tets, 0 when there are none.
+    Scalar get_max_quality(const Mesh& mesh, const std::vector<int>& t_ids);
     Scalar get_quality(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     Scalar get_quality(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
     void get_max_avg_energy(const Mesh& mesh, Scalar& max_energy, Scalar& avg_energy);
 
     bool is_inverted(const Mesh& mesh, int t_id);
+    bool is_inverted(const Mesh& mesh, const MeshTet& t);
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
     bool is_inverted(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     bool is_inverted(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);

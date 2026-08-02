@@ -10,7 +10,6 @@
 #include <floattetwild/Simplification.h>
 #include <floattetwild/Logger.hpp>
 
-#include <floattetwild/Timer.h>
 #include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/MeshCleanup.hpp>
 
@@ -33,11 +32,7 @@ void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
             conn_fs[input_faces[i][j]].insert(i);
     }
 
-    Timer timer;
-    timer.start();
     collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
-
-    timer.start();
     swapping(input_vertices, input_faces, tree, params, f_is_removed, conn_fs);
 
     // clean up vs, fs
@@ -94,12 +89,8 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
                                      std::vector<int>&      input_tags,
                                      const Parameters&      params)
 {
-    MatrixXs V_tmp(input_vertices.size(), 3), V_in;
-    MatrixXi F_tmp(input_faces.size(), 3), F_in;
-    for (int i = 0; i < input_vertices.size(); i++)
-        V_tmp.row(i) = input_vertices[i];
-    for (int i = 0; i < input_faces.size(); i++)
-        F_tmp.row(i) = input_faces[i];
+    MatrixXs V_tmp = to_matrix(input_vertices), V_in;
+    MatrixXi F_tmp = to_matrix(input_faces), F_in;
 
     VectorXi IV, _;
     remove_duplicate_vertices(
@@ -305,8 +296,7 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
     std::vector<int> safe_set;
     do {
         build_edges();
-        Mesh::one_ring_edge_set(
-          edges, v_is_removed, f_is_removed, conn_fs, input_vertices, safe_set);
+        Mesh::one_ring_edge_set(edges, v_is_removed, f_is_removed, conn_fs, safe_set);
         cnt = 0;
 
         // safe_set holds edges with disjoint neighbourhoods, so these collapses do not interact.

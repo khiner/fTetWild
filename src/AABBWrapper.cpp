@@ -1,5 +1,4 @@
 #include <floattetwild/AABBWrapper.h>
-#include <floattetwild/LocalOperations.h>
 #include <floattetwild/TriangleInsertion.h>
 #include <floattetwild/geo_mesh_reorder.h>
 

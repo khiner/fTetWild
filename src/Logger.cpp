@@ -131,25 +131,22 @@ void Logger::write(Level level, const std::string& message)
     // Only the level name is coloured, matching spdlog's default pattern.
     static const bool colour = stdout_is_terminal();
 
-    const std::string stamp = timestamp();
-    const std::string plain =
-      "[" + stamp + "] [float-tetwild] [" + level_name(level) + "] " + message;
+    const std::string stamp  = timestamp();
+    const std::string prefix = "[" + stamp + "] [float-tetwild] [";
 
     // Flushed per line. spdlog logged from a background thread and flushed on a timer, so its
     // lines could land out of order against the plain cout printing the rest of the code does.
     // Writing them on the calling thread keeps the two in the order they were issued.
     std::lock_guard<std::mutex> lock(mutex_);
     if (use_cout_) {
-        if (colour) {
-            std::cout << "[" << stamp << "] [float-tetwild] [" << level_colour(level)
-                      << level_name(level) << "\033[m] " << message << std::endl;
-        }
-        else {
-            std::cout << plain << std::endl;
-        }
+        if (colour)
+            std::cout << prefix << level_colour(level) << level_name(level) << "\033[m] " << message
+                      << std::endl;
+        else
+            std::cout << prefix << level_name(level) << "] " << message << std::endl;
     }
     if (file_.is_open())
-        file_ << plain << std::endl;
+        file_ << prefix << level_name(level) << "] " << message << std::endl;
 }
 
 }  // namespace floatTetWild

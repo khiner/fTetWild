@@ -8,29 +8,21 @@
 
 #include <floattetwild/CSGTreeParser.hpp>
 
-#include <floattetwild/Timer.h>
 #include <floattetwild/Logger.hpp>
-
-#include <floattetwild/geo_mesh_reorder.h>
+#include <floattetwild/MeshIO.hpp>
 
 
 namespace floatTetWild {
 
 namespace {
-// Build a geo::Mesh from vertex and face vectors, carry the tags through as a facet
-// attribute, Morton reorder it, and read the permuted result back out. Named load_mesh
-// on MeshIO, but it touches no files.
+// Build a geo::Mesh from vertex and face vectors, then reorder it and read the permuted result
+// back out, the same way MeshIO::load_mesh does for a file.
 void build_reordered_sf_mesh(std::vector<Vector3>&  points,
                              std::vector<Vector3i>& faces,
                              geo::Mesh&             input,
                              std::vector<int>&      flags)
 {
-    logger().debug("Loading mesh from data...");
-    Timer timer;
-    timer.start();
     input.clear(false, false);
-
-    input.clear();
     input.vertices.create_vertices((int)points.size());
     for (int i = 0; i < (int)input.vertices.nb(); ++i) {
         geo::vec3& p = input.vertices.point(i);
@@ -38,44 +30,14 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
         p[1]         = points[i](1);
         p[2]         = points[i](2);
     }
-    // Setup faces
     input.facets.create_triangles((int)faces.size());
-
     for (int c = 0; c < (int)input.facets.nb(); ++c) {
         for (int lv = 0; lv < 3; ++lv) {
             input.facets.set_vertex(c, lv, faces[c](lv));
         }
     }
 
-    bool is_valid = (flags.size() == input.facets.nb());
-    if (is_valid) {
-        assert(flags.size() == input.facets.nb());
-        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
-        for (int index = 0; index < (int)input.facets.nb(); ++index) {
-            bflags[index] = flags[index];
-        }
-    }
-
-    geo::mesh_reorder(input, geo::MESH_ORDER_MORTON);
-
-    if (is_valid) {
-        flags.clear();
-        flags.resize(input.facets.nb());
-        geo::Attribute<int> bflags(input.facets.attributes(), "bbflags");
-        for (int index = 0; index < (int)input.facets.nb(); ++index) {
-            flags[index] = bflags[index];
-        }
-    }
-
-    points.resize(input.vertices.nb());
-    for (size_t i = 0; i < points.size(); i++)
-        points[i] << (input.vertices.point(i))[0], (input.vertices.point(i))[1],
-          (input.vertices.point(i))[2];
-
-    faces.resize(input.facets.nb());
-    for (size_t i = 0; i < faces.size(); i++)
-        faces[i] << int(input.facets.vertex(i, 0)), int(input.facets.vertex(i, 1)),
-          int(input.facets.vertex(i, 2));
+    reorder_and_read_back(input, points, faces, flags);
 }
 // Just enough JSON for the csg tree format. Objects and strings are read straight into CSGTree, and
 // a value under any other key is skipped whatever its type, which is what parsing the file into a

@@ -35,12 +35,6 @@ class MshSaver {
         void save_scalar_field(const std::string& fieldname, const VectorF& field);
         void save_elem_scalar_field(const std::string& fieldname, const VectorF& field);
 
-    public:
-        enum ErrorCode {
-            INVALID_FORMAT,
-            NOT_IMPLEMENTED
-        };
-
     private:
         bool m_binary;
         size_t m_num_nodes;

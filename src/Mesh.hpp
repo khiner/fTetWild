@@ -77,7 +77,6 @@ public:
         bool is_on_cut = false;
         int on_boundary_e_id = -1;
         bool is_on_bbox = false;
-        bool is_outside = false;
 
         bool is_removed = false;
         bool is_freezed = false;//todo
@@ -148,15 +147,13 @@ public:
         bool is_input_all_inserted = false;
         bool is_coarsening = false;
 
-        void one_ring_vertex_coloring(std::vector<Scalar> &colors) const;
-
         void one_ring_vertex_sets(const int threshold, std::vector<std::vector<int>> &concurrent_sets,
                                   std::vector<int> &serial_set) const;
 
 
         static void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char> &v_is_removed,
                           const std::vector<char> &f_is_removed, const std::vector<std::unordered_set<int>> &conn_fs,
-                          const std::vector<Vector3> &input_vertices, std::vector<int> &safe_set);
+                          std::vector<int> &safe_set);
 
         inline int t_empty_size() const {
             int cnt = 0;

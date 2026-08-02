@@ -11,7 +11,6 @@
 //
 
 #include <floattetwild/CutMesh.h>
-#include <floattetwild/TriangleInsertion.h>
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/Predicates.hpp>
 #include <floattetwild/intersections.h>
@@ -38,27 +37,29 @@ void floatTetWild::CutMesh::construct(const std::vector<int>& cut_t_ids) {
 
 }
 
+floatTetWild::Scalar floatTetWild::CutMesh::get_signed_plane_dist(const Vector3 &p, bool &snaps) const {
+    const int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2], p);
+    if (ori == Predicates::ORI_ZERO) {
+        snaps = false;
+        return 0;
+    }
+
+    Scalar dist = get_to_plane_dist(p);
+    if ((ori == Predicates::ORI_POSITIVE && dist > 0) || (ori == Predicates::ORI_NEGATIVE && dist < 0))
+        dist = -dist;
+    snaps = std::fabs(dist) < mesh.params.eps_coplanar;
+    return dist;
+}
+
 bool floatTetWild::CutMesh::snap_to_plane() {
     bool snapped = false;
     to_plane_dists.resize(map_v_ids.size());
     is_snapped.resize(map_v_ids.size());
     for (auto &v:map_v_ids) {
-        int v_id = v.first;
-        int lv_id = v.second;
-
-        int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2], mesh.tet_vertices[v_id].pos);
-        if (ori == Predicates::ORI_ZERO) {
-            to_plane_dists[lv_id] = 0;
-            continue;
-        }
-        to_plane_dists[lv_id] = get_to_plane_dist(mesh.tet_vertices[v_id].pos);
-        if ((ori == Predicates::ORI_POSITIVE && to_plane_dists[lv_id] > 0)
-            || (ori == Predicates::ORI_NEGATIVE && to_plane_dists[lv_id] < 0)){
-            to_plane_dists[lv_id] = -to_plane_dists[lv_id];
-        }
-
-        if (std::fabs(to_plane_dists[lv_id]) < mesh.params.eps_coplanar) {
-            is_snapped[lv_id] = true;
+        bool is_v_snapped = false;
+        to_plane_dists[v.second] = get_signed_plane_dist(mesh.tet_vertices[v.first].pos, is_v_snapped);
+        if (is_v_snapped) {
+            is_snapped[v.second] = true;
             snapped = true;
         }
     }
@@ -154,19 +155,10 @@ void floatTetWild::CutMesh::expand_new(std::vector<int> &cut_t_ids) {
                         is_interior.push_back(false);
                         new_lv_id = v_ids.size() - 1;
                         map_v_ids[new_gv_id] = new_lv_id;
-                        double dist = get_to_plane_dist(mesh.tet_vertices[new_gv_id].pos);
-                        int ori = Predicates::orient_3d(p_vs[0], p_vs[1], p_vs[2], mesh.tet_vertices[new_gv_id].pos);
-                        if ((ori == Predicates::ORI_NEGATIVE && dist < 0)
-                            || (ori == Predicates::ORI_POSITIVE && dist > 0))
-                            dist = -dist;
-                        else if (ori == Predicates::ORI_ZERO)
-                            dist = 0;
-                        to_plane_dists.push_back(dist);
-                        if (ori != Predicates::ORI_ZERO &&
-                            std::fabs(to_plane_dists[new_lv_id]) < mesh.params.eps_coplanar)
-                            is_snapped.push_back(true);
-                        else
-                            is_snapped.push_back(false);
+                        bool is_v_snapped = false;
+                        to_plane_dists.push_back(
+                                get_signed_plane_dist(mesh.tet_vertices[new_gv_id].pos, is_v_snapped));
+                        is_snapped.push_back(is_v_snapped);
                         is_projected.push_back(false);
                     } else
                         new_lv_id = map_v_ids[new_gv_id];
@@ -257,10 +249,7 @@ bool floatTetWild::CutMesh::get_intersecting_edges_and_points(std::vector<Vector
         }
 
         points.push_back(p);
-        if (v1_id < v2_id)
-            map_edge_to_intersecting_point[{{v1_id, v2_id}}] = points.size() - 1;
-        else
-            map_edge_to_intersecting_point[{{v2_id, v1_id}}] = points.size() - 1;
+        map_edge_to_intersecting_point[sorted_edge(v1_id, v2_id)] = points.size() - 1;
 
         e_v_ids.push_back(v1_id);
         e_v_ids.push_back(v2_id);

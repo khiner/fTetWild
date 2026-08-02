@@ -18,8 +18,7 @@
 #include <floattetwild/CutMesh.h>
 
 namespace floatTetWild {
-    void match_surface_fs(const Mesh &mesh,
-                          const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
+    void match_surface_fs(const Mesh &mesh, const std::vector<Vector3i> &input_faces,
                           std::vector<bool> &is_face_inserted,
                           std::vector<std::array<std::vector<int>, 4>> &track_surface_fs);
 

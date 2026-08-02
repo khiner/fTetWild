@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "geo_delaunay.h"
+#include "geo_basic.h"
 #include "geo_cavity.h"
 #include "geo_predicates.h"
 #include "geo_geometry.h"
@@ -69,30 +69,57 @@ namespace geo {
      *    a paradigm for efficient and exact geometric programs",
      *    Comput. Geom., 1999
      */
-    class Delaunay3d : public Delaunay {
+    class Delaunay3d {
     public:
-        /**
-         * \brief Constructs a new Delaunay3d.
-         * \param[in] dimension dimension of the triangulation (3 or 4).
-         * If dimension = 4, this creates a regular triangulation
-         *  (dual of a power diagram). In this case:
-         *  - the input points are 4d points, were the fourth coordinate
-         *   of point \f$ i \f$ is \f$ \sqrt{W - w_i} \f$ where \f$ W \f$ is
-         *   the maximum of the  weights of all the points and \d$ w_i \$ is
-         *   the weight associated with vertex \f$ i \f$.
-         *  - the constructed combinatorics is a tetrahedralized volume (3d and
-         *   not 4d although dimension() returns 4). This tetrahedralized volume
-         *   corresponds to the regular triangulation of the weighted points.
-         */
-        Delaunay3d(coord_index_t dimension = 3);
+        Delaunay3d();
+        ~Delaunay3d();
 
         /**
-         * \copydoc Delaunay::set_vertices()
+         * \brief Sets the vertices and computes the cells.
+         * \param[in] nb_vertices number of vertices
+         * \param[in] vertices a pointer to the coordinates, three doubles per vertex
          */
-        void set_vertices(index_t nb_vertices, const double* vertices) override;
+        void set_vertices(index_t nb_vertices, const double* vertices);
 
+        index_t nb_vertices() const {
+            return nb_vertices_;
+        }
+
+        const double* vertex_ptr(index_t i) const {
+            geo_debug_assert(i < nb_vertices());
+            return vertices_ + 3 * i;
+        }
+
+        index_t nb_cells() const {
+            return nb_cells_;
+        }
+
+        /**
+         * \brief The cell-to-vertex array, four indices per cell.
+         */
+        const index_t* cell_to_v() const {
+            return cell_to_v_;
+        }
+
+        /**
+         * \brief The cell-to-cell array, four indices per cell.
+         */
+        const index_t* cell_to_cell() const {
+            return cell_to_cell_;
+        }
 
     protected:
+        /**
+         * \brief Publishes the computed triangulation.
+         */
+        void set_arrays(
+            index_t nb_cells, const index_t* cell_to_v, const index_t* cell_to_cell
+        ) {
+            nb_cells_ = nb_cells;
+            cell_to_v_ = cell_to_v;
+            cell_to_cell_ = cell_to_cell;
+        }
+
 
         /**
          * \brief Symbolic constant for uninitialized hint.
@@ -776,35 +803,6 @@ namespace geo {
             return result;
         }
 
-        /**
-         * \brief Sets the vertices and adjacent tetrahedra of
-         *  a tetrahedron.
-         * \param[in] t index of the tetrahedron
-         * \param[in] v0 index of the first vertex
-         * \param[in] v1 index of the second vertex
-         * \param[in] v2 index of the third vertex
-         * \param[in] v3 index of the fourth vertex
-         * \param[in] a0 index of the adjacent tetrahedron opposite to \p v0
-         * \param[in] a1 index of the adjacent tetrahedron opposite to \p v1
-         * \param[in] a2 index of the adjacent tetrahedron opposite to \p v2
-         * \param[in] a3 index of the adjacent tetrahedron opposite to \p v3
-         */
-        void set_tet(
-            index_t t,
-	    index_t v0, index_t v1, index_t v2, index_t v3,
-            index_t a0, index_t a1, index_t a2, index_t a3
-        ) {
-            geo_debug_assert(t < max_t());
-            cell_to_v_store_[4 * t] = v0;
-            cell_to_v_store_[4 * t + 1] = v1;
-            cell_to_v_store_[4 * t + 2] = v2;
-            cell_to_v_store_[4 * t + 3] = v3;
-            cell_to_cell_store_[4 * t] = a0;
-            cell_to_cell_store_[4 * t + 1] = a1;
-            cell_to_cell_store_[4 * t + 2] = a2;
-            cell_to_cell_store_[4 * t + 3] = a3;
-        }
-
         /****** Combinatorics - traversals ************************/
 
         /**
@@ -867,21 +865,6 @@ namespace geo {
             f21 = index_t(halfedge_facet_[lv2][lv1]);
         }
 
-
-        /**
-         * \brief Gets the next tetrahedron around an oriented edge of
-         *  a tetrahedron.
-         * \param[in,out] t the tetrahedron
-         * \param[in] v1 global index of the first extremity of the edge
-         * \param[in] v2 global index of the second extremity of the edge
-         * \return the next tetrahedron from \p t around the oriented edge
-         *   (\p v1 \p v2).
-         */
-        index_t next_around_halfedge(index_t& t, index_t v1, index_t v2) const {
-            return (index_t)tet_adjacent(
-                t, get_facet_by_halfedge(t, v1, v2)
-            );
-        }
 
         /****** Predicates **********************************************/
 
@@ -954,20 +937,6 @@ namespace geo {
             // if its circumscribed sphere contains the point (this is
             // the standard case).
 
-            if(weighted_) {
-                double h0 = heights_[finite_tet_vertex(t, 0)];
-                double h1 = heights_[finite_tet_vertex(t, 1)];
-                double h2 = heights_[finite_tet_vertex(t, 2)];
-                double h3 = heights_[finite_tet_vertex(t, 3)];
-                index_t pindex = index_t(
-                    (p - vertex_ptr(0)) / int(vertex_stride_)
-                );
-                double h = heights_[pindex];
-                return (PCK::orient_3dlifted_SOS(
-                            pv[0],pv[1],pv[2],pv[3],p,h0,h1,h2,h3,h
-                        ) > 0) ;
-            }
-
             return (PCK::in_sphere_3d_SOS(pv[0], pv[1], pv[2], pv[3], p) > 0);
         }
 
@@ -1001,71 +970,19 @@ namespace geo {
             return result;
         }
 
-        /**
-         * \brief Delaunay3d destructor
-         * \details Public here, unlike in geogram. geogram made it protected because Delaunay is
-         *  reference counted and is only ever destroyed through a Delaunay_var, which is not the
-         *  case any more.
-         */
-    public:
-        ~Delaunay3d() override;
-    protected:
-
-        /**
-         * \brief For debugging purposes, displays a tetrahedron.
-         * \param[in] t index of the tetrahedron to display.
-         */
-        void show_tet(index_t t) const;
-
-        /**
-         * \brief For debugging purposes, displays a tetrahedron adjacency.
-         * \param[in] t index of the tetrahedron to display.
-         * \param[in] lf local index (0,1,2 or 3) of the tetrahedron
-         *  facet adjacenty to display.
-         */
-        void show_tet_adjacent(index_t t, index_t lf) const;
-
-        /**
-         * \brief For debugging purposes, displays a tetrahedron.
-         * \param[in] first index of the first tetrahedron in the list
-         * \param[in] list_name name of the list, will be displayed as well
-         */
-        void show_list(index_t first, const std::string& list_name) const;
-
-        /**
-         * \brief For debugging purposes, tests some combinatorial properties.
-         */
-        void check_combinatorics(bool verbose = false) const;
-
-        /**
-         * \brief For debugging purposes, test some geometrical properties.
-         */
-        void check_geometry(bool verbose = false) const;
-
     private:
+        const double* vertices_ = nullptr;
+        index_t nb_vertices_ = 0;
+        index_t nb_cells_ = 0;
+        const index_t* cell_to_v_ = nullptr;
+        const index_t* cell_to_cell_ = nullptr;
+
         vector<index_t> cell_to_v_store_;
         vector<index_t> cell_to_cell_store_;
         vector<index_t> cell_next_;
         vector<index_t> reorder_;
         index_t cur_stamp_; // used for marking
         index_t first_free_;
-        bool weighted_;
-        vector<double> heights_; // only used in weighted mode
-
-        /**
-         * Performs additional checks (costly !)
-         */
-        bool debug_mode_;
-
-        /**
-         * Displays the result of the additional checks.
-         */
-        bool verbose_debug_mode_;
-
-        /**
-         * Displays the timing of the core algorithm.
-         */
-        bool benchmark_mode_;
 
         /**
          * \brief Gives the indexing of tetrahedron facet

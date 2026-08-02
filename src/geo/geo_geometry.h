@@ -140,25 +140,6 @@ namespace geo {
 
 
     /**
-     * \brief Tests whether two Boxes have a non-empty intersection.
-     * \param[in] B1 first box
-     * \param[in] B2 second box
-     * \return true if \p B1 and \p B2 have a non-empty intersection,
-     *  false otherwise.
-     */
-    inline bool bboxes_overlap(const Box& B1, const Box& B2) {
-        for(coord_index_t c = 0; c < 3; ++c) {
-            if(B1.xyz_max[c] < B2.xyz_min[c]) {
-                return false;
-            }
-            if(B1.xyz_min[c] > B2.xyz_max[c]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
      * \brief Computes the smallest Box that encloses two Boxes.
      * \param[out] target the smallest axis-aligned box
      *  that encloses \p B1 and \p B2

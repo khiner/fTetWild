@@ -58,6 +58,10 @@ namespace floatTetWild {
         inline Scalar get_to_plane_dist(const Vector3 &p) const {
             return p_n.dot(p - p_vs[0]);
         }
+
+        // The distance from p to the plane, signed against the exact orientation of p and exactly
+        // 0 when p lies on it. snaps comes back true when p is near enough to pull onto the plane.
+        Scalar get_signed_plane_dist(const Vector3 &p, bool &snaps) const;
     };
 
 }

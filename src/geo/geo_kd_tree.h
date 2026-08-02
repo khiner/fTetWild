@@ -1,67 +1,74 @@
 // Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
-// Source: geogram/points/kd_tree.h
+// Source: geogram/points/kd_tree.h and geogram/points/nn_search.h
 // Copied rather than reimplemented: balanced kd-tree; nth_element splitting again, so ties follow the incoming order
+//
+// geogram spread this over three classes: a NearestNeighborSearch interface, a KdTree base and a
+// BalancedKdTree, because it also has an AdaptiveKdTree and a search over an ANN library. Only the
+// balanced tree is vendored and it is used as a concrete type, so the three are one class here and
+// nothing is virtual.
 
 #pragma once
 
-#include "geo_nn_search.h"
+#include "geo_basic.h"
 #include <algorithm>
 
 /**
  * \file geogram/points/kd_tree.h
- * \brief An implementation of NearestNeighborSearch with a kd-tree
+ * \brief Nearest neighbor search over a balanced kd-tree
  */
 
 namespace floatTetWild {
 namespace geo {
 
     /**
-     * \brief Base class for all Kd-tree implementations.
+     * \brief Nearest neighbor search over a perfectly balanced Kd-tree.
+     * \details No combinatorics is stored: the two children of node n are 2n+1 and 2n+2. For
+     *  regular to moderately irregular pointsets it works well.
      */
-    class KdTree : public NearestNeighborSearch {
+    class BalancedKdTree {
     public:
         /**
-         * \brief KdTree constructor.
-         * \param[in] dim dimension of the points.
+         * \brief Creates a new BalancedKdTree.
+         * \param[in] dim dimension of the points
          */
-        KdTree(coord_index_t dim);
+        BalancedKdTree(coord_index_t dim);
 
-        /** \copydoc NearestNeighborSearch::set_points() */
-        void set_points(index_t nb_points, const double* points) override;
+        ~BalancedKdTree();
 
-        /** \copydoc NearestNeighborSearch::stride_supported() */
-        bool stride_supported() const override;
+        /**
+         * \brief Sets the points and creates the search data structure.
+         * \param[in] nb_points number of points
+         * \param[in] points an array of nb_points * dimension() doubles
+         */
+        void set_points(index_t nb_points, const double* points);
 
-        /** \copydoc NearestNeighborSearch::set_points() */
-        void set_points(
-            index_t nb_points, const double* points, index_t stride
-        ) override;
-
-        /** \copydoc NearestNeighborSearch::get_nearest_neighbors() */
+        /**
+         * \brief Finds the nearest neighbors of a point given by coordinates.
+         * \param[in] nb_neighbors number of neighbors to be searched, at most nb_points()
+         * \param[in] query_point as an array of dimension() doubles
+         * \param[out] neighbors array of nb_neighbors index_t
+         * \param[out] neighbors_sq_dist array of nb_neighbors doubles
+         */
         void get_nearest_neighbors(
             index_t nb_neighbors,
             const double* query_point,
             index_t* neighbors,
             double* neighbors_sq_dist
-        ) const override;
+        ) const;
 
-        /** \copydoc NearestNeighborSearch::get_nearest_neighbors() */
-        void get_nearest_neighbors(
-            index_t nb_neighbors,
-            const double* query_point,
-            index_t* neighbors,
-            double* neighbors_sq_dist,
-            KeepInitialValues
-        ) const override;
+        coord_index_t dimension() const {
+            return dimension_;
+        }
 
-        /** \copydoc NearestNeighborSearch::get_nearest_neighbors() */
-        void get_nearest_neighbors(
-            index_t nb_neighbors,
-            index_t query_point,
-            index_t* neighbors,
-            double* neighbors_sq_dist
-        ) const override;
+        index_t nb_points() const {
+            return nb_points_;
+        }
+
+        const double* point_ptr(index_t i) const {
+            geo_debug_assert(i < nb_points());
+            return points_ + i * dimension_;
+        }
 
         /**********************************************************************/
 
@@ -160,23 +167,6 @@ namespace geo {
             }
 
             /**
-             * \brief Copies the user neighbors and distances into
-             *  the work zone and initializes nb_neighbors to max_nb_neighbors.
-             * \details This function is called by nearest neighbors search when
-             *  KeepInitialValues is specified, to initialize search
-             *  from user-provided initial guess.
-             */
-            void copy_from_user() {
-                for(index_t i=0; i<nb_neighbors_max; ++i) {
-                    neighbors[i] = user_neighbors[i];
-                    neighbors_sq_dist[i] = user_neighbors_sq_dist[i];
-                }
-                neighbors[nb_neighbors_max] = NO_INDEX;
-                neighbors_sq_dist[nb_neighbors_max] = Numeric::max_float64();
-                nb_neighbors = nb_neighbors_max;
-            }
-
-            /**
              * \brief Copies the found nearest neighbors from the work zone
              *  to the user neighbors and squared distance arrays.
              * \details This function is called by find_nearest_neighbors()
@@ -257,7 +247,7 @@ namespace geo {
          * \param[in] query_point the query point
          * \param[in,out] neighbors the computed nearest neighbors
          */
-        virtual void get_nearest_neighbors_recursive(
+        void get_nearest_neighbors_recursive(
             index_t node_index, index_t b, index_t e,
             double* bbox_min, double* bbox_max,
             double bbox_dist, const double* query_point,
@@ -284,15 +274,7 @@ namespace geo {
             double& box_dist, const double* query_point
         ) const;
 
-        /**
-         * \brief Gets the root node.
-         * \return the index of the root node.
-         */
-        index_t root() const {
-            return root_;
-        }
-
-    protected:
+    private:
         /**
          * \brief Number of points stored in the leafs of the tree.
          */
@@ -302,13 +284,10 @@ namespace geo {
          * \brief Builds the tree.
          * \return the index of the root node.
          */
-        virtual index_t build_tree() = 0 ;
+        index_t build_tree();
 
         /**
          * \brief Gets all the attributes of a node.
-         * \details This function is virtual, because indices can
-         *  be either computed on the fly (as in BalancedKdTree) or
-         *  stored (as in AdaptiveKdTree).
          * \param[in] n a node index
          * \param[in] b the first point in the node
          * \param[in] e one position past the last point in the node
@@ -323,15 +302,13 @@ namespace geo {
          * \param[out] splitting_val The coordinate value that separates points
          *  in the left and right children.
          */
-        virtual void get_node(
+        void get_node(
             index_t n, index_t b, index_t e,
             index_t& left_child, index_t& right_child,
             coord_index_t&  splitting_coord,
             index_t& m,
             double& splitting_val
-        ) const = 0;
-
-
+        ) const;
 
         /**
          * \brief The recursive function to implement KdTree traversal and
@@ -346,7 +323,7 @@ namespace geo {
          * \param[in] query_point the query point
          * \param[in,out] neighbors the computed nearest neighbors
          */
-        virtual void get_nearest_neighbors_leaf(
+        void get_nearest_neighbors_leaf(
             index_t node_index, index_t b, index_t e,
             const double* query_point,
             NearestNeighbors& neighbors
@@ -386,52 +363,6 @@ namespace geo {
             get_minmax(b,e,coord,minval,maxval);
             return maxval - minval;
         }
-
-        /**
-         * \brief KdTree destructor
-         * \details Public here, unlike in geogram. geogram made it protected because these are
-         *  reference counted and are only ever destroyed through a NearestNeighborSearch_var,
-         *  which is not the case any more.
-         */
-    public:
-        ~KdTree() override;
-    protected:
-
-    protected:
-        vector<index_t> point_index_;
-        vector<double> bbox_min_;
-        vector<double> bbox_max_;
-        index_t root_;
-    };
-
-    /*********************************************************************/
-
-    /**
-     * \brief Implements NearestNeighborSearch using a balanced
-     *  Kd-tree.
-     * \details The tree is perfectly balanced, thus no combinatorics
-     *  is stored: the two children of node n are 2n+1 and 2n+2. For
-     *  regular to moderately irregular pointsets it works well. For
-     *  highly irregular pointsets, AdaptiveKdTree is more efficient.
-     */
-    class BalancedKdTree : public KdTree {
-    public:
-        /**
-         * \brief Creates a new BalancedKdTree.
-         * \param[in] dim dimension of the points
-         */
-        BalancedKdTree(coord_index_t dim);
-
-    protected:
-        /**
-         * \brief BalancedKdTree destructor
-         * \details Public here, unlike in geogram. geogram made it protected because these are
-         *  reference counted and are only ever destroyed through a NearestNeighborSearch_var,
-         *  which is not the case any more.
-         */
-    public:
-        ~BalancedKdTree() override;
-    protected:
 
         /**
          * \brief Returns the maximum node index in subtree.
@@ -494,19 +425,14 @@ namespace geo {
             index_t node_index, index_t b, index_t e
         );
 
-        /** \copydoc KdTree::build_tree() */
-        index_t build_tree() override;
+        coord_index_t dimension_;
+        index_t nb_points_ = 0;
+        const double* points_ = nullptr;
 
-        /** \copydoc KdTree::get_node() */
-        void get_node(
-            index_t n, index_t b, index_t e,
-            index_t& left_child, index_t& right_child,
-            coord_index_t&  splitting_coord,
-            index_t& m,
-            double& splitting_val
-        ) const override;
-
-    protected:
+        vector<index_t> point_index_;
+        vector<double> bbox_min_;
+        vector<double> bbox_max_;
+        index_t root_;
 
         /**
          * \brief One per node, splitting coordinate.

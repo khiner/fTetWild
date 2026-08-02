@@ -22,13 +22,10 @@ set(SOURCES
 	geo_multi_precision.h
 	geo_multi_precision.cpp
 
-	geo_nn_search.h
-	geo_nn_search.cpp
 	geo_kd_tree.h
 	geo_kd_tree.cpp
 
 	geo_cavity.h
-	geo_delaunay.h
 	geo_delaunay_3d.h
 	geo_delaunay_3d.cpp
 

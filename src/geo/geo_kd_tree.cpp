@@ -69,26 +69,11 @@ namespace {
 namespace floatTetWild {
 namespace geo {
 
-    KdTree::KdTree(coord_index_t dim) :
-        NearestNeighborSearch(dim),
-        bbox_min_(dim),
-        bbox_max_(dim),
-        root_(NO_INDEX) {
-    }
-
-    KdTree::~KdTree() {
-    }
-
-    bool KdTree::stride_supported() const {
-        return true;
-    }
-
-    void KdTree::set_points(
-        index_t nb_points, const double* points, index_t stride
+    void BalancedKdTree::set_points(
+        index_t nb_points, const double* points
     ) {
         nb_points_ = nb_points;
         points_ = points;
-        stride_ = stride;
 
         point_index_.resize(nb_points);
         for(index_t i = 0; i < nb_points; i++) {
@@ -111,14 +96,7 @@ namespace geo {
         root_ = build_tree();
     }
 
-    void KdTree::set_points(
-        index_t nb_points, const double* points
-    ) {
-        set_points(nb_points, points, dimension());
-    }
-
-
-    void KdTree::get_nearest_neighbors(
+    void BalancedKdTree::get_nearest_neighbors(
         index_t nb_neighbors,
         const double* query_point,
         index_t* neighbors,
@@ -153,60 +131,7 @@ namespace geo {
         NN.copy_to_user();
     }
 
-    void KdTree::get_nearest_neighbors(
-        index_t nb_neighbors,
-        const double* query_point,
-        index_t* neighbors,
-        double* neighbors_sq_dist,
-        KeepInitialValues KV
-    ) const {
-        geo_debug_assert(nb_neighbors <= nb_points());
-        geo_argused(KV);
-        // Compute distance between query point and global bounding box
-        // and copy global bounding box to local variables (bbox_min, bbox_max),
-        // allocated on the stack. bbox_min and bbox_max are updated during the
-        // traversal of the BalancedKdTree
-        // (see get_nearest_neighbors_recursive()). They
-        // are necessary to compute the distance between the query point and the
-        // bbox of the current node.
-        double box_dist = 0.0;
-        double* bbox_min = (double*) (alloca(dimension() * sizeof(double)));
-        double* bbox_max = (double*) (alloca(dimension() * sizeof(double)));
-        init_bbox_and_bbox_dist_for_traversal(
-            bbox_min, bbox_max, box_dist, query_point
-        );
-        NearestNeighbors NN(
-            nb_neighbors,
-            neighbors,
-            neighbors_sq_dist,
-            (index_t*)alloca(sizeof(index_t) * (nb_neighbors+1)),
-            (double*)alloca(sizeof(double) * (nb_neighbors+1))
-        );
-        NN.copy_from_user();
-        get_nearest_neighbors_recursive(
-            root_, 0, nb_points(), bbox_min, bbox_max, box_dist, query_point, NN
-        );
-        NN.copy_to_user();
-    }
-
-    void KdTree::get_nearest_neighbors(
-        index_t nb_neighbors,
-        index_t q_index,
-        index_t* neighbors,
-        double* neighbors_sq_dist
-    ) const {
-        // TODO: optimized version that uses the fact that
-        // we know that query_point is in the search data
-        // structure already.
-        // (I tried something already, see in the Attic,
-        //  but it did not give any significant speedup).
-        get_nearest_neighbors(
-            nb_neighbors, point_ptr(q_index),
-            neighbors, neighbors_sq_dist
-        );
-    }
-
-    void KdTree::get_nearest_neighbors_recursive(
+    void BalancedKdTree::get_nearest_neighbors_recursive(
         index_t node_index, index_t b, index_t e,
         double* bbox_min, double* bbox_max, double box_dist,
         const double* query_point, NearestNeighbors& NN
@@ -218,8 +143,6 @@ namespace geo {
             get_nearest_neighbors_leaf(node_index, b, e, query_point, NN);
             return;
         }
-
-        // Get node attributes (virtual function call).
 
         index_t left_node_index;
         index_t right_node_index;
@@ -305,7 +228,7 @@ namespace geo {
         }
     }
 
-    void KdTree::get_nearest_neighbors_leaf(
+    void BalancedKdTree::get_nearest_neighbors_leaf(
         index_t node_index, index_t b, index_t e,
         const double* query_point,
         NearestNeighbors& NN
@@ -351,7 +274,7 @@ namespace geo {
         }
     }
 
-    void KdTree::init_bbox_and_bbox_dist_for_traversal(
+    void BalancedKdTree::init_bbox_and_bbox_dist_for_traversal(
         double* bbox_min, double* bbox_max,
         double& box_dist, const double* query_point
     ) const {
@@ -376,7 +299,10 @@ namespace geo {
 /****************************************************************************/
 
     BalancedKdTree::BalancedKdTree(coord_index_t dim) :
-        KdTree(dim),
+        dimension_(dim),
+        bbox_min_(dim),
+        bbox_max_(dim),
+        root_(NO_INDEX),
         m0_(max_index_t()),
         m1_(max_index_t()),
         m2_(max_index_t()),
@@ -469,7 +395,7 @@ namespace geo {
             point_index_.begin() + std::ptrdiff_t(m),
             point_index_.begin() + std::ptrdiff_t(e),
             ComparePointCoord(
-                nb_points_, points_, stride_, splitting_coord
+                nb_points_, points_, dimension_, splitting_coord
             )
         );
 
