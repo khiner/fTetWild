@@ -101,7 +101,6 @@ namespace floatTetWild {
 
     void get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges);
 
-    Scalar get_edge_length(const Mesh& mesh, int v1_id, int v2_id);
     Scalar get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id);
 
     // What the split and collapse thresholds are scaled by for a given edge: the sizing field
@@ -122,7 +121,6 @@ namespace floatTetWild {
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
     bool is_inverted(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     bool is_inverted(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
-    bool is_degenerate(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
 
     bool is_out_envelope(Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
     bool is_out_boundary_envelope(const Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
@@ -222,7 +220,6 @@ namespace floatTetWild {
             queue.pop();
     }
 
-    Scalar AMIPS_energy_aux(const std::array<Scalar, 12>& T);
     Scalar AMIPS_energy(const std::array<Scalar, 12>& T);
     void AMIPS_jacobian(const std::array<Scalar, 12>& T, Vector3& result_0);
     void AMIPS_hessian(const std::array<Scalar, 12>& T, Matrix3& result_0);

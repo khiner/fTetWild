@@ -92,24 +92,8 @@ namespace floatTetWild {
 
         /*
          * Finds the nearest facet on the surface, but stops early if a
-         * point within a given distance is found.
-         */
-        geo::index_t facet_in_envelope(
-            const geo::vec3& p, double sq_epsilon, geo::vec3& nearest_point, double& sq_dist
-        ) const {
-            geo::index_t nearest_facet;
-            get_nearest_facet_hint(p, nearest_facet, nearest_point, sq_dist);
-            facet_in_envelope_recursive(
-                p, sq_epsilon,
-                nearest_facet, nearest_point, sq_dist,
-                1, 0, mesh_.facets.nb()
-            );
-            return nearest_facet;
-        }
-
-        /*
-         * Same as before, but stops as soon as a point on the surface in
-         * within a given distance bound from the triangle mesh.
+         * point within a given distance is found. Starting from a facet the
+         * caller already has saves the search for a hint.
          */
         void facet_in_envelope_with_hint(
             const geo::vec3& p, double sq_epsilon,
@@ -125,6 +109,17 @@ namespace floatTetWild {
                 nearest_facet, nearest_point, sq_dist,
                 1, 0, mesh_.facets.nb()
             );
+        }
+
+        /*
+         * \overload With no facet to start from.
+         */
+        geo::index_t facet_in_envelope(
+            const geo::vec3& p, double sq_epsilon, geo::vec3& nearest_point, double& sq_dist
+        ) const {
+            geo::index_t nearest_facet = geo::NO_FACET;
+            facet_in_envelope_with_hint(p, sq_epsilon, nearest_facet, nearest_point, sq_dist);
+            return nearest_facet;
         }
 
     protected:

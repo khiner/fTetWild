@@ -11,72 +11,15 @@
 
 #include <floattetwild/ParallelFor.hpp>
 
-void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
-{
-    auto& tets         = mesh.tets;
-    auto& tet_vertices = mesh.tet_vertices;
+namespace floatTetWild {
+namespace {
 
-    const auto smooth_one = [&](const int v_id) {
-        if (tet_vertices[v_id].is_removed)
-            return;
-        if (tet_vertices[v_id].is_freezed)
-            return;
-        if (tet_vertices[v_id].is_on_bbox)
-            return;
-
-        Vector3 p;
-        if (!find_new_pos(mesh, v_id, p))
-            return;
-
-        std::vector<Scalar> new_qs;
-        if (tet_vertices[v_id].is_on_boundary) {
-            if (!project_and_check(mesh, v_id, p, tree, false, new_qs))
-                return;
-            if (is_out_boundary_envelope(mesh, v_id, p, tree))
-                return;
-            else if (is_out_envelope(mesh, v_id, p, tree))
-                return;
-        }
-        else if (tet_vertices[v_id].is_on_surface) {
-            if (!project_and_check(mesh, v_id, p, tree, true, new_qs))
-                return;
-            if (is_out_envelope(mesh, v_id, p, tree))
-                return;
-        }
-
-        tet_vertices[v_id].pos = p;
-
-        int cnt = 0;
-        for (int t_id : tet_vertices[v_id].conn_tets) {
-            if (!new_qs.empty())
-                tets[t_id].quality = new_qs[cnt++];
-            else
-                tets[t_id].quality = get_quality(mesh, t_id);
-        }
-    };
-
-    std::vector<std::vector<int>> concurrent_sets;
-    std::vector<int>              serial_set;
-    // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
-    // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
-    // which made the output depend on the thread count.
-    mesh.one_ring_vertex_sets(2, concurrent_sets, serial_set);
-
-    for (const auto& s : concurrent_sets) {
-        parallel_for(size_t(0), size_t(s.size()), [&](size_t i) { smooth_one(s[i]); });
-    }
-
-    for (size_t v_id : serial_set)
-        smooth_one(v_id);
-
-}
-
-bool floatTetWild::project_and_check(Mesh&                mesh,
-                                     int                  v_id,
-                                     Vector3&             p,
-                                     const AABBWrapper&   tree,
-                                     bool                 is_sf,
-                                     std::vector<Scalar>& new_qs)
+bool project_and_check(Mesh&                mesh,
+                       int                  v_id,
+                       Vector3&             p,
+                       const AABBWrapper&   tree,
+                       bool                 is_sf,
+                       std::vector<Scalar>& new_qs)
 {
     if (is_sf)
         tree.project_to_sf(p);
@@ -105,7 +48,7 @@ bool floatTetWild::project_and_check(Mesh&                mesh,
     return true;
 }
 
-bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
+bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
 {
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
@@ -222,4 +165,67 @@ bool floatTetWild::find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
     if (x != tet_vertices[v_id].pos)
         return true;
     return false;
+}
+
+}  // namespace
+}  // namespace floatTetWild
+
+void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
+{
+    auto& tets         = mesh.tets;
+    auto& tet_vertices = mesh.tet_vertices;
+
+    const auto smooth_one = [&](const int v_id) {
+        if (tet_vertices[v_id].is_removed)
+            return;
+        if (tet_vertices[v_id].is_freezed)
+            return;
+        if (tet_vertices[v_id].is_on_bbox)
+            return;
+
+        Vector3 p;
+        if (!find_new_pos(mesh, v_id, p))
+            return;
+
+        std::vector<Scalar> new_qs;
+        if (tet_vertices[v_id].is_on_boundary) {
+            if (!project_and_check(mesh, v_id, p, tree, false, new_qs))
+                return;
+            if (is_out_boundary_envelope(mesh, v_id, p, tree))
+                return;
+            else if (is_out_envelope(mesh, v_id, p, tree))
+                return;
+        }
+        else if (tet_vertices[v_id].is_on_surface) {
+            if (!project_and_check(mesh, v_id, p, tree, true, new_qs))
+                return;
+            if (is_out_envelope(mesh, v_id, p, tree))
+                return;
+        }
+
+        tet_vertices[v_id].pos = p;
+
+        int cnt = 0;
+        for (int t_id : tet_vertices[v_id].conn_tets) {
+            if (!new_qs.empty())
+                tets[t_id].quality = new_qs[cnt++];
+            else
+                tets[t_id].quality = get_quality(mesh, t_id);
+        }
+    };
+
+    std::vector<std::vector<int>> concurrent_sets;
+    std::vector<int>              serial_set;
+    // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
+    // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
+    // which made the output depend on the thread count.
+    mesh.one_ring_vertex_sets(2, concurrent_sets, serial_set);
+
+    for (const auto& s : concurrent_sets) {
+        parallel_for(size_t(0), size_t(s.size()), [&](size_t i) { smooth_one(s[i]); });
+    }
+
+    for (size_t v_id : serial_set)
+        smooth_one(v_id);
+
 }

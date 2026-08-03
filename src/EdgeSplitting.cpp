@@ -11,68 +11,10 @@
 
 #define TET_MODIFIED 100
 
-void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
-    auto &tets = mesh.tets;
-    auto &tet_vertices = mesh.tet_vertices;
+namespace floatTetWild {
+namespace {
 
-    mesh.reset_t_empty_start();
-    mesh.reset_v_empty_start();
-
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
-
-    // An edge is worth splitting once it is longer than the threshold scaled by the sizing field
-    // averaged over its two ends.
-    const auto push_if_long = [&](const std::array<int, 2>& e) {
-        Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
-        Scalar sizing_scalar = avg_sizing_scalar(mesh, e[0], e[1]);
-        if (l_2 > mesh.params.split_threshold_2 * sizing_scalar * sizing_scalar)
-            es_queue.push(ElementInQueue(e, l_2));
-    };
-
-    for (auto& e:edges)
-        push_if_long(e);
-    edges.clear();
-
-    // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
-    // it stands and leave the empty slots already in the mesh to be reused.
-    const int v_slots = mesh.v_empty_size();
-    const int t_slots = mesh.t_empty_size();
-    if (v_slots < es_queue.size() * 2)
-        tet_vertices.reserve(tet_vertices.size() + es_queue.size() * 2 - v_slots);
-    if (t_slots < es_queue.size() * 6 * 2)
-        tets.reserve(tets.size() + es_queue.size() * 6 * 2 - t_slots + 1);
-
-    std::vector<bool> is_splittable(mesh.tets.size(), true);
-    bool is_repush = true;
-    while (!es_queue.empty()) {
-        std::array<int, 2> v_ids = es_queue.top().v_ids;
-        es_queue.pop();
-
-        if(tet_vertices[v_ids[0]].is_freezed && tet_vertices[v_ids[1]].is_freezed)
-            continue;
-
-        std::vector<std::array<int, 2>> new_edges;
-        if (!split_an_edge(mesh, v_ids[0], v_ids[1], is_repush, new_edges, is_splittable, tree))
-            is_repush = false;
-
-        for (auto &e:new_edges)
-            push_if_long(e);
-    }
-
-    for(auto& t: tets){
-        if(t.is_removed)
-            continue;
-        if(t.scalar == TET_MODIFIED) {
-            t.quality = get_quality(mesh, t);
-            t.scalar = 0;
-        }
-    }
-}
-
-bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repush,
+bool split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repush,
         std::vector<std::array<int, 2>>& new_edges, std::vector<bool>& is_splittable, const AABBWrapper& tree) {
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
@@ -151,4 +93,68 @@ bool floatTetWild::split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repus
     }
 
     return true;
+}
+
+}  // namespace
+}  // namespace floatTetWild
+
+void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
+    auto &tets = mesh.tets;
+    auto &tet_vertices = mesh.tet_vertices;
+
+    mesh.reset_t_empty_start();
+    mesh.reset_v_empty_start();
+
+    std::vector<std::array<int, 2>> edges;
+    get_all_edges(mesh, edges);
+
+    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
+
+    // An edge is worth splitting once it is longer than the threshold scaled by the sizing field
+    // averaged over its two ends.
+    const auto push_if_long = [&](const std::array<int, 2>& e) {
+        Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
+        Scalar sizing_scalar = avg_sizing_scalar(mesh, e[0], e[1]);
+        if (l_2 > mesh.params.split_threshold_2 * sizing_scalar * sizing_scalar)
+            es_queue.push(ElementInQueue(e, l_2));
+    };
+
+    for (auto& e:edges)
+        push_if_long(e);
+    edges.clear();
+
+    // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
+    // it stands and leave the empty slots already in the mesh to be reused.
+    const int v_slots = mesh.v_empty_size();
+    const int t_slots = mesh.t_empty_size();
+    if (v_slots < es_queue.size() * 2)
+        tet_vertices.reserve(tet_vertices.size() + es_queue.size() * 2 - v_slots);
+    if (t_slots < es_queue.size() * 6 * 2)
+        tets.reserve(tets.size() + es_queue.size() * 6 * 2 - t_slots + 1);
+
+    std::vector<bool> is_splittable(mesh.tets.size(), true);
+    bool is_repush = true;
+    while (!es_queue.empty()) {
+        std::array<int, 2> v_ids = es_queue.top().v_ids;
+        es_queue.pop();
+
+        if(tet_vertices[v_ids[0]].is_freezed && tet_vertices[v_ids[1]].is_freezed)
+            continue;
+
+        std::vector<std::array<int, 2>> new_edges;
+        if (!split_an_edge(mesh, v_ids[0], v_ids[1], is_repush, new_edges, is_splittable, tree))
+            is_repush = false;
+
+        for (auto &e:new_edges)
+            push_if_long(e);
+    }
+
+    for(auto& t: tets){
+        if(t.is_removed)
+            continue;
+        if(t.scalar == TET_MODIFIED) {
+            t.quality = get_quality(mesh, t);
+            t.scalar = 0;
+        }
+    }
 }

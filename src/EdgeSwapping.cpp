@@ -60,6 +60,18 @@ struct FaceMarks
     }
 };
 
+// The two corners of t that are not on the edge, in local order.
+std::array<int, 2> corners_off_edge(const MeshTet& t, int v1_id, int v2_id)
+{
+    std::array<int, 2> off;
+    int                cnt = 0;
+    for (int j = 0; j < 4; j++) {
+        if (t[j] != v1_id && t[j] != v2_id)
+            off[cnt++] = t[j];
+    }
+    return off;
+}
+
 // Walks the ring of tets around the edge, so that n12_v_ids[i] and n12_v_ids[i+1] are the two
 // corners of n12_t_ids[i] that are not on the edge. The 4-4 and 5-6 swaps both need this.
 void order_edge_ring(const Mesh&             mesh,
@@ -75,14 +87,8 @@ void order_edge_ring(const Mesh&             mesh,
     std::vector<std::array<int, 3>> n12_es;
     n12_es.reserve(N);
     for (int t_id : old_t_ids) {
-        std::array<int, 3> e;
-        int                cnt = 0;
-        for (int j = 0; j < 4; j++) {
-            if (mesh.tets[t_id][j] != v1_id && mesh.tets[t_id][j] != v2_id)
-                e[cnt++] = mesh.tets[t_id][j];
-        }
-        e[cnt] = t_id;
-        n12_es.push_back(e);
+        const std::array<int, 2> off = corners_off_edge(mesh.tets[t_id], v1_id, v2_id);
+        n12_es.push_back({{off[0], off[1], t_id}});
     }
 
     n12_v_ids.push_back(n12_es[0][0]);
@@ -114,78 +120,14 @@ void order_edge_ring(const Mesh&             mesh,
       n12_es[std::find(is_visited.begin(), is_visited.end(), false) - is_visited.begin()][2]);
 }
 
-}  // namespace
-}  // namespace floatTetWild
-
-void floatTetWild::edge_swapping(Mesh& mesh) {
-    auto &tet_vertices = mesh.tet_vertices;
-
-    mesh.reset_t_empty_start();
-    mesh.reset_v_empty_start();
-
-    auto is_swappable = [&](int v1_id, int v2_id, const std::vector<int> &n12_t_ids) {
-        if (n12_t_ids.size() < 3 || n12_t_ids.size() > 5)
-            return false;
-        if (!is_valid_edge(mesh, v1_id, v2_id, n12_t_ids))
-            return false;
-        if (is_surface_edge(mesh, v1_id, v2_id, n12_t_ids))
-            return false;
-        if (is_bbox_edge(mesh, v1_id, v2_id, n12_t_ids))
-            return false;
-        return true;
-    };
-
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
-    for (auto &e:edges) {
-        es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
-    }
-    edges.clear();
-
-    while (!es_queue.empty()) {
-        std::array<int, 2> v_ids = es_queue.top().v_ids;
-        es_queue.pop();
-
-        if(tet_vertices[v_ids[0]].is_freezed && tet_vertices[v_ids[1]].is_freezed)
-            continue;
-
-        std::vector<int> n12_t_ids;
-        set_intersection(tet_vertices[v_ids[0]].conn_tets, tet_vertices[v_ids[1]].conn_tets, n12_t_ids);
-        if (!is_swappable(v_ids[0], v_ids[1], n12_t_ids))
-            continue;
-
-        pop_duplicates(es_queue, v_ids);
-
-        std::vector<std::array<int, 2>> new_edges;
-        if (n12_t_ids.size() == 3)
-            remove_an_edge_32(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
-        if (n12_t_ids.size() == 4)
-            remove_an_edge_44(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
-        if (n12_t_ids.size() == 5)
-            remove_an_edge_56(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
-
-        for (auto &e:new_edges) {
-            es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
-        }
-    }
-}
-
-bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges){
+bool remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges){
     if(old_t_ids.size()!=3)
         return false;
 
     auto& tet_vertices = mesh.tet_vertices;
     auto& tets = mesh.tets;
 
-    std::array<int, 2> v_ids;
-    int cnt = 0;
-    for (int i = 0; i < 4; i++) {
-        if (tets[old_t_ids[0]][i] != v1_id && tets[old_t_ids[0]][i] != v2_id) {
-            v_ids[cnt++] = tets[old_t_ids[0]][i];
-        }
-    }
+    const std::array<int, 2> v_ids = corners_off_edge(tets[old_t_ids[0]], v1_id, v2_id);
     // The tet that carries v_ids[0] comes first, so the two rebuilt tets take the ends in a
     // fixed order.
     const bool in_order = tets[old_t_ids[1]].find(v_ids[0]) >= 0;
@@ -238,7 +180,7 @@ bool floatTetWild::remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std
     return true;
 }
 
-bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
+bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
 
     const int N = 4;
     if (old_t_ids.size() != N)
@@ -335,7 +277,7 @@ bool floatTetWild::remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std
     return true;
 }
 
-bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
+bool remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
     if (old_t_ids.size() != 5)
         return false;
 
@@ -460,4 +402,62 @@ bool floatTetWild::remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std
     collect_tet_edges(mesh, new_t_ids, new_edges);
 
     return true;
+}
+
+}  // namespace
+}  // namespace floatTetWild
+
+void floatTetWild::edge_swapping(Mesh& mesh) {
+    auto &tet_vertices = mesh.tet_vertices;
+
+    mesh.reset_t_empty_start();
+    mesh.reset_v_empty_start();
+
+    auto is_swappable = [&](int v1_id, int v2_id, const std::vector<int> &n12_t_ids) {
+        if (n12_t_ids.size() < 3 || n12_t_ids.size() > 5)
+            return false;
+        if (!is_valid_edge(mesh, v1_id, v2_id, n12_t_ids))
+            return false;
+        if (is_surface_edge(mesh, v1_id, v2_id, n12_t_ids))
+            return false;
+        if (is_bbox_edge(mesh, v1_id, v2_id, n12_t_ids))
+            return false;
+        return true;
+    };
+
+    std::vector<std::array<int, 2>> edges;
+    get_all_edges(mesh, edges);
+
+    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
+    for (auto &e:edges) {
+        es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
+    }
+    edges.clear();
+
+    while (!es_queue.empty()) {
+        std::array<int, 2> v_ids = es_queue.top().v_ids;
+        es_queue.pop();
+
+        if(tet_vertices[v_ids[0]].is_freezed && tet_vertices[v_ids[1]].is_freezed)
+            continue;
+
+        std::vector<int> n12_t_ids;
+        set_intersection(tet_vertices[v_ids[0]].conn_tets, tet_vertices[v_ids[1]].conn_tets, n12_t_ids);
+        if (!is_swappable(v_ids[0], v_ids[1], n12_t_ids))
+            continue;
+
+        pop_duplicates(es_queue, v_ids);
+
+        std::vector<std::array<int, 2>> new_edges;
+        if (n12_t_ids.size() == 3)
+            remove_an_edge_32(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
+        if (n12_t_ids.size() == 4)
+            remove_an_edge_44(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
+        if (n12_t_ids.size() == 5)
+            remove_an_edge_56(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
+
+        for (auto &e:new_edges) {
+            es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
+        }
+    }
 }

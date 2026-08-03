@@ -11,6 +11,54 @@
 
 namespace floatTetWild {
 namespace {
+bool is_edge_freezed(Mesh& mesh, int v1_id, int v2_id)
+{
+    return mesh.tet_vertices[v1_id].is_freezed || mesh.tet_vertices[v2_id].is_freezed;
+}
+
+bool is_collapsable_bbox(Mesh& mesh, int v1_id, int v2_id)
+{
+    if (!mesh.tet_vertices[v1_id].is_on_bbox)
+        return true;
+    else if (!mesh.tet_vertices[v2_id].is_on_bbox)
+        return false;
+
+    std::vector<int> bbox_fs2;
+    for (int t_id : mesh.tet_vertices[v2_id].conn_tets) {
+        for (int j = 0; j < 4; j++) {
+            if (mesh.tets[t_id][j] != v2_id && mesh.tets[t_id].is_bbox_fs[j] != NOT_BBOX)
+                bbox_fs2.push_back(mesh.tets[t_id].is_bbox_fs[j]);
+        }
+    }
+    vector_unique(bbox_fs2);
+
+    for (int t_id : mesh.tet_vertices[v1_id].conn_tets) {
+        for (int j = 0; j < 4; j++) {
+            if (mesh.tets[t_id][j] != v1_id && mesh.tets[t_id].is_bbox_fs[j] != NOT_BBOX) {
+                if (std::find(bbox_fs2.begin(), bbox_fs2.end(), mesh.tets[t_id].is_bbox_fs[j]) ==
+                    bbox_fs2.end())
+                    return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool is_collapsable_length(Mesh& mesh, int v1_id, int v2_id, Scalar l_2)
+{
+    Scalar sizing_scalar = avg_sizing_scalar(mesh, v1_id, v2_id);
+    return l_2 <= mesh.params.collapse_threshold_2 * sizing_scalar * sizing_scalar;
+}
+
+bool is_collapsable_boundary(Mesh&              mesh,
+                             int                v1_id,
+                             int                v2_id,
+                             const AABBWrapper& tree)
+{
+    return !mesh.tet_vertices[v1_id].is_on_boundary || is_boundary_edge(mesh, v1_id, v2_id, tree);
+}
+
 void edge_collapsing_aux(Mesh&                            mesh,
                          const AABBWrapper&               tree,
                          std::vector<std::array<int, 2>>& edges)
@@ -326,52 +374,4 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     }
 
     return true;
-}
-
-bool floatTetWild::is_edge_freezed(Mesh& mesh, int v1_id, int v2_id)
-{
-    return mesh.tet_vertices[v1_id].is_freezed || mesh.tet_vertices[v2_id].is_freezed;
-}
-
-bool floatTetWild::is_collapsable_bbox(Mesh& mesh, int v1_id, int v2_id)
-{
-    if (!mesh.tet_vertices[v1_id].is_on_bbox)
-        return true;
-    else if (!mesh.tet_vertices[v2_id].is_on_bbox)
-        return false;
-
-    std::vector<int> bbox_fs2;
-    for (int t_id : mesh.tet_vertices[v2_id].conn_tets) {
-        for (int j = 0; j < 4; j++) {
-            if (mesh.tets[t_id][j] != v2_id && mesh.tets[t_id].is_bbox_fs[j] != NOT_BBOX)
-                bbox_fs2.push_back(mesh.tets[t_id].is_bbox_fs[j]);
-        }
-    }
-    vector_unique(bbox_fs2);
-
-    for (int t_id : mesh.tet_vertices[v1_id].conn_tets) {
-        for (int j = 0; j < 4; j++) {
-            if (mesh.tets[t_id][j] != v1_id && mesh.tets[t_id].is_bbox_fs[j] != NOT_BBOX) {
-                if (std::find(bbox_fs2.begin(), bbox_fs2.end(), mesh.tets[t_id].is_bbox_fs[j]) ==
-                    bbox_fs2.end())
-                    return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-bool floatTetWild::is_collapsable_length(Mesh& mesh, int v1_id, int v2_id, Scalar l_2)
-{
-    Scalar sizing_scalar = avg_sizing_scalar(mesh, v1_id, v2_id);
-    return l_2 <= mesh.params.collapse_threshold_2 * sizing_scalar * sizing_scalar;
-}
-
-bool floatTetWild::is_collapsable_boundary(Mesh&              mesh,
-                                           int                v1_id,
-                                           int                v2_id,
-                                           const AABBWrapper& tree)
-{
-    return !mesh.tet_vertices[v1_id].is_on_boundary || is_boundary_edge(mesh, v1_id, v2_id, tree);
 }

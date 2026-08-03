@@ -202,6 +202,14 @@ class CsgReader
         return fail("unterminated string");
     }
 
+    // A quoted key and the colon after it.
+    bool parse_key(std::string& key)
+    {
+        if (!parse_string(key))
+            return false;
+        return take(':') ? true : fail("expected ':' after a key");
+    }
+
     // Consumes any value, for keys the tree does not use.
     bool skip_value()
     {
@@ -221,10 +229,8 @@ class CsgReader
             do {
                 if (is_object) {
                     std::string key;
-                    if (!parse_string(key))
+                    if (!parse_key(key))
                         return false;
-                    if (!take(':'))
-                        return fail("expected ':' after a key");
                 }
                 if (!skip_value())
                     return false;
@@ -259,10 +265,8 @@ class CsgReader
         if (!take('}')) {
             do {
                 std::string key;
-                if (!parse_string(key))
+                if (!parse_key(key))
                     return false;
-                if (!take(':'))
-                    return fail("expected ':' after a key");
 
                 if (key == "operation") {
                     if (!parse_string(tree.operation))

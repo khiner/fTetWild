@@ -41,11 +41,6 @@ void floatTetWild::get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2
     vector_unique(edges);
 }
 
-Scalar floatTetWild::get_edge_length(const Mesh& mesh, int v1_id, int v2_id)
-{
-    return (mesh.tet_vertices[v1_id].pos - mesh.tet_vertices[v2_id].pos).norm();
-}
-
 Scalar floatTetWild::get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id)
 {
     return (mesh.tet_vertices[v1_id].pos - mesh.tet_vertices[v2_id].pos).squaredNorm();
@@ -53,6 +48,11 @@ Scalar floatTetWild::get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id)
 
 namespace floatTetWild {
 namespace {
+Scalar get_edge_length(const Mesh& mesh, int v1_id, int v2_id)
+{
+    return (mesh.tet_vertices[v1_id].pos - mesh.tet_vertices[v2_id].pos).norm();
+}
+
 // True when some tet around the edge carries a tagged face that does not contain the edge. Both
 // callers differ only in which per-face tag they look at and what "untagged" means for it.
 bool has_tagged_face_off_edge(const Mesh&                       mesh,
@@ -241,14 +241,6 @@ bool floatTetWild::is_inverted(const Vector3& v0,
                                const Vector3& v3)
 {
     return Predicates::orient_3d(v0, v1, v2, v3) != Predicates::ORI_POSITIVE;
-}
-
-bool floatTetWild::is_degenerate(const Vector3& v0,
-                                 const Vector3& v1,
-                                 const Vector3& v2,
-                                 const Vector3& v3)
-{
-    return Predicates::orient_3d(v0, v1, v2, v3) == Predicates::ORI_ZERO;
 }
 
 bool floatTetWild::is_out_boundary_envelope(const Mesh&        mesh,
@@ -553,76 +545,14 @@ void floatTetWild::get_face_tets(const Mesh&       mesh,
     t_ids.resize(it - t_ids.begin());
 }
 
+namespace floatTetWild {
 namespace {
-// The AMIPS energy of a tet is
-//     P / cbrt(16 * det^2)
-// where P is the sum of the six squared edge lengths and det is the determinant of the three edge
-// vectors leaving the first vertex, so six times the signed volume. Both are polynomials in the
-// twelve coordinates with integer coefficients.
-// That is the same value the rational version computed. It evaluated 27/16 * Q^3 / det^2 under a
-// cube root, and 3Q is P, so 27/16 * Q^3 / det^2 is P^3 / (16 det^2). The cube root then collapses:
-// 16 det^2 is positive wherever det is nonzero and cbrt is odd, so cbrt(P^3 / (16 det^2)) is
-// P / cbrt(16 det^2) whatever the sign of P. Nothing has to be cubed.
-// det is why this path exists. It is an orient3d determinant and loses itself to cancellation in
-// double precision exactly when the tet is near-degenerate, which is when the caller falls through
-// to here. Expansions carry it and P exactly, and the result is rounded only at the end.
-Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
+bool is_degenerate(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3)
 {
-    using floatTetWild::geo::expansion;
-
-    const double* p0 = T.data();
-    const double* p1 = T.data() + 3;
-    const double* p2 = T.data() + 6;
-    const double* p3 = T.data() + 9;
-
-    // These macros allocate in this frame with alloca, so every expansion has to be built here and
-    // none of it can move into a helper that returns one.
-    const expansion& a11 = expansion_diff(p1[0], p0[0]);
-    const expansion& a12 = expansion_diff(p1[1], p0[1]);
-    const expansion& a13 = expansion_diff(p1[2], p0[2]);
-    const expansion& a21 = expansion_diff(p2[0], p0[0]);
-    const expansion& a22 = expansion_diff(p2[1], p0[1]);
-    const expansion& a23 = expansion_diff(p2[2], p0[2]);
-    const expansion& a31 = expansion_diff(p3[0], p0[0]);
-    const expansion& a32 = expansion_diff(p3[1], p0[1]);
-    const expansion& a33 = expansion_diff(p3[2], p0[2]);
-
-    // Capacity 192, under the 1024 that new_expansion_on_stack() allows.
-    const expansion& det = expansion_det3x3(a11, a12, a13, a21, a22, a23, a31, a32, a33);
-    if (det.sign() == floatTetWild::geo::ZERO)
-        return std::numeric_limits<double>::infinity();
-
-    const expansion& d01  = expansion_sq_dist(p0, p1, 3);
-    const expansion& d02  = expansion_sq_dist(p0, p2, 3);
-    const expansion& d03  = expansion_sq_dist(p0, p3, 3);
-    const expansion& d12  = expansion_sq_dist(p1, p2, 3);
-    const expansion& d13  = expansion_sq_dist(p1, p3, 3);
-    const expansion& d23  = expansion_sq_dist(p2, p3, 3);
-    const expansion& sum4 = expansion_sum4(d01, d02, d03, d12);
-    const expansion& P    = expansion_sum3(sum4, d13, d23);
-
-    const double d = det.estimate();
-    return P.estimate() / std::cbrt(16.0 * d * d);
-}
-}  // namespace
-
-Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
-{
-    const Scalar res = AMIPS_energy_aux(T);
-    // !(res > 1e8), not res <= 1e8: a NaN falls through unchanged, as it always has.
-    if (use_old_energy || !(res > 1e8))
-        return res;
-
-    // The cheap form has lost the determinant to cancellation, so redo it exactly.
-    if (is_degenerate(Vector3(T[0], T[1], T[2]),
-                      Vector3(T[3], T[4], T[5]),
-                      Vector3(T[6], T[7], T[8]),
-                      Vector3(T[9], T[10], T[11])))
-        return std::numeric_limits<double>::infinity();
-    return AMIPS_energy_exact(T);
+    return Predicates::orient_3d(v0, v1, v2, v3) == Predicates::ORI_ZERO;
 }
 
-Scalar floatTetWild::AMIPS_energy_aux(const std::array<Scalar, 12>& T)
+Scalar AMIPS_energy_aux(const std::array<Scalar, 12>& T)
 {
     Scalar helper_1 = T[2];
     Scalar helper_2 = T[11];
@@ -669,6 +599,75 @@ Scalar floatTetWild::AMIPS_energy_aux(const std::array<Scalar, 12>& T)
         helper_9 * (0.5 * helper_10 + 0.5 * helper_7 + 0.5 * helper_8 - 1.5 * helper_9)) /
       std::cbrt(helper_22 * helper_22);
     return res;
+}
+
+// The AMIPS energy of a tet is
+//     P / cbrt(16 * det^2)
+// where P is the sum of the six squared edge lengths and det is the determinant of the three edge
+// vectors leaving the first vertex, so six times the signed volume. Both are polynomials in the
+// twelve coordinates with integer coefficients.
+// That is the same value the rational version computed. It evaluated 27/16 * Q^3 / det^2 under a
+// cube root, and 3Q is P, so 27/16 * Q^3 / det^2 is P^3 / (16 det^2). The cube root then collapses:
+// 16 det^2 is positive wherever det is nonzero and cbrt is odd, so cbrt(P^3 / (16 det^2)) is
+// P / cbrt(16 det^2) whatever the sign of P. Nothing has to be cubed.
+// det is why this path exists. It is an orient3d determinant and loses itself to cancellation in
+// double precision exactly when the tet is near-degenerate, which is when the caller falls through
+// to here. Expansions carry it and P exactly, and the result is rounded only at the end.
+Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
+{
+    using geo::expansion;
+
+    const double* p0 = T.data();
+    const double* p1 = T.data() + 3;
+    const double* p2 = T.data() + 6;
+    const double* p3 = T.data() + 9;
+
+    // These macros allocate in this frame with alloca, so every expansion has to be built here and
+    // none of it can move into a helper that returns one.
+    const expansion& a11 = expansion_diff(p1[0], p0[0]);
+    const expansion& a12 = expansion_diff(p1[1], p0[1]);
+    const expansion& a13 = expansion_diff(p1[2], p0[2]);
+    const expansion& a21 = expansion_diff(p2[0], p0[0]);
+    const expansion& a22 = expansion_diff(p2[1], p0[1]);
+    const expansion& a23 = expansion_diff(p2[2], p0[2]);
+    const expansion& a31 = expansion_diff(p3[0], p0[0]);
+    const expansion& a32 = expansion_diff(p3[1], p0[1]);
+    const expansion& a33 = expansion_diff(p3[2], p0[2]);
+
+    // Capacity 192, under the 1024 that new_expansion_on_stack() allows.
+    const expansion& det = expansion_det3x3(a11, a12, a13, a21, a22, a23, a31, a32, a33);
+    if (det.sign() == geo::ZERO)
+        return std::numeric_limits<double>::infinity();
+
+    const expansion& d01  = expansion_sq_dist(p0, p1, 3);
+    const expansion& d02  = expansion_sq_dist(p0, p2, 3);
+    const expansion& d03  = expansion_sq_dist(p0, p3, 3);
+    const expansion& d12  = expansion_sq_dist(p1, p2, 3);
+    const expansion& d13  = expansion_sq_dist(p1, p3, 3);
+    const expansion& d23  = expansion_sq_dist(p2, p3, 3);
+    const expansion& sum4 = expansion_sum4(d01, d02, d03, d12);
+    const expansion& P    = expansion_sum3(sum4, d13, d23);
+
+    const double d = det.estimate();
+    return P.estimate() / std::cbrt(16.0 * d * d);
+}
+}  // namespace
+}  // namespace floatTetWild
+
+Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
+{
+    const Scalar res = AMIPS_energy_aux(T);
+    // !(res > 1e8), not res <= 1e8: a NaN falls through unchanged, as it always has.
+    if (use_old_energy || !(res > 1e8))
+        return res;
+
+    // The cheap form has lost the determinant to cancellation, so redo it exactly.
+    if (is_degenerate(Vector3(T[0], T[1], T[2]),
+                      Vector3(T[3], T[4], T[5]),
+                      Vector3(T[6], T[7], T[8]),
+                      Vector3(T[9], T[10], T[11])))
+        return std::numeric_limits<double>::infinity();
+    return AMIPS_energy_exact(T);
 }
 
 void floatTetWild::AMIPS_jacobian(const std::array<Scalar, 12>& T, Vector3& result_0)

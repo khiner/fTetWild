@@ -18,17 +18,9 @@
 namespace floatTetWild {
     class CutMesh {
     public:
-        std::vector<int> v_ids;
+        // The mesh vertex ids the cut reaches, mapped to their local index here. Only the caller's
+        // local-index lookups need this; everything else the cut tracks is private.
         std::map<int, int> map_v_ids;
-        std::vector<std::array<int, 4>> tets;
-
-        std::vector<Scalar> to_plane_dists;
-        std::vector<bool> is_snapped;
-        std::vector<bool> is_projected;
-
-        Mesh &mesh;
-        const Vector3 &p_n;
-        const std::array<Vector3, 3> &p_vs;
 
         CutMesh(Mesh &_mesh, const Vector3 &_p_n, const std::array<Vector3, 3> &_p_vs) :
                 mesh(_mesh), p_n(_p_n), p_vs(_p_vs) {}
@@ -45,11 +37,12 @@ namespace floatTetWild {
                                                std::map<std::array<int, 2>, int> &map_edge_to_intersecting_point,
                                                std::vector<int> &subdivide_t_ids);
 
-        void revert_totally_snapped_tets();
-
         inline bool is_v_on_plane(int lv_id) const {
             return is_snapped[lv_id] || to_plane_dists[lv_id] == 0;
         }
+
+    private:
+        void revert_totally_snapped_tets();
 
         inline Scalar get_to_plane_dist(const Vector3 &p) const {
             return p_n.dot(p - p_vs[0]);
@@ -58,6 +51,17 @@ namespace floatTetWild {
         // The distance from p to the plane, signed against the exact orientation of p and exactly
         // 0 when p lies on it. snaps comes back true when p is near enough to pull onto the plane.
         Scalar get_signed_plane_dist(const Vector3 &p, bool &snaps) const;
+
+        std::vector<int> v_ids;
+        std::vector<std::array<int, 4>> tets;
+
+        std::vector<Scalar> to_plane_dists;
+        std::vector<bool> is_snapped;
+        std::vector<bool> is_projected;
+
+        Mesh &mesh;
+        const Vector3 &p_n;
+        const std::array<Vector3, 3> &p_vs;
     };
 
 }

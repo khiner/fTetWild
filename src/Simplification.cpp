@@ -13,65 +13,36 @@
 #include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/MeshCleanup.hpp>
 
-void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
-                            std::vector<Vector3i>& input_faces,
-                            std::vector<int>&      input_tags,
-                            const AABBWrapper&     tree,
-                            const Parameters&      params,
-                            bool                   skip_simplify)
+namespace floatTetWild {
+namespace {
+
+Scalar get_angle_cos(const Vector3& p,
+                     const Vector3& p1,
+                     const Vector3& p2)
 {
-    remove_duplicates(input_vertices, input_faces, input_tags, params);
-    if (skip_simplify)
-        return;
-
-    std::vector<char>                    v_is_removed(input_vertices.size(), false);
-    std::vector<char>                    f_is_removed(input_faces.size(), false);
-    std::vector<std::unordered_set<int>> conn_fs(input_vertices.size());
-    for (int i = 0; i < input_faces.size(); i++) {
-        for (int j = 0; j < 3; j++)
-            conn_fs[input_faces[i][j]].insert(i);
-    }
-
-    collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
-    swapping(input_vertices, input_faces, tree, params, f_is_removed, conn_fs);
-
-    std::vector<int>     map_v_ids(input_vertices.size(), -1);
-    std::vector<Vector3> new_input_vertices;
-    new_input_vertices.reserve(input_vertices.size());
-    for (int i = 0; i < input_vertices.size(); i++) {
-        if (v_is_removed[i] || conn_fs[i].empty())
-            continue;
-        map_v_ids[i] = new_input_vertices.size();
-        new_input_vertices.push_back(input_vertices[i]);
-    }
-    input_vertices = new_input_vertices;
-
-    std::vector<Vector3i> new_input_faces;
-    std::vector<int>      new_input_tags;
-    new_input_faces.reserve(input_faces.size());
-    new_input_tags.reserve(input_faces.size());
-    for (int i = 0; i < input_faces.size(); i++) {
-        if (f_is_removed[i])
-            continue;
-        Vector3i f;
-        for (int j = 0; j < 3; j++)
-            f[j] = map_v_ids[input_faces[i][j]];
-        new_input_faces.push_back(f);
-        new_input_tags.push_back(input_tags[i]);
-    }
-    input_faces = new_input_faces;
-    input_tags  = new_input_tags;
-
-    remove_duplicates(input_vertices, input_faces, input_tags, params);
-
-    logger().info("#v = {}", input_vertices.size());
-    logger().info("#f = {}", input_faces.size());
+    Vector3 v1  = p1 - p;
+    Vector3 v2  = p2 - p;
+    Scalar  res = v1.dot(v2) / (v1.norm() * v2.norm());
+    if (res > 1)
+        return 1;
+    if (res < -1)
+        return -1;
+    return res;
 }
 
-bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
-                                     std::vector<Vector3i>& input_faces,
-                                     std::vector<int>&      input_tags,
-                                     const Parameters&      params)
+bool is_out_envelope(const std::array<Vector3, 3>& vs,
+                     const AABBWrapper&            tree,
+                     const Parameters&             params)
+{
+    geo::index_t prev_facet = geo::NO_FACET;
+    return sample_triangle_and_check_is_out(
+      vs, params.dd_simplification, params.eps_2_simplification, tree, prev_facet);
+}
+
+bool remove_duplicates(std::vector<Vector3>&  input_vertices,
+                       std::vector<Vector3i>& input_faces,
+                       std::vector<int>&      input_tags,
+                       const Parameters&      params)
 {
     MatrixXs V_tmp = to_matrix(input_vertices), V_in;
     MatrixXi F_tmp = to_matrix(input_faces), F_in;
@@ -133,13 +104,13 @@ bool floatTetWild::remove_duplicates(std::vector<Vector3>&  input_vertices,
     return true;
 }
 
-void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertices,
-                              std::vector<Vector3i>&                input_faces,
-                              const AABBWrapper&                    tree,
-                              const Parameters&                     params,
-                              std::vector<char>&                    v_is_removed,
-                              std::vector<char>&                    f_is_removed,
-                              std::vector<std::unordered_set<int>>& conn_fs)
+void collapsing(std::vector<Vector3>&                 input_vertices,
+                std::vector<Vector3i>&                input_faces,
+                const AABBWrapper&                    tree,
+                const Parameters&                     params,
+                std::vector<char>&                    v_is_removed,
+                std::vector<char>&                    f_is_removed,
+                std::vector<std::unordered_set<int>>& conn_fs)
 {
     std::vector<std::array<int, 2>> edges;
 
@@ -298,12 +269,12 @@ void floatTetWild::collapsing(std::vector<Vector3>&                 input_vertic
     logger().debug("{}  faces are collapsed!!", cnt_suc);
 }
 
-void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices,
-                            std::vector<Vector3i>&                input_faces,
-                            const AABBWrapper&                    tree,
-                            const Parameters&                     params,
-                            const std::vector<char>&              f_is_removed,
-                            std::vector<std::unordered_set<int>>& conn_fs)
+void swapping(std::vector<Vector3>&                 input_vertices,
+              std::vector<Vector3i>&                input_faces,
+              const AABBWrapper&                    tree,
+              const Parameters&                     params,
+              const std::vector<char>&              f_is_removed,
+              std::vector<std::unordered_set<int>>& conn_fs)
 {
     std::vector<std::array<int, 2>> edges;
     edges.reserve(input_faces.size() * 6);
@@ -398,25 +369,60 @@ void floatTetWild::swapping(std::vector<Vector3>&                 input_vertices
     logger().debug("{}  faces are swapped!!", cnt);
 }
 
-floatTetWild::Scalar floatTetWild::get_angle_cos(const Vector3& p,
-                                                 const Vector3& p1,
-                                                 const Vector3& p2)
-{
-    Vector3 v1  = p1 - p;
-    Vector3 v2  = p2 - p;
-    Scalar  res = v1.dot(v2) / (v1.norm() * v2.norm());
-    if (res > 1)
-        return 1;
-    if (res < -1)
-        return -1;
-    return res;
-}
+}  // namespace
+}  // namespace floatTetWild
 
-bool floatTetWild::is_out_envelope(const std::array<Vector3, 3>& vs,
-                                   const AABBWrapper&            tree,
-                                   const Parameters&             params)
+void floatTetWild::simplify(std::vector<Vector3>&  input_vertices,
+                            std::vector<Vector3i>& input_faces,
+                            std::vector<int>&      input_tags,
+                            const AABBWrapper&     tree,
+                            const Parameters&      params,
+                            bool                   skip_simplify)
 {
-    geo::index_t prev_facet = geo::NO_FACET;
-    return sample_triangle_and_check_is_out(
-      vs, params.dd_simplification, params.eps_2_simplification, tree, prev_facet);
+    remove_duplicates(input_vertices, input_faces, input_tags, params);
+    if (skip_simplify)
+        return;
+
+    std::vector<char>                    v_is_removed(input_vertices.size(), false);
+    std::vector<char>                    f_is_removed(input_faces.size(), false);
+    std::vector<std::unordered_set<int>> conn_fs(input_vertices.size());
+    for (int i = 0; i < input_faces.size(); i++) {
+        for (int j = 0; j < 3; j++)
+            conn_fs[input_faces[i][j]].insert(i);
+    }
+
+    collapsing(input_vertices, input_faces, tree, params, v_is_removed, f_is_removed, conn_fs);
+    swapping(input_vertices, input_faces, tree, params, f_is_removed, conn_fs);
+
+    std::vector<int>     map_v_ids(input_vertices.size(), -1);
+    std::vector<Vector3> new_input_vertices;
+    new_input_vertices.reserve(input_vertices.size());
+    for (int i = 0; i < input_vertices.size(); i++) {
+        if (v_is_removed[i] || conn_fs[i].empty())
+            continue;
+        map_v_ids[i] = new_input_vertices.size();
+        new_input_vertices.push_back(input_vertices[i]);
+    }
+    input_vertices = new_input_vertices;
+
+    std::vector<Vector3i> new_input_faces;
+    std::vector<int>      new_input_tags;
+    new_input_faces.reserve(input_faces.size());
+    new_input_tags.reserve(input_faces.size());
+    for (int i = 0; i < input_faces.size(); i++) {
+        if (f_is_removed[i])
+            continue;
+        Vector3i f;
+        for (int j = 0; j < 3; j++)
+            f[j] = map_v_ids[input_faces[i][j]];
+        new_input_faces.push_back(f);
+        new_input_tags.push_back(input_tags[i]);
+    }
+    input_faces = new_input_faces;
+    input_tags  = new_input_tags;
+
+    remove_duplicates(input_vertices, input_faces, input_tags, params);
+
+    logger().info("#v = {}", input_vertices.size());
+    logger().info("#f = {}", input_faces.size());
 }
