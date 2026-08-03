@@ -13,17 +13,12 @@ namespace floatTetWild {
     // and tmp_b is the boundary as it stands while triangles are still being inserted.
     class AABBWrapper {
     public:
-        geo::Mesh b_mesh;
-        geo::Mesh tmp_b_mesh;
+        // The only piece the callers look at directly, to read back the facet a query landed on.
         const geo::Mesh &sf_mesh;
 
-        std::shared_ptr<MeshFacetsAABBWithEps> b_tree;
-        std::shared_ptr<MeshFacetsAABBWithEps> tmp_b_tree;
-        MeshFacetsAABBWithEps sf_tree;
+        AABBWrapper(const geo::Mesh &sf_mesh) : sf_mesh(sf_mesh), sf_tree(sf_mesh) {}
 
         inline Scalar get_sf_diag() const { return geo::bbox_diagonal(sf_mesh); }
-
-        AABBWrapper(const geo::Mesh &sf_mesh) : sf_mesh(sf_mesh), sf_tree(sf_mesh) {}
 
         void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, Mesh &mesh);
 
@@ -32,6 +27,7 @@ namespace floatTetWild {
                                       const std::vector<std::array<int, 2>> &b_edges1,
                                       const Mesh &mesh, const std::vector<std::array<int, 2>> &b_edges2);
 
+        // Moves p onto the nearest point of the envelope and returns how far it moved, squared.
         inline Scalar project_to_sf(Vector3 &p) const { return project(sf_tree, p); }
         inline Scalar project_to_b(Vector3 &p) const { return project(*b_tree, p); }
         inline Scalar project_to_tmp_b(Vector3 &p) const { return project(*tmp_b_tree, p); }
@@ -42,6 +38,7 @@ namespace floatTetWild {
             return sf_tree.nearest_facet(to_geo_p(p), nearest_p, sq_dist);
         }
 
+        // How far p is from the surface, squared, leaving p where it is.
         inline Scalar get_sq_dist_to_sf(const Vector3 &p) const {
             Vector3 q = p;
             return project_to_sf(q);
@@ -58,6 +55,13 @@ namespace floatTetWild {
             return is_out(tmp_b_mesh, *tmp_b_tree, ps, eps_2, prev_facet);
         }
 
+        inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2) const {
+            geo::index_t prev_facet;
+            return is_out(sf_tree, p, eps_2, prev_facet);
+        }
+
+        // The overloads taking prev_facet hand back the facet the query landed on, which the
+        // caller passes to the next query as a hint.
         inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
             return is_out(sf_tree, p, eps_2, prev_facet);
         }
@@ -113,6 +117,14 @@ namespace floatTetWild {
             }
             return false;
         }
+
+        // The b trees are built after construction, once the boundary edges are known, and tmp_b
+        // is rebuilt every time more triangles go in.
+        geo::Mesh b_mesh;
+        geo::Mesh tmp_b_mesh;
+        std::unique_ptr<MeshFacetsAABBWithEps> b_tree;
+        std::unique_ptr<MeshFacetsAABBWithEps> tmp_b_tree;
+        MeshFacetsAABBWithEps sf_tree;
     };
 
 }

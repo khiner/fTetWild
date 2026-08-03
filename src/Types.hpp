@@ -27,12 +27,11 @@ namespace floatTetWild {
 #define SCALAR_ZERO_3 1e-24
 #endif
 
+    // A dynamic vector is one of these with a single column. Eigen had a separate type for that
+    // shape and these do not, so what would have been a VectorXd is a MatrixXd here.
     typedef MatrixX<Scalar> MatrixXs;
     typedef MatrixX<double> MatrixXd;
     typedef MatrixX<int>    MatrixXi;
-    // Dynamic vectors are n by 1 matrices, as they were under Eigen.
-    typedef MatrixX<double> VectorXd;
-    typedef MatrixX<int>    VectorXi;
 
     typedef Matrix33<Scalar> Matrix3;
 

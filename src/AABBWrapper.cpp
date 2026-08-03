@@ -40,13 +40,13 @@ void build_segment_mesh(geo::Mesh& mesh, const std::vector<std::array<Vector3, 2
 }
 
 // Builds the mesh for a set of segments, Morton-orders it, and builds its tree.
-void build_segment_tree(geo::Mesh&                             mesh,
-                        std::shared_ptr<MeshFacetsAABBWithEps>& tree,
+void build_segment_tree(geo::Mesh&                                mesh,
+                        std::unique_ptr<MeshFacetsAABBWithEps>&    tree,
                         const std::vector<std::array<Vector3, 2>>& segments)
 {
     build_segment_mesh(mesh, segments);
-    mesh_reorder(mesh, geo::MESH_ORDER_MORTON);
-    tree = std::make_shared<MeshFacetsAABBWithEps>(mesh);
+    mesh_reorder(mesh);
+    tree.reset(new MeshFacetsAABBWithEps(mesh));
 }
 
 }  // namespace
@@ -55,7 +55,7 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
                                        const std::vector<Vector3i>& input_faces,
                                        Mesh&                        mesh)
 {
-    b_mesh.clear(false, false);
+    b_mesh.clear();
 
     std::vector<std::pair<std::array<int, 2>, std::vector<int>>> _;
     std::vector<bool>                                           _1;

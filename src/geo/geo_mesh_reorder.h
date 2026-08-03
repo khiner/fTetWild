@@ -17,53 +17,16 @@ namespace geo {
 
 
     /**
-     * \brief Strategy for spatial sorting.
-     */
-    enum MeshOrder {
-        /**
-         * Hilbert ordering improves data locality and
-         * has a continuous mapping between indices and space.
-         */
-        MESH_ORDER_HILBERT,
-        /**
-         * Morton ordering improves data locality and is
-         * a bit simpler than Hilbert ordering.
-         */
-        MESH_ORDER_MORTON
-    };
-
-    /**
-     * \brief Reorders all the elements of a mesh.
-     * \details It is used for both improving data locality
-     *  and for implementing mesh partitioning.
+     * \brief Reorders all the elements of a mesh in Morton order, which improves data locality.
+     * \details geogram also has a Hilbert ordering here, which has a continuous mapping between
+     *  indices and space. No caller asked for it. The Hilbert curve itself is still what
+     *  compute_BRIO_order() sorts along.
      * \param[in] M the mesh to reorder
-     * \param[in] order the reordering scheme, one of MESH_ORDER_HILBERT,
-     *  MESH_ORDER_MORTION
+     * \param[out] facet_permutation if non-null, receives the permutation the facets were
+     *  reordered by: facet k is the one that was at facet_permutation[k]. Left alone when the
+     *  mesh has no facets.
      */
-    void mesh_reorder(
-        Mesh& M, MeshOrder order = MESH_ORDER_HILBERT
-    );
-
-    /**
-     * \brief Computes the Hilbert order for a set of 3D points.
-     * \details
-     *  This variant sorts a subsequence of the indices vector.
-     *  The implementation is inspired by:
-     *  - Christophe Delage and Olivier Devillers. Spatial Sorting.
-     *   In CGAL User and Reference Manual. CGAL Editorial Board,
-     *   3.9 edition, 2011
-     * \param[in] total_nb_vertices total number of vertices
-     *   in the \p vertices array, used to test indices in debug mode
-     * \param[in] vertices pointer to the coordinates of the vertices
-     * \param[in,out] sorted_indices a vector of vertex indices, sorted
-     *  spatially on exit
-     * \param[in] first index of the first element in \p sorted_indices
-     *  to be sorted
-     * \param[in] last one position past the index of the last element
-     *  in \p sorted_indices to be sorted
-     * \param[in] dimension number of vertices coordinates
-     * \param[in] stride number of doubles between two consecutive vertices
-     */
+    void mesh_reorder(Mesh& M, vector<index_t>* facet_permutation = nullptr);
 
     /**
      * \brief Computes the BRIO order for a set of 3D points.

@@ -145,14 +145,6 @@ bool floatTetWild::is_isolate_surface_point(const Mesh& mesh, int v_id)
     return true;
 }
 
-bool floatTetWild::is_point_out_envelope(const Mesh&        mesh,
-                                         const Vector3&     p,
-                                         const AABBWrapper& tree)
-{
-    geo::index_t prev_facet;
-    return tree.is_out_sf_envelope(p, mesh.params.eps_2, prev_facet);
-}
-
 bool floatTetWild::is_point_out_boundary_envelope(const Mesh&        mesh,
                                                   const Vector3&     p,
                                                   const AABBWrapper& tree)

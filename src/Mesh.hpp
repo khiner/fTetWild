@@ -13,7 +13,6 @@
 
 #include <vector>
 #include <array>
-#include <unordered_set>
 #include <cassert>
 
 namespace floatTetWild {
@@ -137,18 +136,8 @@ namespace floatTetWild {
         bool is_input_all_inserted = false;
         bool is_coarsening = false;
 
-        void one_ring_vertex_sets(const int threshold, std::vector<std::vector<int>> &concurrent_sets,
-                                  std::vector<int> &serial_set) const;
-
-        static void one_ring_edge_set(const std::vector<std::array<int, 2>> &edges, const std::vector<char> &v_is_removed,
-                          const std::vector<char> &f_is_removed, const std::vector<std::unordered_set<int>> &conn_fs,
-                          std::vector<int> &safe_set);
-
         inline int get_v_num() const { return count_live(tet_vertices); }
         inline int get_t_num() const { return count_live(tets); }
-
-        inline int t_empty_size() const { return int(tets.size()) - get_t_num(); }
-        inline int v_empty_size() const { return int(tet_vertices.size()) - get_v_num(); }
 
         inline void reset_t_empty_start() { t_empty_start = first_removed(tets); }
         inline void reset_v_empty_start() { v_empty_start = first_removed(tet_vertices); }

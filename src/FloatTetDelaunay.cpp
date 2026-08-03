@@ -98,7 +98,7 @@ namespace floatTetWild {
         }
     }
 
-	void FloatTetDelaunay::tetrahedralize(const std::vector<Vector3>& input_vertices, const std::vector<Vector3i>& input_faces, const AABBWrapper &tree,
+	void tetrahedralize(const std::vector<Vector3>& input_vertices, const std::vector<Vector3i>& input_faces, const AABBWrapper &tree,
 	        Mesh &mesh, std::vector<bool> &is_face_inserted) {
         const Parameters &params = mesh.params;
         auto &tet_vertices = mesh.tet_vertices;

@@ -210,7 +210,7 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
           tree))  // todo: you should check/unmark is_on_boundary around here
         return false;
     if (tet_vertices[v1_id].is_on_surface &&
-        is_point_out_envelope(mesh, tet_vertices[v2_id].pos, tree))
+        tree.is_out_sf_envelope(tet_vertices[v2_id].pos, mesh.params.eps_2))
         return false;
 
     std::vector<int> n12_t_ids;

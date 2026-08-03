@@ -13,6 +13,8 @@
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/Predicates.hpp>
 
+#include <unordered_set>
+
 namespace floatTetWild {
     extern bool use_old_energy;
 
@@ -135,7 +137,6 @@ namespace floatTetWild {
     bool is_valid_edge(const Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& n12_t_ids);
 
     bool is_isolate_surface_point(const Mesh& mesh, int v_id);
-    bool is_point_out_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree);
     bool is_point_out_boundary_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree);
 
     void get_new_tet_slots(Mesh& mesh, int n, std::vector<int>& new_conn_tets);

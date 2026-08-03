@@ -122,7 +122,7 @@ namespace floatTetWild {
             return nearest_facet;
         }
 
-    protected:
+    private:
         /**
          * \brief Computes a reasonable initialization for
          *  nearest facet search.

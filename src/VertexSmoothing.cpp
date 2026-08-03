@@ -14,6 +14,80 @@
 namespace floatTetWild {
 namespace {
 
+// Greedy graph colouring over the one-ring adjacency, so that same-coloured vertices are never
+// neighbours and can be smoothed at the same time. -1 marks a removed vertex.
+void one_ring_vertex_coloring(const Mesh& mesh, std::vector<int>& colors)
+{
+    const auto& tet_vertices = mesh.tet_vertices;
+    const auto& tets         = mesh.tets;
+
+    colors.assign(tet_vertices.size(), -1);
+    colors[0] = 0;
+
+    std::vector<bool> available(tet_vertices.size(), true);
+
+    std::vector<int> ring;
+
+    for (int i = 1; i < tet_vertices.size(); ++i) {
+        const auto& v = tet_vertices[i];
+        if (v.is_removed)
+            continue;
+
+        ring.clear();
+        for (const auto& t : v.conn_tets) {
+            for (int j = 0; j < 4; ++j)
+                ring.push_back(tets[t][j]);
+        }
+        vector_unique(ring);
+
+        for (const auto n : ring) {
+            if (colors[n] != -1)
+                available[colors[n]] = false;
+        }
+
+        colors[i] = std::find(available.begin(), available.end(), true) - available.begin();
+
+        for (const auto n : ring) {
+            if (colors[n] != -1)
+                available[colors[n]] = true;
+        }
+    }
+}
+
+// The vertices grouped into sets that can be smoothed at the same time, plus the ones that have
+// to go one at a time: the removed ones, and the colours with fewer than threshold members.
+void one_ring_vertex_sets(const Mesh&                    mesh,
+                          const int                      threshold,
+                          std::vector<std::vector<int>>& concurrent_sets,
+                          std::vector<int>&              serial_set)
+{
+    std::vector<int> colors;
+    one_ring_vertex_coloring(mesh, colors);
+    int max_c = -1;
+    for (const auto c : colors)
+        max_c = std::max(max_c, c);
+
+    concurrent_sets.clear();
+    concurrent_sets.resize(max_c + 1);
+    serial_set.clear();
+
+    for (size_t i = 0; i < colors.size(); ++i) {
+        const int col = colors[i];
+        if (col < 0)
+            serial_set.push_back(i);
+        else
+            concurrent_sets[col].push_back(i);
+    }
+
+    for (int i = concurrent_sets.size() - 1; i >= 0; --i) {
+        if (concurrent_sets[i].size() < threshold) {
+            serial_set.insert(
+              serial_set.end(), concurrent_sets[i].begin(), concurrent_sets[i].end());
+            concurrent_sets.erase(concurrent_sets.begin() + i);
+        }
+    }
+}
+
 bool project_and_check(Mesh&                mesh,
                        int                  v_id,
                        Vector3&             p,
@@ -219,7 +293,7 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
     // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
     // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
     // which made the output depend on the thread count.
-    mesh.one_ring_vertex_sets(2, concurrent_sets, serial_set);
+    one_ring_vertex_sets(mesh, 2, concurrent_sets, serial_set);
 
     for (const auto& s : concurrent_sets) {
         parallel_for(size_t(0), size_t(s.size()), [&](size_t i) { smooth_one(s[i]); });

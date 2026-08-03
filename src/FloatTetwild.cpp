@@ -33,7 +33,8 @@ int tetrahedralization(AABBWrapper&           tree,
 
     params.init(tree.get_sf_diag());
 
-    stats().record(StateInfo::init_id, 0, input_vertices.size(), input_faces.size(), -1, -1);
+    stats().push_back(
+      {StateInfo::init_id, 0, int(input_vertices.size()), int(input_faces.size()), -1, -1});
 
     Timer timer;
 
@@ -50,7 +51,8 @@ int tetrahedralization(AABBWrapper&           tree,
         const double elapsed = timer.getElapsedTimeInSec();
         logger().info("{} {}s", label, elapsed);
         logger().info("");
-        stats().record(id, elapsed, v_num, t_num, max_energy, avg_energy, cnt_fail_inserted_face);
+        stats().push_back(
+          {id, elapsed, v_num, t_num, max_energy, avg_energy, cnt_fail_inserted_face});
     };
 
     timer.start();
@@ -63,7 +65,7 @@ int tetrahedralization(AABBWrapper&           tree,
 
     timer.start();
     std::vector<bool> is_face_inserted(input_faces.size(), false);
-    FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
+    tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
     logger().info("#v = {}", mesh.get_v_num());
     logger().info("#t = {}", mesh.get_t_num());
     finish_step(StateInfo::tetrahedralization_id,

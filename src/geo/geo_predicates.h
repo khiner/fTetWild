@@ -75,31 +75,6 @@ namespace geo {
         }
 
         /**
-         * \brief Computes the 4d orientation test with symbolic perturbation.
-         * \details Given four lifted points p0', p1', p2', and p3' in
-         *  R^4, tests if the lifted point p4' in R^4 lies below or above
-         *  the hyperplane passing through the four points
-         *  p0', p1', p2', and p3'.
-         *  Symbolic perturbation is applied whenever the 5 points are
-         *  not linearly independent. The first three coordinates and the
-         *  fourth one are specified in separate arguments for each vertex.
-         * \param[in] p0 , p1 , p2 , p3 , p4 first 3 coordinates
-         *  of the vertices of the 4-simplex
-         * \param[in] h0 , h1 , h2 , h3 , h4 heights of the vertices of
-         *  the 4-simplex
-         * \retval POSITIVE if p4' lies below the hyperplane
-         * \retval NEGATIVE if p4' lies above the hyperplane
-         * \retval perturb() if p4' belongs to the hyperplane, where
-         *  perturb() denotes a globally consistent perturbation, that
-         *  returns either POSITIVE or NEGATIVE
-         */
-        Sign orient_3dlifted_SOS(
-            const double* p0, const double* p1,
-            const double* p2, const double* p3, const double* p4,
-            double h0, double h1, double h2, double h3, double h4
-        );
-
-        /**
          * \brief Computes the (approximate) orientation predicate in 3d.
          * \details Computes the sign of the (approximate) signed volume of
          *  the tetrahedron p0, p1, p2, p3.

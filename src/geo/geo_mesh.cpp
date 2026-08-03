@@ -16,7 +16,6 @@ namespace geo {
             }
             points_.swap(reordered);
         }
-        attributes_.apply_permutation(permutation);
 
         Permutation::invert(permutation);
 
@@ -30,35 +29,15 @@ namespace geo {
         index_t first_facet = nb();
         facet_corners_.create_sub_elements(nb_triangles * 3);
         nb_ += nb_triangles;
-        attributes_.resize(nb_);
         return first_facet;
     }
 
-    void MeshFacets::clear(bool keep_attributes, bool keep_memory) {
+    void MeshFacets::clear() {
         nb_ = 0;
-        attributes_.clear(keep_attributes);
-        facet_corners_.clear(keep_attributes, keep_memory);
+        facet_corners_.clear();
     }
 
     void MeshFacets::permute_elements(vector<index_t>& permutation) {
-        attributes_.apply_permutation(permutation);
-
-        if(facet_corners_.attributes().size() != 0) {
-            vector<index_t> facet_corners_permutation;
-            facet_corners_permutation.reserve(facet_corners_.nb());
-
-            for(index_t new_f = 0; new_f < nb(); ++new_f) {
-                index_t old_f = permutation[new_f];
-                for(
-                    index_t old_c = corners_begin(old_f);
-                    old_c < corners_end(old_f); ++old_c) {
-                    facet_corners_permutation.push_back(old_c);
-                }
-            }
-
-            facet_corners_.attributes().apply_permutation(facet_corners_permutation);
-        }
-
         // Every facet is a triangle, so the corners move in place three at a time.
         Permutation::apply(
             facet_corners_.corner_vertex_.data(), permutation, index_t(sizeof(index_t) * 3)

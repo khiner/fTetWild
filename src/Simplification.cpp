@@ -13,8 +13,68 @@
 #include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/MeshCleanup.hpp>
 
+#include <numeric>
+#include <random>
+
 namespace floatTetWild {
 namespace {
+
+// A Fisher-Yates shuffle over one process-wide generator, seeded so that a run is repeatable.
+// Only one_ring_edge_set() shuffles, and the sequence it draws decides which collapses a round
+// makes, so the generator has to stay exactly this one.
+void shuffle_ids(std::vector<int>& vec)
+{
+    static std::mt19937 gen(42);
+    for (int i = vec.size() - 1; i > 0; --i) {
+        const int index = (gen() - std::mt19937::min()) /
+                          double(std::mt19937::max() - std::mt19937::min()) * (i + 1);
+        std::swap(vec[i], vec[index]);
+    }
+}
+
+// A random subset of the edges whose incident faces are pairwise disjoint, so that collapsing
+// all of them at once is the same as collapsing them one at a time.
+void one_ring_edge_set(const std::vector<std::array<int, 2>>&      edges,
+                       const std::vector<char>&                    v_is_removed,
+                       const std::vector<char>&                    f_is_removed,
+                       const std::vector<std::unordered_set<int>>& conn_fs,
+                       std::vector<int>&                           safe_set)
+{
+    std::vector<int> indices(edges.size());
+    std::iota(std::begin(indices), std::end(indices), 0);
+    shuffle_ids(indices);
+
+    std::vector<bool> unsafe_face(f_is_removed.size(), false);
+    safe_set.clear();
+    for (const int e_id : indices) {
+        const auto e = edges[e_id];
+        if (v_is_removed[e[0]] || v_is_removed[e[1]])
+            continue;
+
+        bool ok = true;
+        for (const int v : e) {
+            for (const int f : conn_fs[v]) {
+                if (!f_is_removed[f] && unsafe_face[f]) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok)
+                break;
+        }
+        if (!ok)
+            continue;
+
+        safe_set.push_back(e_id);
+
+        for (const int v : e) {
+            for (const int f : conn_fs[v]) {
+                if (!f_is_removed[f])
+                    unsafe_face[f] = true;
+            }
+        }
+    }
+}
 
 Scalar get_angle_cos(const Vector3& p,
                      const Vector3& p1,
@@ -47,7 +107,7 @@ bool remove_duplicates(std::vector<Vector3>&  input_vertices,
     MatrixXs V_tmp = to_matrix(input_vertices), V_in;
     MatrixXi F_tmp = to_matrix(input_faces), F_in;
 
-    VectorXi IV, _;
+    MatrixXi IV, _;
     remove_duplicate_vertices(
       V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, IV, _, F_in);
     for (int i = 0; i < F_in.rows(); i++) {
@@ -64,7 +124,7 @@ bool remove_duplicates(std::vector<Vector3>&  input_vertices,
         F_in.row(i) << v0_id, v1_id, v2_id;
     }
     F_tmp.resize(0, 0);
-    VectorXi IF;
+    MatrixXi IF;
     unique_rows(F_in, F_tmp, IF, _);
     F_in = F_tmp;
     // The faces were reordered and deduplicated, so their tags follow them.
@@ -234,7 +294,7 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
     std::vector<int> safe_set;
     do {
         build_edges();
-        Mesh::one_ring_edge_set(edges, v_is_removed, f_is_removed, conn_fs, safe_set);
+        one_ring_edge_set(edges, v_is_removed, f_is_removed, conn_fs, safe_set);
         cnt = 0;
 
         // safe_set holds edges with disjoint neighbourhoods, so these collapses do not interact.

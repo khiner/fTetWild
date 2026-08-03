@@ -13,7 +13,6 @@
 #include <floattetwild/geo_mesh.h>
 
 #include <istream>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,51 +49,29 @@ struct CSGTree
     Child       left, right;
 };
 
-class CSGTreeParser
-{
-  public:
-    // Reads a tree, leaving the caller to open the file. Returns false with a description in
-    // error rather than throwing.
-    static bool parse(std::istream& in, CSGTree& tree, std::string& error);
+namespace CSGTreeParser {
 
-    static void get_meshes(const CSGTree&            csg_tree,
-                           std::vector<std::string>& meshes,
-                           CSGTree&                  csg_tree_with_ids)
-    {
-        int index = 0;
-        meshes.clear();
+// Reads a tree, leaving the caller to open the file. Returns false with a description in
+// error rather than throwing.
+bool parse(std::istream& in, CSGTree& tree, std::string& error);
 
-        std::map<std::string, int> existings;
+// The mesh names in the tree, in the order they are first seen, and the same tree with each name
+// replaced by its index into that list. A name used twice keeps the index it was given first.
+void get_meshes(const CSGTree&            csg_tree,
+                std::vector<std::string>& meshes,
+                CSGTree&                  csg_tree_with_ids);
 
-        get_meshes_aux(csg_tree, meshes, existings, index, csg_tree_with_ids);
-    }
+// The largest mesh index in the tree, or -1 when it holds none.
+int get_max_id(const CSGTree& csg_tree_with_ids);
 
-    static int get_max_id(const CSGTree& csg_tree_with_ids)
-    {
-        int max = -1;
-        get_max_id_aux(csg_tree_with_ids, max);
+bool keep_tet(const CSGTree& csg_tree_with_ids, const int t_id, const std::vector<MatrixXd>& w);
 
-        return max;
-    }
+void merge(const std::vector<std::vector<Vector3>>&  Vs,
+           const std::vector<std::vector<Vector3i>>& Fs,
+           std::vector<Vector3>&                     V,
+           std::vector<Vector3i>&                    F,
+           geo::Mesh&                                sf_mesh,
+           std::vector<int>&                         tags);
 
-    static bool keep_tet(const CSGTree&               csg_tree_with_ids,
-                         const int                    t_id,
-                         const std::vector<VectorXd>& w);
-
-    static void merge(const std::vector<std::vector<Vector3>>&  Vs,
-                      const std::vector<std::vector<Vector3i>>& Fs,
-                      std::vector<Vector3>&                     V,
-                      std::vector<Vector3i>&                    F,
-                      geo::Mesh&                                sf_mesh,
-                      std::vector<int>&                         tags);
-
-  private:
-    static void get_meshes_aux(const CSGTree&              csg_tree_node,
-                               std::vector<std::string>&   meshes,
-                               std::map<std::string, int>& existings,
-                               int&                        index,
-                               CSGTree&                    current_node);
-    static void get_max_id_aux(const CSGTree& csg_tree_node, int& max);
-};
-
+}  // namespace CSGTreeParser
 }  // namespace floatTetWild

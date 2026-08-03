@@ -125,8 +125,8 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
 
     // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
     // it stands and leave the empty slots already in the mesh to be reused.
-    const int v_slots = mesh.v_empty_size();
-    const int t_slots = mesh.t_empty_size();
+    const int v_slots = int(tet_vertices.size()) - mesh.get_v_num();
+    const int t_slots = int(tets.size()) - mesh.get_t_num();
     if (v_slots < es_queue.size() * 2)
         tet_vertices.reserve(tet_vertices.size() + es_queue.size() * 2 - v_slots);
     if (t_slots < es_queue.size() * 6 * 2)

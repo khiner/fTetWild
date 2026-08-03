@@ -41,7 +41,6 @@ set(SOURCES
 	Simplification.h
 	Simplification.cpp
 
-	Mesh.cpp
 	Mesh.hpp
 
 

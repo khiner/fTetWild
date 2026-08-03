@@ -104,7 +104,7 @@ namespace floatTetWild
     const FastWindingNumberBVH & fwn_bvh,
     const float accuracy_scale,
     const MatrixXd & Q,
-    VectorXd & W)
+    MatrixXd & W)
   {
     assert(Q.cols() == 3 && "Q should be 3D");
     W.resize(Q.rows(),1);
@@ -131,7 +131,7 @@ namespace floatTetWild
     const MatrixXd & V,
     const MatrixXi & F,
     const MatrixXd & Q,
-    VectorXd & W)
+    MatrixXd & W)
   {
     FastWindingNumberBVH fwn_bvh;
     int order = 2;

@@ -188,7 +188,7 @@ int main(int argc, char** argv)
             geo::Mesh        tmp_mesh;
             std::vector<int> tmp_tags;
             for (int i = 0; i < meshes.size(); ++i) {
-                if (!MeshIO::load_mesh(meshes[i], csg_Vs[i], csg_Fs[i], tmp_mesh, tmp_tags)) {
+                if (!load_mesh(meshes[i], csg_Vs[i], csg_Fs[i], tmp_mesh, tmp_tags)) {
                     logger().error("unable to open {} file", meshes[i]);
                     return EXIT_FAILURE;
                 }
@@ -198,14 +198,14 @@ int main(int argc, char** argv)
 
     }
     else {
-        if (!MeshIO::load_mesh(
+        if (!load_mesh(
               params.input_path, input_vertices, input_faces, sf_mesh, input_tags)) {
             logger().error("Unable to load mesh at {}", params.input_path);
-            MeshIO::write_mesh(output_mesh_name, mesh);
+            write_mesh(output_mesh_name, mesh);
             return EXIT_FAILURE;
         }
         else if (input_vertices.empty() || input_faces.empty()) {
-            MeshIO::write_mesh(output_mesh_name, mesh);
+            write_mesh(output_mesh_name, mesh);
             return EXIT_FAILURE;
         }
 
@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 
     if (tetrahedralization(tree, input_vertices, input_faces, input_tags, mesh, skip_simplify) !=
         0) {
-        MeshIO::write_mesh(output_mesh_name, mesh);
+        write_mesh(output_mesh_name, mesh);
         return EXIT_FAILURE;
     }
 
@@ -239,7 +239,7 @@ int main(int argc, char** argv)
             get_tracked_surface(mesh, Vt, Ft);
             writeOBJ(out_prefix + "_all.obj", Vt, Ft);
         }
-        MeshIO::write_mesh(out_prefix + "_all.msh", mesh);
+        write_mesh(out_prefix + "_all.msh", mesh);
     }
 
     get_tracked_surface(mesh, Vt, Ft);
@@ -272,12 +272,12 @@ int main(int argc, char** argv)
     else {
         get_surface(mesh, V_sf, F_sf);
     }
-    stats().record(StateInfo::wn_id,
-                   timer.getElapsedTimeInSec(),
-                   mesh.get_v_num(),
-                   mesh.get_t_num(),
-                   mesh.get_max_energy(),
-                   mesh.get_avg_energy());
+    stats().push_back({StateInfo::wn_id,
+                       timer.getElapsedTimeInSec(),
+                       mesh.get_v_num(),
+                       mesh.get_t_num(),
+                       mesh.get_max_energy(),
+                       mesh.get_avg_energy()});
     logger().info("after winding number");
     logger().info("#v = {}", mesh.get_v_num());
     logger().info("#t = {}", mesh.get_t_num());
@@ -293,12 +293,12 @@ int main(int argc, char** argv)
             colors[i] = mesh.tets[i].quality;
         }
     }
-    MeshIO::write_mesh(output_mesh_name, mesh, colors, !nobinary, !csg_file.empty());
+    write_mesh(output_mesh_name, mesh, colors, !nobinary, !csg_file.empty());
     writeOBJ(out_prefix + "_sf.obj", V_sf, F_sf);
 
     std::ofstream fout(params.log_path + "_" + params.postfix + ".csv");
     if (fout.good())
-        fout << stats();
+        write_stats_csv(fout, stats());
     fout.close();
 
     return EXIT_SUCCESS;

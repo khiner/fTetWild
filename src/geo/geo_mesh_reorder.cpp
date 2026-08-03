@@ -219,7 +219,6 @@ namespace {
 
     /************************************************************************/
 
-#ifndef GEOGRAM_PSM
 
     /**
      * \brief Base class for facets ordering.
@@ -259,79 +258,6 @@ namespace {
     };
 
     /**
-     * \brief The generic comparator class for Hilbert facet
-     *  ordering.
-     * \tparam COORD the coordinate to compare
-     * \tparam UP    if true, use direct order, else use reverse order
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, bool UP, class MESH>
-    struct Hilbert_fcmp {
-    };
-
-    /**
-     * \brief Specialization (UP=true) of the generic comparator class
-     *  for Hilbert vertex ordering.
-     * \see Hilbert_vcmp
-     * \tparam COORD the coordinate to compare
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, class MESH>
-    class Hilbert_fcmp<COORD, true, MESH> : public Base_fcmp<COORD, MESH> {
-    public:
-        /**
-         * \brief Constructs a new Hilbert_fcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  facets reside.
-         */
-        Hilbert_fcmp(const MESH& mesh) :
-            Base_fcmp<COORD, MESH>(mesh) {
-        }
-
-        /**
-         * \brief Compares two facets.
-         * \param[in] f1 index of the first facet to compare
-         * \param[in] f2 index of the second facet to compare
-         * \return true if facet \p f1 is before facet \p f2,
-         *  false otherwise.
-         */
-        bool operator() (index_t f1, index_t f2) {
-            return this->center(f1) < this->center(f2);
-        }
-    };
-
-    /**
-     * \brief Specialization (UP=false) of the generic comparator class
-     *  for Hilbert vertex ordering.
-     * \see Hilbert_vcmp
-     * \tparam COORD the coordinate to compare
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, class MESH>
-    class Hilbert_fcmp<COORD, false, MESH> : public Base_fcmp<COORD, MESH> {
-    public:
-        /**
-         * \brief Constructs a new Hilbert_fcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  facets reside.
-         */
-        Hilbert_fcmp(const MESH& mesh) :
-            Base_fcmp<COORD, MESH>(mesh) {
-        }
-
-        /**
-         * \brief Compares two facets.
-         * \param[in] f1 index of the first facet to compare
-         * \param[in] f2 index of the second facet to compare
-         * \return true if facet \p f1 is before facet \p f2,
-         *  false otherwise.
-         */
-        bool operator() (index_t f1, index_t f2) {
-            return this->center(f1) > this->center(f2);
-        }
-    };
-
-    /**
      * \brief Comparator class for Morton facet
      *  ordering.
      * \tparam COORD the coordinate to compare
@@ -361,7 +287,6 @@ namespace {
             return this->center(f1) < this->center(f2);
         }
     };
-#endif
 
     /************************************************************************/
 
@@ -610,51 +535,6 @@ namespace {
 
     /************************************************************************/
 
-#ifndef GEOGRAM_PSM
-
-    /**
-     * \brief Sorts the vertices of a mesh according to the Hilbert ordering.
-     * \details The function does not change the mesh, it computes instead
-     *  the permutation. The permutation can then be reused to order other
-     *  arrays that may depend on the order of the vertices in the mesh (i.e.
-     *  attributes).
-     * \param[in] M the mesh where the vertices to be sorted reside
-     * \param[out] sorted_indices the permutation to be applied
-     to the vertices
-    */
-    void hilbert_vsort_3d(
-        const Mesh& M, vector<index_t>& sorted_indices
-    ) {
-        sorted_indices.resize(M.vertices.nb());
-        for(index_t i: M.vertices) {
-            sorted_indices[i] = i;
-        }
-        HilbertSort3d<Hilbert_vcmp, Mesh>(
-            M, sorted_indices.begin(), sorted_indices.end()
-        );
-    }
-
-    /**
-     * \brief Sorts the facets of a mesh according to the Hilbert ordering.
-     * \details The function does not change the mesh, it computes instead
-     *  the permutation. The permutation can then be reused to order other
-     *  arrays that may depend on the order of the facets in the mesh (i.e.
-     *  attributes).
-     * \param[in] M the mesh where the facets to be sorted reside
-     * \param[out] sorted_indices the permutation to be
-     *  applied to the facets
-     */
-    void hilbert_fsort_3d(
-        const Mesh& M, vector<index_t>& sorted_indices
-    ) {
-        sorted_indices.resize(M.facets.nb());
-        for(index_t i: M.facets) {
-            sorted_indices[i] = i;
-        }
-        HilbertSort3d<Hilbert_fcmp, Mesh>(
-            M, sorted_indices.begin(), sorted_indices.end()
-        );
-    }
 
     /**
      * \brief Sorts the vertices of a mesh according to the Morton ordering.
@@ -698,7 +578,6 @@ namespace {
         );
     }
 
-#endif
 
     /**
      * \brief Computes the BRIO order for a set of 3D points.
@@ -766,43 +645,30 @@ namespace {
 namespace floatTetWild {
 namespace geo {
 
-#ifndef GEOGRAM_PSM
 
-    void mesh_reorder(Mesh& M, MeshOrder order) {
+    void mesh_reorder(Mesh& M, vector<index_t>* facet_permutation) {
 
         geo_assert(M.vertices.dimension() >= 3);
 
         // Step 1: reorder vertices
         {
             vector<index_t> sorted_indices;
-            switch(order) {
-            case MESH_ORDER_HILBERT:
-                hilbert_vsort_3d(M, sorted_indices);
-                break;
-            case MESH_ORDER_MORTON:
-                morton_vsort_3d(M, sorted_indices);
-                break;
-            }
+            morton_vsort_3d(M, sorted_indices);
             M.vertices.permute_elements(sorted_indices);
         }
 
         // Step 2: reorder facets
         if(M.facets.nb() != 0) {
             vector<index_t> sorted_indices;
-            switch(order) {
-            case MESH_ORDER_HILBERT:
-                hilbert_fsort_3d(M, sorted_indices);
-                break;
-            case MESH_ORDER_MORTON:
-                morton_fsort_3d(M, sorted_indices);
-                break;
+            morton_fsort_3d(M, sorted_indices);
+            if(facet_permutation != nullptr) {
+                *facet_permutation = sorted_indices;
             }
             M.facets.permute_elements(sorted_indices);
         }
 
     }
 
-#endif
 
     void compute_BRIO_order(
         index_t nb_vertices, const double* vertices,

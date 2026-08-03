@@ -29,6 +29,9 @@
 namespace floatTetWild {
 namespace {
 
+// Defined at the end of this namespace, next to the rest of the pass driving.
+void run_passes(Mesh &mesh, AABBWrapper &tree, const std::array<int, 4> &ops);
+
 // One row per live tet, holding its barycentre. This is where the winding number gets evaluated.
 MatrixXd tet_barycenters(const Mesh &mesh) {
     MatrixXd C(mesh.get_t_num(), 3);
@@ -46,14 +49,14 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
 
 // The winding number of every barycentre against the given surface. Flipping the faces flips the
 // sign convention, which is the fallback when the input turned out to be inside out.
-VectorXd winding_numbers(const MatrixXs &V, const MatrixXi &F_in, const MatrixXd &C,
+MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F_in, const MatrixXd &C,
                          bool invert_faces) {
     MatrixXi F = F_in;
     if (invert_faces) {
         for (int i = 0; i < F.rows(); i++)
             std::swap(F(i, 1), F(i, 2));
     }
-    VectorXd W;
+    MatrixXd W;
     fast_winding_number(MatrixXd(V.cast<double>()), F, C, W);
     return W;
 }
@@ -64,7 +67,7 @@ VectorXd winding_numbers(const MatrixXs &V, const MatrixXi &F_in, const MatrixXd
 std::vector<bool> tets_inside_surface(const Mesh &mesh, const MatrixXs &V, const MatrixXi &F) {
     const MatrixXd C = tet_barycenters(mesh);
     for (int pass = 0; pass < 2; pass++) {
-        const VectorXd W = winding_numbers(V, F, C, pass == 1);
+        const MatrixXd W = winding_numbers(V, F, C, pass == 1);
 
         std::vector<bool> is_inside(mesh.tets.size(), false);
         int index = 0;
@@ -438,7 +441,7 @@ void apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
     int tets_size = mesh.get_t_num();
     int stop_size = tets_size * 0.001;
     for (int i = 0; i < 20; i++) {
-        operation(mesh, tree, {{0, 1, 1, 0}});
+        run_passes(mesh, tree, {{0, 1, 1, 0}});
         int new_size = mesh.get_t_num();
         if (abs(new_size - tets_size) < stop_size)
             break;
@@ -704,10 +707,9 @@ void manifold_vertices(Mesh& mesh){
     }
 }
 
-}  // namespace
-}  // namespace floatTetWild
-
-void floatTetWild::init(Mesh &mesh) {
+// Re-derives the per-vertex surface and bbox marks from the per-face ones, after an operation
+// that could have moved a face off either.
+void init(Mesh &mesh) {
     logger().info("initializing...");
 
     for (auto &v: mesh.tet_vertices) {
@@ -735,14 +737,89 @@ void floatTetWild::init(Mesh &mesh) {
     //todo: after all faces are inserted, mark true is_on_boundary
 }
 
+void run_passes(Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops){
+    // Smoothing is the only one that does not untangle first.
+    struct Pass {
+        const char *name;
+        int id;
+        bool untangle_first;
+        void (*run)(Mesh &, AABBWrapper &);
+    };
+    static const std::array<Pass, 4> passes = {{
+        {"edge splitting", StateInfo::splitting_id, true,
+         [](Mesh &m, AABBWrapper &t) { edge_splitting(m, t); }},
+        {"edge collapsing", StateInfo::collapsing_id, true,
+         [](Mesh &m, AABBWrapper &t) { edge_collapsing(m, t); }},
+        {"edge swapping", StateInfo::swapping_id, true,
+         [](Mesh &m, AABBWrapper &) { edge_swapping(m); }},
+        {"vertex smoothing", StateInfo::smoothing_id, false,
+         [](Mesh &m, AABBWrapper &t) { vertex_smoothing(m, t); }},
+    }};
+
+    Timer igl_timer;
+    for (int p = 0; p < 4; p++) {
+        for (int i = 0; i < ops[p]; i++) {
+            igl_timer.start();
+            logger().info(passes[p].name);
+            if (passes[p].untangle_first)
+                untangle(mesh);
+            passes[p].run(mesh, tree);
+            const double time = igl_timer.getElapsedTimeInSec();
+            Scalar max_energy, avg_energy;
+            mesh.get_max_avg_energy(max_energy, avg_energy);
+            stats().push_back({passes[p].id, time, mesh.get_v_num(), mesh.get_t_num(),
+                               max_energy, avg_energy});
+        }
+    }
+}
+
+// One round: the local operation passes ops asks for, then, if reinsert_triangles, another go at
+// the input faces that are still missing.
+void operation(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
+        const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
+        Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops, bool reinsert_triangles) {
+    run_passes(mesh, tree, ops);
+
+    if (!reinsert_triangles || mesh.is_input_all_inserted)
+        return;
+
+    Timer igl_timer;
+    igl_timer.start();
+    insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, true);
+    init(mesh);
+    stats().push_back({StateInfo::cutting_id, igl_timer.getElapsedTimeInSec(),
+                       mesh.get_v_num(), mesh.get_t_num(),
+                       mesh.get_max_energy(), mesh.get_avg_energy(),
+                       int(std::count(is_face_inserted.begin(), is_face_inserted.end(), false))});
+
+    // A closed input that is now fully inserted has no cut left to preserve. Otherwise the
+    // boundary marks only survive where they still sit inside the boundary envelope.
+    const bool drop_all = mesh.is_input_all_inserted && mesh.is_closed;
+    for (auto &v : mesh.tet_vertices) {
+        if (v.is_removed)
+            continue;
+        if (!drop_all) {
+            if (!v.is_on_boundary)
+                continue;
+            geo::index_t prev_facet;
+            if (!tree.is_out_tmp_b_envelope(v.pos, mesh.params.eps_2, prev_facet))
+                continue;
+        }
+        v.is_on_boundary = false;
+        v.is_on_cut = false;
+    }
+}
+
+}  // namespace
+}  // namespace floatTetWild
+
 void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
         Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops) {
-    // An ops array counts the passes to run, indexed {split, collapse, swap, smooth, insert}.
     init(mesh);
 
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, std::array<int, 5>({{0, 1, 0, 0, 0}}));
+    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 1, 0, 0}}, false);
     cleanup_empty_slots(mesh);
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, std::array<int, 5>({{0, 0, 0, 0, 1}}));
+    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 0, 0, 0}}, true);
 
     const int M = 5;
     const int N = 5;
@@ -775,8 +852,8 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
 
         logger().info("pass {}", it);
         // Every third pass also tries to insert what is still missing.
-        const std::array<int, 5> it_ops = {{ops[0], ops[1], ops[2], ops[3], it % 3 == 2 ? 1 : 0}};
-        operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, it_ops);
+        operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, ops,
+                  it % 3 == 2);
 
         if (it > mesh.params.max_its / 4 && max_energy > 1e3) {
             if (cnt_increase_epsilon > 0 && cnt_increase_epsilon == mesh.params.stage - 1)
@@ -806,85 +883,12 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
 
     logger().info("postprocessing");
     reset_sizing_field(mesh);
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, std::array<int, 5>({{0, 1, 0, 0, 0}}));
+    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 1, 0, 0}}, false);
 
     if(mesh.params.coarsen){
         apply_coarsening(mesh, tree);
     }
 
-}
-
-void floatTetWild::operation(Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops){
-    // Smoothing is the only one that does not untangle first.
-    struct Pass {
-        const char *name;
-        int id;
-        bool untangle_first;
-        void (*run)(Mesh &, AABBWrapper &);
-    };
-    static const std::array<Pass, 4> passes = {{
-        {"edge splitting", StateInfo::splitting_id, true,
-         [](Mesh &m, AABBWrapper &t) { edge_splitting(m, t); }},
-        {"edge collapsing", StateInfo::collapsing_id, true,
-         [](Mesh &m, AABBWrapper &t) { edge_collapsing(m, t); }},
-        {"edge swapping", StateInfo::swapping_id, true,
-         [](Mesh &m, AABBWrapper &) { edge_swapping(m); }},
-        {"vertex smoothing", StateInfo::smoothing_id, false,
-         [](Mesh &m, AABBWrapper &t) { vertex_smoothing(m, t); }},
-    }};
-
-    Timer igl_timer;
-    for (int p = 0; p < 4; p++) {
-        for (int i = 0; i < ops[p]; i++) {
-            igl_timer.start();
-            logger().info(passes[p].name);
-            if (passes[p].untangle_first)
-                untangle(mesh);
-            passes[p].run(mesh, tree);
-            const double time = igl_timer.getElapsedTimeInSec();
-            Scalar max_energy, avg_energy;
-            mesh.get_max_avg_energy(max_energy, avg_energy);
-            stats().record(passes[p].id, time, mesh.get_v_num(), mesh.get_t_num(),
-                           max_energy, avg_energy);
-        }
-    }
-}
-
-void floatTetWild::operation(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
-        Mesh &mesh, AABBWrapper& tree, const std::array<int, 5> &ops) {
-    operation(mesh, tree, {{ops[0], ops[1], ops[2], ops[3]}});
-
-    Timer igl_timer;
-
-    if (mesh.is_input_all_inserted)
-        return;
-
-    for (int i = 0; i < ops[4]; i++) {
-        igl_timer.start();
-        insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, true);
-        init(mesh);
-        stats().record(StateInfo::cutting_id, igl_timer.getElapsedTimeInSec(),
-                       mesh.get_v_num(), mesh.get_t_num(),
-                       mesh.get_max_energy(), mesh.get_avg_energy(),
-                       std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
-
-        // A closed input that is now fully inserted has no cut left to preserve. Otherwise the
-        // boundary marks only survive where they still sit inside the boundary envelope.
-        const bool drop_all = mesh.is_input_all_inserted && mesh.is_closed;
-        for (auto &v : mesh.tet_vertices) {
-            if (v.is_removed)
-                continue;
-            if (!drop_all) {
-                if (!v.is_on_boundary)
-                    continue;
-                geo::index_t prev_facet;
-                if (!tree.is_out_tmp_b_envelope(v.pos, mesh.params.eps_2, prev_facet))
-                    continue;
-            }
-            v.is_on_boundary = false;
-            v.is_on_cut = false;
-        }
-    }
 }
 
 void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_sf, int c_id) {
@@ -929,7 +933,7 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_s
 
     MatrixXd V;
     MatrixXi F;
-    VectorXi _1, _2;
+    MatrixXi _1, _2;
     remove_duplicate_vertices(V_sf, F_sf, -1, V, _1, _2, F);
     V_sf = V;
     F_sf.resize(0, 3);
@@ -976,7 +980,7 @@ void floatTetWild::boolean_operation(Mesh&                                     m
     const MatrixXd C = tet_barycenters(mesh);
 
     const int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
-    std::vector<VectorXd> w(max_id + 1);
+    std::vector<MatrixXd> w(max_id + 1);
 
     // An empty operand list means the operands are the tracked surfaces of the mesh itself.
     for (int i = 0; i <= max_id; ++i) {
@@ -1021,8 +1025,8 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
         get_tracked_surface(mesh, V, F, c_id);
         return winding_numbers(V, F, C, false);
     };
-    const VectorXd w1 = tracked_surface_wn(1);
-    const VectorXd w2 = tracked_surface_wn(2);
+    const MatrixXd w1 = tracked_surface_wn(1);
+    const MatrixXd w2 = tracked_surface_wn(2);
 
     int cnt = 0;
     for (auto &t : mesh.tets) {
@@ -1049,7 +1053,7 @@ void floatTetWild::filter_outside(Mesh& mesh, const MatrixXs& V, const MatrixXi&
 }
 
 void floatTetWild::filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces){
-    const VectorXd W = winding_numbers(
+    const MatrixXd W = winding_numbers(
       to_matrix(input_vertices), to_matrix(input_faces), tet_barycenters(mesh), false);
 
     // Note that index only advances for tets that survive, so a removed one shifts every later

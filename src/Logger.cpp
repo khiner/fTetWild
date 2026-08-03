@@ -86,7 +86,7 @@ Logger& logger()
     return instance;
 }
 
-void Logger::init(bool use_cout, const std::string& filename, bool truncate)
+void Logger::init(bool use_cout, const std::string& filename)
 {
     Logger&                     instance = logger();
     std::lock_guard<std::mutex> lock(instance.mutex_);
@@ -95,7 +95,7 @@ void Logger::init(bool use_cout, const std::string& filename, bool truncate)
     if (instance.file_.is_open())
         instance.file_.close();
     if (!filename.empty())
-        instance.file_.open(filename, truncate ? std::ios::trunc : std::ios::app);
+        instance.file_.open(filename, std::ios::trunc);
 }
 
 void Logger::set_level(int level)

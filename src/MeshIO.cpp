@@ -25,19 +25,15 @@ void reorder_and_read_back(geo::Mesh&             mesh,
                            std::vector<int>&      tags)
 {
     const bool has_tags = (tags.size() == mesh.facets.nb());
-    if (has_tags) {
-        geo::Attribute<int> bflags(mesh.facets.attributes(), "bbflags");
-        for (int index = 0; index < (int)mesh.facets.nb(); ++index)
-            bflags[index] = tags[index];
-    }
 
-    geo::mesh_reorder(mesh, geo::MESH_ORDER_MORTON);
+    geo::vector<geo::index_t> facet_permutation;
+    geo::mesh_reorder(mesh, &facet_permutation);
 
     if (has_tags) {
-        geo::Attribute<int> bflags(mesh.facets.attributes(), "bbflags");
-        tags.assign(mesh.facets.nb(), 0);
-        for (int index = 0; index < (int)mesh.facets.nb(); ++index)
-            tags[index] = bflags[index];
+        std::vector<int> reordered(mesh.facets.nb(), 0);
+        for (geo::index_t f = 0; f < facet_permutation.size(); ++f)
+            reordered[f] = tags[facet_permutation[f]];
+        tags.swap(reordered);
     }
 
     points.resize(mesh.vertices.nb());
@@ -51,7 +47,7 @@ void reorder_and_read_back(geo::Mesh&             mesh,
           int(mesh.facets.vertex(i, 2));
 }
 
-bool MeshIO::load_mesh(const std::string&     path,
+bool load_mesh(const std::string&     path,
                        std::vector<Vector3>&  points,
                        std::vector<Vector3i>& faces,
                        geo::Mesh&             input,
@@ -66,7 +62,7 @@ bool MeshIO::load_mesh(const std::string&     path,
     return true;
 }
 
-void MeshIO::write_mesh(const std::string&         path,
+void write_mesh(const std::string&         path,
                         const Mesh&                mesh,
                         const std::vector<Scalar>& color,
                         const bool                 binary,
@@ -136,7 +132,6 @@ void MeshIO::write_mesh(const std::string&         path,
             mesh_saver.save_scalar_field("color", color_flat);
     }
 
-    timer.stop();
     logger().info(" took {}s", timer.getElapsedTimeInSec());
 }
 

@@ -1,5 +1,5 @@
 // A stand-in for the slice of geogram/mesh/mesh.h that fTetWild and the vendored spatial sort,
-// loaders and AABB use: vertices, facets, facet corners and their attributes.
+// loaders and AABB use: vertices, facets and facet corners.
 //
 // Reimplemented rather than copied, unlike its neighbours here. A container addresses elements by
 // index and has no comparisons of its own, so there is no tie-breaking to preserve; what it does
@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include "geo_attributes.h"
 #include "geo_geometry.h"
 
 namespace floatTetWild {
@@ -75,16 +74,12 @@ namespace geo {
         index_t create_vertices(index_t nb_to_create) {
             index_t first = nb();
             points_.resize((first + nb_to_create) * DIMENSION, 0.0);
-            attributes_.resize(nb());
             return first;
         }
 
-        void clear(bool keep_attributes = true, bool keep_memory = false) {
+        void clear() {
             points_.clear();
-            if(!keep_memory) {
-                points_.shrink_to_fit();
-            }
-            attributes_.clear(keep_attributes);
+            points_.shrink_to_fit();
         }
 
         /**
@@ -94,16 +89,11 @@ namespace geo {
          */
         void permute_elements(vector<index_t>& permutation);
 
-        AttributesManager& attributes() {
-            return attributes_;
-        }
-
     private:
         static const index_t DIMENSION = 3;
 
         Mesh& mesh_;
         std::vector<double> points_;
-        AttributesManager attributes_;
     };
 
     /**
@@ -130,30 +120,21 @@ namespace geo {
             corner_vertex_[c] = v;
         }
 
-        AttributesManager& attributes() {
-            return attributes_;
-        }
-
     private:
         friend class MeshFacets;
 
         index_t create_sub_elements(index_t nb_to_create) {
             index_t first = nb();
             corner_vertex_.resize(first + nb_to_create, NO_VERTEX);
-            attributes_.resize(nb());
             return first;
         }
 
-        void clear(bool keep_attributes, bool keep_memory) {
+        void clear() {
             corner_vertex_.clear();
-            if(!keep_memory) {
-                corner_vertex_.shrink_to_fit();
-            }
-            attributes_.clear(keep_attributes);
+            corner_vertex_.shrink_to_fit();
         }
 
         std::vector<index_t> corner_vertex_;
-        AttributesManager attributes_;
     };
 
     /**
@@ -215,7 +196,7 @@ namespace geo {
          */
         index_t create_triangles(index_t nb_triangles);
 
-        void clear(bool keep_attributes = true, bool keep_memory = false);
+        void clear();
 
         /**
          * \brief Reorders the facets so that facet \p k becomes the facet that was at
@@ -223,14 +204,9 @@ namespace geo {
          */
         void permute_elements(vector<index_t>& permutation);
 
-        AttributesManager& attributes() {
-            return attributes_;
-        }
-
     private:
         MeshFacetCorners& facet_corners_;
         index_t nb_ = 0;
-        AttributesManager attributes_;
     };
 
     /**
@@ -244,9 +220,9 @@ namespace geo {
         Mesh(const Mesh&) = delete;
         Mesh& operator= (const Mesh&) = delete;
 
-        void clear(bool keep_attributes = true, bool keep_memory = false) {
-            vertices.clear(keep_attributes, keep_memory);
-            facets.clear(keep_attributes, keep_memory);
+        void clear() {
+            vertices.clear();
+            facets.clear();
         }
 
         MeshVertices vertices;

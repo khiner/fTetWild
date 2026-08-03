@@ -17,31 +17,18 @@ namespace floatTetWild {
 class Timer
 {
   public:
-    void start()
-    {
-        stopped_ = false;
-        start_   = Clock::now();
-    }
+    void start() { start_ = Clock::now(); }
 
-    void stop()
-    {
-        end_     = Clock::now();
-        stopped_ = true;
-    }
-
-    // Seconds since start(), or between start() and stop() once stopped.
+    // Seconds since start().
     double getElapsedTimeInSec() const
     {
-        const Clock::time_point end = stopped_ ? end_ : Clock::now();
-        return std::chrono::duration<double>(end - start_).count();
+        return std::chrono::duration<double>(Clock::now() - start_).count();
     }
 
   private:
     using Clock = std::chrono::steady_clock;
 
-    bool              stopped_ = false;
     Clock::time_point start_{};
-    Clock::time_point end_{};
 };
 
 }  // namespace floatTetWild

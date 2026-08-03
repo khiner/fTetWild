@@ -12,7 +12,6 @@ set(SOURCES
 	geo_algorithm.h
 	geo_parallel.h
 	geo_permutation.h
-	geo_attributes.h
 
 	geo_mesh.h
 	geo_mesh.cpp
@@ -30,7 +29,6 @@ set(SOURCES
 	geo_delaunay_3d.cpp
 
 	predicates_orient3d.h
-	predicates_side4h.h
 	geo_predicates.h
 	geo_predicates.cpp
 )

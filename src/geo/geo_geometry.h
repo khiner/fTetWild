@@ -1,7 +1,7 @@
 // Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
 // Source: geogram/basic/geometry.h
-// Copied rather than reimplemented: vec2/3/4, Box and the Geom helpers, unchanged
+// Copied rather than reimplemented: vec3, Box and the Geom helpers, unchanged
 
 #pragma once
 

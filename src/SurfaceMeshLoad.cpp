@@ -423,7 +423,7 @@ bool load_ply(const std::string& path, geo::Mesh& mesh)
 bool load_surface_mesh(const std::string& path, geo::Mesh& mesh)
 {
     // Drop any attributes too: the --csg path loads every operand into the same mesh object.
-    mesh.clear(false, false);
+    mesh.clear();
 
     const std::string extension = extension_of(path);
     bool              ok        = false;

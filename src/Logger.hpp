@@ -35,10 +35,8 @@ class Logger
         Off
     };
 
-    // By default, write to stdout, but don't write to any file
-    static void init(bool               use_cout = true,
-                     const std::string& filename = std::string(),
-                     bool               truncate = true);
+    // By default, write to stdout, but don't write to any file. An existing file is truncated.
+    static void init(bool use_cout = true, const std::string& filename = std::string());
 
     void set_level(int level);
 

@@ -11,6 +11,8 @@
 #include <floattetwild/Logger.hpp>
 #include <floattetwild/MeshIO.hpp>
 
+#include <map>
+
 
 namespace floatTetWild {
 
@@ -22,7 +24,7 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
                              geo::Mesh&             input,
                              std::vector<int>&      flags)
 {
-    input.clear(false, false);
+    input.clear();
     input.vertices.create_vertices((int)points.size());
     for (int i = 0; i < (int)input.vertices.nb(); ++i) {
         geo::vec3& p = input.vertices.point(i);
@@ -304,22 +306,11 @@ class CsgReader
     std::string       error_;
 };
 
-}  // namespace
-
-bool CSGTreeParser::parse(std::istream& in, CSGTree& tree, std::string& error)
-{
-    CsgReader reader(in);
-    if (reader.parse(tree))
-        return true;
-    error = reader.error();
-    return false;
-}
-
-void CSGTreeParser::get_meshes_aux(const CSGTree&              csg_tree_node,
-                                   std::vector<std::string>&   meshes,
-                                   std::map<std::string, int>& existings,
-                                   int&                        index,
-                                   CSGTree&                    current_node)
+void get_meshes_aux(const CSGTree&              csg_tree_node,
+                    std::vector<std::string>&   meshes,
+                    std::map<std::string, int>& existings,
+                    int&                        index,
+                    CSGTree&                    current_node)
 {
     // A name already seen keeps the index it was given the first time, so a mesh used twice is
     // only loaded once.
@@ -351,6 +342,47 @@ void CSGTreeParser::get_meshes_aux(const CSGTree&              csg_tree_node,
     current_node.right     = resolve(csg_tree_node.right);
 }
 
+void get_max_id_aux(const CSGTree& csg_tree_node, int& max)
+{
+    for (const CSGTree::Child* child : {&csg_tree_node.left, &csg_tree_node.right}) {
+        if (child->kind == CSGTree::Child::Id)
+            max = std::max(max, child->id);
+        else
+            get_max_id_aux(*child->subtree, max);
+    }
+}
+
+}  // namespace
+
+bool CSGTreeParser::parse(std::istream& in, CSGTree& tree, std::string& error)
+{
+    CsgReader reader(in);
+    if (reader.parse(tree))
+        return true;
+    error = reader.error();
+    return false;
+}
+
+void CSGTreeParser::get_meshes(const CSGTree&            csg_tree,
+                               std::vector<std::string>& meshes,
+                               CSGTree&                  csg_tree_with_ids)
+{
+    int index = 0;
+    meshes.clear();
+
+    std::map<std::string, int> existings;
+
+    get_meshes_aux(csg_tree, meshes, existings, index, csg_tree_with_ids);
+}
+
+int CSGTreeParser::get_max_id(const CSGTree& csg_tree_with_ids)
+{
+    int max = -1;
+    get_max_id_aux(csg_tree_with_ids, max);
+
+    return max;
+}
+
 void CSGTreeParser::merge(const std::vector<std::vector<Vector3>>&  Vs,
                           const std::vector<std::vector<Vector3i>>& Fs,
                           std::vector<Vector3>&                     V,
@@ -380,19 +412,9 @@ void CSGTreeParser::merge(const std::vector<std::vector<Vector3>>&  Vs,
     build_reordered_sf_mesh(V, F, sf_mesh, tags);
 }
 
-void CSGTreeParser::get_max_id_aux(const CSGTree& csg_tree_node, int& max)
-{
-    for (const CSGTree::Child* child : {&csg_tree_node.left, &csg_tree_node.right}) {
-        if (child->kind == CSGTree::Child::Id)
-            max = std::max(max, child->id);
-        else
-            get_max_id_aux(*child->subtree, max);
-    }
-}
-
 bool CSGTreeParser::keep_tet(const CSGTree&                      csg_tree_with_ids,
                              const int                           t_id,
-                             const std::vector<VectorXd>&        w)
+                             const std::vector<MatrixXd>&        w)
 {
     const auto inside = [&](const CSGTree::Child& child) {
         return child.kind == CSGTree::Child::Id ? w[child.id][t_id] > 0.5
