@@ -121,9 +121,6 @@ void order_edge_ring(const Mesh&             mesh,
 }
 
 bool remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges){
-    if(old_t_ids.size()!=3)
-        return false;
-
     auto& tet_vertices = mesh.tet_vertices;
     auto& tets = mesh.tets;
 
@@ -181,11 +178,6 @@ bool remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
 }
 
 bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
-
-    const int N = 4;
-    if (old_t_ids.size() != N)
-        return false;
-
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
 
@@ -266,9 +258,6 @@ bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
 }
 
 bool remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& old_t_ids, std::vector<std::array<int, 2>>& new_edges) {
-    if (old_t_ids.size() != 5)
-        return false;
-
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
 
@@ -404,7 +393,7 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
     auto is_swappable = [&](int v1_id, int v2_id, const std::vector<int> &n12_t_ids) {
         if (n12_t_ids.size() < 3 || n12_t_ids.size() > 5)
             return false;
-        if (!is_valid_edge(mesh, v1_id, v2_id, n12_t_ids))
+        if (!is_valid_edge(mesh, v1_id, v2_id))
             return false;
         if (is_surface_edge(mesh, v1_id, v2_id, n12_t_ids))
             return false;
@@ -416,9 +405,9 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
     std::vector<std::array<int, 2>> edges;
     get_all_edges(mesh, edges);
 
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> es_queue;
+    LongestFirstQueue es_queue;
     for (auto &e:edges) {
-        es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
+        es_queue.push({e, get_edge_length_2(mesh, e[0], e[1])});
     }
     edges.clear();
 
@@ -436,16 +425,17 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
 
         pop_duplicates(es_queue, v_ids);
 
+        // is_swappable has already pinned the ring to one of these three sizes.
         std::vector<std::array<int, 2>> new_edges;
         if (n12_t_ids.size() == 3)
             remove_an_edge_32(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
-        if (n12_t_ids.size() == 4)
+        else if (n12_t_ids.size() == 4)
             remove_an_edge_44(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
-        if (n12_t_ids.size() == 5)
+        else
             remove_an_edge_56(mesh, v_ids[0], v_ids[1], n12_t_ids, new_edges);
 
         for (auto &e:new_edges) {
-            es_queue.push(ElementInQueue(e, get_edge_length_2(mesh, e[0], e[1])));
+            es_queue.push({e, get_edge_length_2(mesh, e[0], e[1])});
         }
     }
 }

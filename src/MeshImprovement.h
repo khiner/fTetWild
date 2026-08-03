@@ -18,7 +18,7 @@ namespace floatTetWild {
     // ops counts the passes to run of each local operation, indexed
     // {split, collapse, swap, smooth}.
     void optimization(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
-            Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops = {{1, 1, 1, 1}});
+            Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops);
 
     void correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree);
     void get_tracked_surface(Mesh& mesh, MatrixXs &V, MatrixXi &F, int c_id = 0);

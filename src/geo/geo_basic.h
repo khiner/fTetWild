@@ -78,14 +78,6 @@ namespace geo {
             return std::uniform_int_distribution<int32>(0, RAND_MAX)(random_engine());
         }
 
-        /**
-         * \brief Place holder for optimizing internal number representation.
-         * \details There are specializations for expansion_nt and for vecng.
-         */
-        template <class T> inline void optimize_number_representation(T& x) {
-            (void)x;
-        }
-
     }
 
     /**
@@ -98,10 +90,6 @@ namespace geo {
 
     /** \brief The type for storing and manipulating indices. */
     typedef uint32_t index_t;
-
-    inline index_t max_index_t() {
-        return std::numeric_limits<index_t>::max();
-    }
 
     /** \brief The type for storing and manipulating index differences. */
     typedef int32_t signed_index_t;
@@ -179,9 +167,6 @@ namespace geo {
         explicit vector(index_t size) : baseclass(size) {
         }
 
-        explicit vector(index_t size, const T& val) : baseclass(size, val) {
-        }
-
         index_t size() const {
             return index_t(baseclass::size());
         }
@@ -207,10 +192,6 @@ namespace geo {
         }
 
         T* data() {
-            return size() == 0 ? nullptr : &(*this)[0];
-        }
-
-        const T* data() const {
             return size() == 0 ? nullptr : &(*this)[0];
         }
     };
@@ -301,23 +282,5 @@ namespace geo {
         }
     }
 
-    template <>
-    class vector<bool> : public ::std::vector<bool> {
-        typedef ::std::vector<bool> baseclass;
-
-    public:
-        vector() : baseclass() {
-        }
-
-        explicit vector(index_t size) : baseclass(size) {
-        }
-
-        explicit vector(index_t size, bool val) : baseclass(size, val) {
-        }
-
-        index_t size() const {
-            return index_t(baseclass::size());
-        }
-    };
 }
 }

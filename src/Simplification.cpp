@@ -76,6 +76,19 @@ void one_ring_edge_set(const std::vector<std::array<int, 2>>&      edges,
     }
 }
 
+// The edges of the faces that are still there, each once, ascending.
+std::vector<std::array<int, 2>> surface_edges(const std::vector<Vector3i>& input_faces,
+                                              const std::vector<char>&     f_is_removed)
+{
+    std::vector<std::array<int, 2>> edges = parallel_collect<std::array<int, 2>>(
+      0, input_faces.size(), [&](size_t f_id, std::vector<std::array<int, 2>>& out) {
+          if (!f_is_removed[f_id])
+              push_tri_edges(input_faces[f_id], out);
+      });
+    vector_unique(edges);
+    return edges;
+}
+
 Scalar get_angle_cos(const Vector3& p,
                      const Vector3& p1,
                      const Vector3& p2)
@@ -173,18 +186,6 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
                 std::vector<std::unordered_set<int>>& conn_fs)
 {
     std::vector<std::array<int, 2>> edges;
-
-    const auto build_edges = [&]() {
-        edges = parallel_collect<std::array<int, 2>>(
-          0, input_faces.size(), [&](size_t f_id, std::vector<std::array<int, 2>>& out) {
-              if (f_is_removed[f_id])
-                  return;
-
-              push_tri_edges(input_faces[f_id], out);
-          });
-
-        vector_unique(edges);
-    };
 
     auto is_onering_clean = [&](int v_id) {
         std::vector<int> v_ids;
@@ -292,7 +293,7 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
 
     std::vector<int> safe_set;
     do {
-        build_edges();
+        edges = surface_edges(input_faces, f_is_removed);
         one_ring_edge_set(edges, v_is_removed, f_is_removed, conn_fs, safe_set);
         cnt = 0;
 
@@ -335,20 +336,13 @@ void swapping(std::vector<Vector3>&                 input_vertices,
               const std::vector<char>&              f_is_removed,
               std::vector<std::unordered_set<int>>& conn_fs)
 {
-    std::vector<std::array<int, 2>> edges;
-    edges.reserve(input_faces.size() * 6);
-    for (int i = 0; i < input_faces.size(); i++) {
-        if (f_is_removed[i])
-            continue;
-        push_tri_edges(input_faces[i], edges);
-    }
-    vector_unique(edges);
+    const std::vector<std::array<int, 2>> edges = surface_edges(input_faces, f_is_removed);
 
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> sm_queue;
+    LongestFirstQueue sm_queue;
     for (auto& e : edges) {
         Scalar weight = (input_vertices[e[0]] - input_vertices[e[1]]).squaredNorm();
-        sm_queue.push(ElementInQueue(e, weight));
-        sm_queue.push(ElementInQueue(std::array<int, 2>({{e[1], e[0]}}), weight));
+        sm_queue.push({e, weight});
+        sm_queue.push({{{e[1], e[0]}}, weight});
     }
 
     int cnt = 0;

@@ -13,6 +13,7 @@
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/Predicates.hpp>
 
+#include <queue>
 #include <unordered_set>
 
 namespace floatTetWild {
@@ -117,10 +118,8 @@ namespace floatTetWild {
     Scalar get_quality(const Mesh& mesh, int t_id);
     // The largest quality among the given tets, 0 when there are none.
     Scalar get_max_quality(const Mesh& mesh, const std::vector<int>& t_ids);
-    Scalar get_quality(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     Scalar get_quality(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
 
-    bool is_inverted(const Mesh& mesh, int t_id);
     bool is_inverted(const Mesh& mesh, const MeshTet& t);
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
     bool is_inverted(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
@@ -136,7 +135,6 @@ namespace floatTetWild {
     bool is_surface_edge(const Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& n12_t_ids);
     bool is_boundary_edge(const Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree);
     bool is_valid_edge(const Mesh& mesh, int v1_id, int v2_id);
-    bool is_valid_edge(const Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& n12_t_ids);
 
     bool is_isolate_surface_point(const Mesh& mesh, int v_id);
     bool is_point_out_boundary_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree);
@@ -203,28 +201,31 @@ namespace floatTetWild {
     // The tets that share the face with these three corners: two of them, or one on the boundary.
     void get_face_tets(const Mesh& mesh, int v1_id, int v2_id, int v3_id, std::vector<int>& t_ids);
 
-    class ElementInQueue{
-    public:
+    // An edge waiting its turn, weighted by whatever the operation orders by. The tie-break on
+    // v_ids is what keeps the order of equally weighted edges from depending on the queue's
+    // internal layout.
+    struct ElementInQueue {
         std::array<int, 2> v_ids;
         Scalar weight;
-
-        ElementInQueue(){}
-        ElementInQueue(const std::array<int, 2>& ids, Scalar w): v_ids(ids), weight(w){}
     };
     struct cmp_l {
-        bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) {
+        bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) const {
             if (e1.weight == e2.weight)
                 return e1.v_ids > e2.v_ids;
             return e1.weight < e2.weight;
         }
     };
     struct cmp_s {
-        bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) {
+        bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) const {
             if (e1.weight == e2.weight)
                 return e1.v_ids < e2.v_ids;
             return e1.weight > e2.weight;
         }
     };
+
+    // The queues the local operations drive themselves from, named for what they pop first.
+    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> LongestFirstQueue;
+    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ShortestFirstQueue;
 
     // The same edge can sit in the queue more than once. After taking one, drop the copies behind
     // it.

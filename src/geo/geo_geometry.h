@@ -32,23 +32,6 @@ namespace geo {
     public:
         double xyz_min[3];
         double xyz_max[3];
-
-        /**
-         * \brief Tests whether a box contains a point.
-         * \param[in] b the point
-         * \return true if this box contains \p b, false otherwise
-         */
-        bool contains(const vec3& b) const {
-            for(coord_index_t c = 0; c < 3; ++c) {
-                if(b[c] < xyz_min[c]) {
-                    return false;
-                }
-                if(b[c] > xyz_max[c]) {
-                    return false;
-                }
-            }
-            return true;
-        }
     };
 
     /**
@@ -68,4 +51,3 @@ namespace geo {
     /******************************************************************/
 
 } }
-

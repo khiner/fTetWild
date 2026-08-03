@@ -7,6 +7,12 @@
 // BalancedKdTree, because it also has an AdaptiveKdTree and a search over an ANN library. Only the
 // balanced tree is vendored and it is used as a concrete type, so the three are one class here and
 // nothing is virtual.
+//
+// geogram also returned the k nearest neighbours, through a sorted insertion buffer the caller
+// supplied storage for. The mesher asks for one and reads only its distance, so the buffer is a
+// single running minimum here. That is the same number: the traversal prunes on the distance to
+// the furthest neighbour kept so far, which at k=1 is that minimum, and geogram's insert() kept
+// the smaller of two equal distances just the same.
 
 #pragma once
 
@@ -32,9 +38,9 @@ namespace geo {
          * \brief Creates a new BalancedKdTree.
          * \param[in] dim dimension of the points
          */
-        BalancedKdTree(coord_index_t dim);
-
-        ~BalancedKdTree();
+        BalancedKdTree(coord_index_t dim) :
+            dimension_(dim), bbox_min_(dim), bbox_max_(dim) {
+        }
 
         /**
          * \brief Sets the points and creates the search data structure.
@@ -44,18 +50,10 @@ namespace geo {
         void set_points(index_t nb_points, const double* points);
 
         /**
-         * \brief Finds the nearest neighbors of a point given by coordinates.
-         * \param[in] nb_neighbors number of neighbors to be searched, at most nb_points()
+         * \brief The squared distance from a query point to the nearest of the points.
          * \param[in] query_point as an array of dimension() doubles
-         * \param[out] neighbors array of nb_neighbors index_t
-         * \param[out] neighbors_sq_dist array of nb_neighbors doubles
          */
-        void get_nearest_neighbors(
-            index_t nb_neighbors,
-            const double* query_point,
-            index_t* neighbors,
-            double* neighbors_sq_dist
-        ) const;
+        double nearest_sq_dist(const double* query_point) const;
 
         coord_index_t dimension() const {
             return dimension_;
@@ -70,210 +68,6 @@ namespace geo {
             return points_ + i * dimension_;
         }
 
-        /**********************************************************************/
-
-        /**
-         * \brief The context for traversing a KdTree.
-         * \details Stores a sorted sequence of (point,distance)
-         *  couples.
-         */
-        struct NearestNeighbors {
-
-            /**
-             * \brief Creates a new NearestNeighbors
-             * \details Storage is provided and managed by the caller.
-             * Initializes neighbors_sq_dist[0..nb_neigh-1]
-             * to Numeric::max_float64() and neighbors[0..nb_neigh-1]
-             * to NO_INDEX.
-             * \param[in] nb_neighbors_in number of neighbors to retrieve
-             * \param[in] user_neighbors_in storage for the neighbors, allocated
-             *  and managed by caller, with space for nb_neighbors_in integers
-             * \param[in] user_neighbors_sq_dist_in storage for neighbors
-             *  squared distance, allocated and managed by caller,
-             *  with space for nb_neighbors_in doubles
-             * \param[in] work_neighbors_in storage for the neighbors, allocated
-             *  and managed by caller, with space
-             *  for nb_neighbors_in + 1 integers
-             * \param[in] work_neighbors_sq_dist_in storage
-             *  for neighbors squared distance, allocated and managed
-             *  by caller, with space for nb_neighbors_in + 1 doubles
-             */
-            NearestNeighbors(
-                index_t nb_neighbors_in,
-                index_t* user_neighbors_in,
-                double* user_neighbors_sq_dist_in,
-                index_t* work_neighbors_in,
-                double* work_neighbors_sq_dist_in
-            ) :
-                nb_neighbors(0),
-                nb_neighbors_max(nb_neighbors_in),
-                neighbors(work_neighbors_in),
-                neighbors_sq_dist(work_neighbors_sq_dist_in),
-                user_neighbors(user_neighbors_in),
-                user_neighbors_sq_dist(user_neighbors_sq_dist_in),
-                nb_visited(0)
-                {
-                    // Yes, '<=' because we got space for n+1 neigbors
-                    // in the work arrays.
-                    for(index_t i = 0; i <= nb_neighbors; ++i) {
-                        neighbors[i] = NO_INDEX;
-                        neighbors_sq_dist[i] = Numeric::max_float64();
-                    }
-                }
-
-            /**
-             * \brief Gets the squared distance to the furthest
-             *  neighbor.
-             */
-            double furthest_neighbor_sq_dist() const {
-                return
-                    nb_neighbors == nb_neighbors_max ?
-                    neighbors_sq_dist[nb_neighbors - 1] :
-                    Numeric::max_float64()
-                    ;
-            }
-
-            /**
-             * \brief Inserts a new neighbor.
-             * \details Only the nb_neighbor nearest points are kept.
-             * \param[in] neighbor the index of the point
-             * \param[in] sq_dist the squared distance between the point
-             *  and the query point.
-             * \pre sq_dist <= furthest_neighbor_sq_dist() (needs to be tested
-             *  by client code before insertion).
-             */
-            void insert(
-                index_t neighbor, double sq_dist
-            ) {
-                geo_debug_assert(
-                    sq_dist <= furthest_neighbor_sq_dist()
-                );
-
-                int i;
-                for(i=int(nb_neighbors); i>0; --i) {
-                    if(neighbors_sq_dist[i - 1] < sq_dist) {
-                        break;
-                    }
-                    neighbors[i] = neighbors[i - 1];
-                    neighbors_sq_dist[i] = neighbors_sq_dist[i - 1];
-                }
-
-                neighbors[i] = neighbor;
-                neighbors_sq_dist[i] = sq_dist;
-
-                if(nb_neighbors < nb_neighbors_max) {
-                    ++nb_neighbors;
-                }
-            }
-
-            /**
-             * \brief Copies the found nearest neighbors from the work zone
-             *  to the user neighbors and squared distance arrays.
-             * \details This function is called by find_nearest_neighbors()
-             *  after traversal of the tree.
-             */
-            void copy_to_user() {
-                for(index_t i=0; i<nb_neighbors_max; ++i) {
-                    user_neighbors[i] = neighbors[i];
-                    user_neighbors_sq_dist[i] = neighbors_sq_dist[i];
-                }
-            }
-
-            /** \brief Current number of neighbors. */
-            index_t nb_neighbors;
-
-            /** \brief Maximum number of neighbors. */
-            index_t nb_neighbors_max;
-
-            /**
-             * \brief Internal array of neighbors.
-             * \details size = nb_neigbors_max + 1
-             */
-            index_t* neighbors;
-
-            /**
-             * \brief Internal squared distance to neigbors.
-             * \details size = nb_neigbors_max + 1
-             */
-            double* neighbors_sq_dist;
-
-            /**
-             * \brief User-provided array of neighbors.
-             * \details size = nb_neighbors_max
-             */
-            index_t* user_neighbors;
-
-            /**
-             * \brief User-provided array of neighbors
-             *  squared distances.
-             * \details size = nb_neighbors_max
-             */
-            double* user_neighbors_sq_dist;
-
-            /**
-             * \brief Number of points visited during
-             *  traversal.
-             */
-            size_t nb_visited;
-        };
-
-        /**
-         * \brief The recursive function to implement KdTree traversal and
-         *  nearest neighbors computation.
-         * \note This is a lower-level function, most users will not use it.
-         * \details Traverses the subtree under the
-         *  node_index node that corresponds to the
-         *  [b,e) point sequence. Nearest neighbors
-         *  are inserted into neighbors during
-         *  traversal.
-         * \param[in] node_index index of the current node in the Kd tree
-         * \param[in] b index of the first point in the subtree under
-         *  node \p node_index
-         * \param[in] e one position past the index of the last point in the
-         *  subtree under node \p node_index
-         * \param[in,out] bbox_min coordinates of the lower
-         *  corner of the bounding box.
-         *  Allocated and managed by caller.
-         *  Modified by the function and restored on exit.
-         * \param[in,out] bbox_max coordinates of the
-         *  upper corner of the bounding box.
-         *  Allocated and managed by caller.
-         *  Modified by the function and restored on exit.
-         * \param[in] bbox_dist squared distance between
-         *  the query point and a bounding box of the
-         *  [b,e) point sequence. It is used to early
-         *  prune traversals that do not generate nearest
-         *  neighbors.
-         * \param[in] query_point the query point
-         * \param[in,out] neighbors the computed nearest neighbors
-         */
-        void get_nearest_neighbors_recursive(
-            index_t node_index, index_t b, index_t e,
-            double* bbox_min, double* bbox_max,
-            double bbox_dist, const double* query_point,
-            NearestNeighbors& neighbors
-        ) const;
-
-        /**
-         * \brief Initializes bounding box and box distance for
-         *  Kd-Tree traversal.
-         * \note This is a lower-level function, most users will not use it.
-         * \details This functions needs to be called before
-         *  get_nearest_neighbors_recursive()
-         * \param[out] bbox_min a pointer to an array of dimension() doubles,
-         *   managed by client code (typically on the stack).
-         * \param[out] bbox_max a pointer to an array of dimension() doubles,
-         *   managed by client code (typically on the stack).
-         * \param[out] box_dist the squared distance between the query point and
-         *   the box.
-         * \param[in] query_point a const pointer to the coordinates of
-         *   the query point.
-         */
-        void init_bbox_and_bbox_dist_for_traversal(
-            double* bbox_min, double* bbox_max,
-            double& box_dist, const double* query_point
-        ) const;
-
     private:
         /**
          * \brief Number of points stored in the leafs of the tree.
@@ -282,51 +76,28 @@ namespace geo {
 
         /**
          * \brief Builds the tree.
-         * \return the index of the root node.
          */
-        index_t build_tree();
+        void build_tree();
 
         /**
-         * \brief Gets all the attributes of a node.
-         * \param[in] n a node index
-         * \param[in] b the first point in the node
-         * \param[in] e one position past the last point in the node
-         * \param[out] left_child the node index of the
-         *   left child of node \p n.
-         * \param[out] right_child the node index of the
-         *   right child of node \p n.
-         * \param[out] splitting_coord The coordinate along which \p n is split.
-         * \param[out] m the point m such that [b,m-1] corresponds
-         *  to the points in the left child of \p n and [m,e-1]
-         *  corresponds to the points in the right child of \p n.
-         * \param[out] splitting_val The coordinate value that separates points
-         *  in the left and right children.
-         */
-        void get_node(
-            index_t n, index_t b, index_t e,
-            index_t& left_child, index_t& right_child,
-            coord_index_t&  splitting_coord,
-            index_t& m,
-            double& splitting_val
-        ) const;
-
-        /**
-         * \brief The recursive function to implement KdTree traversal and
-         *  nearest neighbors computation in a leaf.
-         * \details Traverses the node_index leaf that corresponds to the
-         *  [b,e) point sequence. Nearest neighbors
-         *  are inserted into neighbors during traversal.
-         * \param[in] node_index index of the leaf to be traversed.
-         * \param[in] b index of the first point in the leaf.
-         * \param[in] e one position past the index of the last point in the
-         *  leaf.
+         * \brief The recursive function to implement KdTree traversal.
+         * \details Traverses the subtree under the node_index node that corresponds to the
+         *  [b,e) point sequence, lowering best_sq_dist as nearer points turn up.
+         * \param[in] node_index index of the current node in the Kd tree
+         * \param[in] b index of the first point in the subtree under node \p node_index
+         * \param[in] e one position past the index of the last point in the subtree
+         * \param[in,out] bbox_min , bbox_max the bounding box of the [b,e) sequence, allocated and
+         *  managed by the caller. Modified by the function and restored on exit.
+         * \param[in] box_dist squared distance between the query point and that bounding box. It
+         *  is used to prune traversals that cannot hold a nearer point.
          * \param[in] query_point the query point
-         * \param[in,out] neighbors the computed nearest neighbors
+         * \param[in,out] best_sq_dist the nearest squared distance so far
          */
-        void get_nearest_neighbors_leaf(
+        void nearest_recursive(
             index_t node_index, index_t b, index_t e,
-            const double* query_point,
-            NearestNeighbors& neighbors
+            double* bbox_min, double* bbox_max,
+            double box_dist, const double* query_point,
+            double& best_sq_dist
         ) const;
 
         /**
@@ -432,7 +203,6 @@ namespace geo {
         vector<index_t> point_index_;
         vector<double> bbox_min_;
         vector<double> bbox_max_;
-        index_t root_;
 
         /**
          * \brief One per node, splitting coordinate.
@@ -443,14 +213,7 @@ namespace geo {
          * \brief One per node, splitting coordinate value.
          */
         vector<double> splitting_val_;
-
-        /**
-         * \brief Indices for multithreaded tree construction.
-         */
-        index_t m0_, m1_, m2_, m3_, m4_, m5_, m6_, m7_, m8_;
     };
-
 
     /*********************************************************************/
 } }
-

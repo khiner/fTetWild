@@ -59,22 +59,6 @@ namespace geo {
         );
 
         /**
-         * \brief Computes the orientation predicate in 3d.
-         * \details Computes the sign of the signed volume of
-         *  the tetrahedron p0, p1, p2, p3.
-         * \param[in] p0 , p1 , p2 , p3 vertices of the tetrahedron
-         * \retval POSITIVE if the tetrahedron is oriented positively
-         * \retval ZERO if the tetrahedron is flat
-         * \retval NEGATIVE if the tetrahedron is oriented negatively
-         */
-        inline Sign orient_3d(
-            const vec3& p0, const vec3& p1,
-            const vec3& p2, const vec3& p3
-        ) {
-            return orient_3d(p0.data(),p1.data(),p2.data(),p3.data());
-        }
-
-        /**
          * \brief Computes the (approximate) orientation predicate in 3d.
          * \details Computes the sign of the (approximate) signed volume of
          *  the tetrahedron p0, p1, p2, p3.

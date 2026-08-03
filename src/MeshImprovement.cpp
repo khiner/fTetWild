@@ -61,6 +61,14 @@ MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F_in, const MatrixXd
     return W;
 }
 
+// The same, against the mesh's own tracked surface carrying tag c_id.
+MatrixXd tracked_surface_wn(Mesh &mesh, const MatrixXd &C, int c_id) {
+    MatrixXs V;
+    MatrixXi F;
+    get_tracked_surface(mesh, V, F, c_id);
+    return winding_numbers(V, F, C, false);
+}
+
 // Which live tets have their barycentre inside the given surface, one entry per tet. A tet that
 // was already removed is false. When that left nothing inside, the faces are flipped and the whole
 // thing is redone, which is what an inside-out input needs.
@@ -243,9 +251,12 @@ void drop_isolated_vertices(Mesh &mesh) {
 // Steps of the optimization loop and the manifold fix-ups. Everything above and below is
 // reached only from this file; MeshImprovement.h carries the entry points.
 
-void cleanup_empty_slots(Mesh &mesh, double percentage = 0.7) {
+// Compacts the leading 70% of both lists, which is enough to keep a big mesh's free slots from
+// piling up without paying to renumber the whole thing.
+void cleanup_empty_slots(Mesh &mesh) {
     if (mesh.tets.size() < 9e5)
         return;
+    const double percentage = 0.7;
     const int v_end_id = mesh.tet_vertices.size() * percentage;
     const int t_end_id = mesh.tets.size() * percentage;
     const std::vector<int> map_v_ids = compaction_map(mesh.tet_vertices, v_end_id);
@@ -341,11 +352,8 @@ bool update_scaling_field(Mesh &mesh, Scalar max_energy) {
                         continue;
                     const Vector3 &np = mesh.tet_vertices[n_v_id].pos;
 
-                    geo::index_t _;
-                    double sq_dist;
                     const double p[3] = {np[0], np[1], np[2]};
-                    nnsearch.get_nearest_neighbors(1, p, &_, &sq_dist);
-                    Scalar dis = sqrt(sq_dist);
+                    Scalar dis = sqrt(nnsearch.nearest_sq_dist(p));
 
                     if (dis < radius) {
                         v_queue.push(n_v_id);
@@ -968,15 +976,8 @@ void floatTetWild::boolean_operation(Mesh&                                     m
 
     // An empty operand list means the operands are the tracked surfaces of the mesh itself.
     for (int i = 0; i <= max_id; ++i) {
-        MatrixXs vs;
-        MatrixXi fs;
-        if (Vs.empty())
-            get_tracked_surface(mesh, vs, fs, i);
-        else {
-            vs = to_matrix(Vs[i]);
-            fs = to_matrix(Fs[i]);
-        }
-        w[i] = winding_numbers(vs, fs, C, false);
+        w[i] = Vs.empty() ? tracked_surface_wn(mesh, C, i)
+                          : winding_numbers(to_matrix(Vs[i]), to_matrix(Fs[i]), C, false);
     }
 
     // A tet survives if the tree says so, and is tagged with the highest-numbered operand it is
@@ -1000,15 +1001,9 @@ void floatTetWild::boolean_operation(Mesh&                                     m
 void floatTetWild::boolean_operation(Mesh& mesh, int op){
     enum { OP_UNION = 0, OP_INTERSECTION = 1, OP_DIFFERENCE = 2 };
 
-    const MatrixXd C = tet_barycenters(mesh);
-    const auto tracked_surface_wn = [&](int c_id) {
-        MatrixXs V;
-        MatrixXi F;
-        get_tracked_surface(mesh, V, F, c_id);
-        return winding_numbers(V, F, C, false);
-    };
-    const MatrixXd w1 = tracked_surface_wn(1);
-    const MatrixXd w2 = tracked_surface_wn(2);
+    const MatrixXd C  = tet_barycenters(mesh);
+    const MatrixXd w1 = tracked_surface_wn(mesh, C, 1);
+    const MatrixXd w2 = tracked_surface_wn(mesh, C, 2);
 
     int cnt = 0;
     for (auto &t : mesh.tets) {

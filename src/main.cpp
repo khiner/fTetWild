@@ -221,24 +221,24 @@ int main(int argc, char** argv)
 
     MatrixXs Vt;
     MatrixXi Ft;
+    // Leaves the surface it wrote in Vt and Ft, which the winding number below reuses.
+    const auto write_tracked_surface = [&](const std::string& name, int c_id = 0) {
+        get_tracked_surface(mesh, Vt, Ft, c_id);
+        writeOBJ(out_prefix + name, Vt, Ft);
+    };
+
     if (export_raw) {
         if (!csg_file.empty()) {
-            int max_id = CSGTreeParser::get_max_id(tree_with_ids);
-
-            for (int i = 0; i <= max_id; ++i) {
-                get_tracked_surface(mesh, Vt, Ft, i);
-                writeOBJ(out_prefix + "_" + std::to_string(i) + "_all.obj", Vt, Ft);
-            }
+            const int max_id = CSGTreeParser::get_max_id(tree_with_ids);
+            for (int i = 0; i <= max_id; ++i)
+                write_tracked_surface("_" + std::to_string(i) + "_all.obj", i);
         }
-        else {
-            get_tracked_surface(mesh, Vt, Ft);
-            writeOBJ(out_prefix + "_all.obj", Vt, Ft);
-        }
+        else
+            write_tracked_surface("_all.obj");
         write_mesh(out_prefix + "_all.msh", mesh);
     }
 
-    get_tracked_surface(mesh, Vt, Ft);
-    writeOBJ(out_prefix + "_tracked_surface.obj", Vt, Ft);
+    write_tracked_surface("_tracked_surface.obj");
 
     if (!csg_file.empty())
         boolean_operation(mesh, tree_with_ids, csg_Vs, csg_Fs);

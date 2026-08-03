@@ -68,22 +68,6 @@ namespace geo {
     }
 
     /**
-     * \brief Splits a number into two components, ready for
-     * computing a product.
-     * \details By Jonathan Shewchuk.
-     * \param[in] a input number.
-     * \param[out] ahi split number, high-magnitude part.
-     * \param[out] alo split number, low-magnitude part.
-     * \relates expansion
-     */
-    inline void split(double a, double& ahi, double& alo) {
-        double c = expansion_splitter_ * a;
-        double abig = c - a;
-        ahi = c - abig;
-        alo = a - ahi;
-    }
-
-    /**
      * \brief Multiplies two doubles into a length 2 expansion.
      * \details By Jonathan Shewchuk.
      * \param[in] a first number to multiply.
@@ -219,15 +203,6 @@ namespace geo {
 
     /**
      * \brief Low level access to the array of components.
-     * \return a pointer to the array that stores
-     *  the components
-     */
-    double* data() {
-        return x_;
-    }
-
-    /**
-     * \brief Low level access to the array of components.
      * \return a const pointer to the array that stores
      *  the components
      */
@@ -332,38 +307,6 @@ namespace geo {
     // ========================== Initialization from doubles
 
     /**
-     * \brief Computes the required capacity to store the
-     *  sum of two doubles.
-     * \param[in] a first number
-     * \param[in] b second number
-     * \return the required capacity of an expansion
-     *  to store the exact sum of two doubles
-     * \note The result does not depend on the values of the
-     *  two numbers.
-     */
-    static index_t sum_capacity(double a, double b) {
-        geo_argused(a);
-        geo_argused(b);
-        return 2;
-    }
-
-    /**
-     * \brief Assigns the sum of two doubles to this expansion
-     *  (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_sum() macro instead.
-     * \param[in] a first number to sum
-     * \param[in] b second number to sum
-     * \return the new value of this expansion (\p a + \p b)
-     * \pre capacity() >= sum_capacity(a,b)
-     */
-    expansion& assign_sum(double a, double b) {
-        set_length(2);
-        two_sum(a, b, x_[1], x_[0]);
-        return *this;
-    }
-
-    /**
      * \brief Computes the required capacity of an expansion
      *  to store the exact difference of two doubles.
      * \param[in] a first number
@@ -392,38 +335,6 @@ namespace geo {
     expansion& assign_diff(double a, double b) {
         set_length(2);
         two_diff(a, b, x_[1], x_[0]);
-        return *this;
-    }
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact product of two doubles.
-     * \param[in] a first number
-     * \param[in] b second number
-     * \return the required capacity of an expansion
-     *  to store the exact product of two doubles
-     * \note The result does not depend on the values of the
-     *  two numbers.
-     */
-    static index_t product_capacity(double a, double b) {
-        geo_argused(a);
-        geo_argused(b);
-        return 2;
-    }
-
-    /**
-     * \brief Assigns the product of two doubles to this expansion
-     *  (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_product() macro instead.
-     * \param[in] a first number
-     * \param[in] b second number
-     * \return the new value of this expansion (\p a * \p b)
-     * \pre capacity() >= product_capacity(a,b)
-     */
-    expansion& assign_product(double a, double b) {
-        set_length(2);
-        two_product(a, b, x_[1], x_[0]);
         return *this;
     }
 
@@ -748,7 +659,6 @@ namespace geo {
         return geo_sgn(x_[length() - 1]);
     }
 
-
     protected:
     /**
      * \brief Computes the required capacity of an expansion
@@ -806,7 +716,6 @@ namespace geo {
     };
 
     // =============== arithmetic operations ===========================
-
 
     /**
      * \brief Computes an expansion that represents the exact
@@ -985,7 +894,6 @@ namespace geo {
         expansion::sq_dist_capacity(dim)        \
     )->assign_sq_dist(a, b, dim)
 
-
     /************************************************************************/
 
     /************************************************************************/
@@ -1028,7 +936,6 @@ namespace geo {
         const expansion& e, const expansion& f, expansion& h
     );
 
-
     /**
      * \brief Computes the difference of two expansions, eliminating zero
      *  components from the output expansion
@@ -1049,4 +956,3 @@ namespace geo {
 
     /************************************************************************/
 } }
-

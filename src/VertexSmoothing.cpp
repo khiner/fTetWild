@@ -231,9 +231,7 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         x = x_next;
     }
 
-    if (x != tet_vertices[v_id].pos)
-        return true;
-    return false;
+    return x != tet_vertices[v_id].pos;
 }
 
 }  // namespace

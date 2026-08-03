@@ -17,7 +17,7 @@
 
 namespace floatTetWild {
     void simplify(std::vector<Vector3>& input_vertices, std::vector<Vector3i>& input_faces, std::vector<int>& input_tags,
-            const AABBWrapper& tree, const Parameters& params, bool skip_simplify = false);
+            const AABBWrapper& tree, const Parameters& params, bool skip_simplify);
 }
 
 #endif //FLOATTETWILD_SIMPLIFICATION_H

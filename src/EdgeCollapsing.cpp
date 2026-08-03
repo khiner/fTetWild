@@ -59,20 +59,22 @@ bool is_collapsable_boundary(Mesh&              mesh,
     return !mesh.tet_vertices[v1_id].is_on_boundary || is_boundary_edge(mesh, v1_id, v2_id, tree);
 }
 
-void edge_collapsing_aux(Mesh&                            mesh,
-                         const AABBWrapper&               tree,
-                         std::vector<std::array<int, 2>>& edges)
+}  // namespace
+}  // namespace floatTetWild
+
+void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
 {
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-    int suc_counter = 0;
+    std::vector<std::array<int, 2>> edges;
+    get_all_edges(mesh, edges);
 
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ec_queue;
+    ShortestFirstQueue ec_queue;
     // A collapse moves the first end onto the second, so an edge goes in once per direction.
     const auto push_both_ends = [&](const std::array<int, 2>& e, Scalar l_2) {
-        ec_queue.push(ElementInQueue(e, l_2));
-        ec_queue.push(ElementInQueue({{e[1], e[0]}}, l_2));
+        ec_queue.push({e, l_2});
+        ec_queue.push({{{e[1], e[0]}}, l_2});
     };
     for (auto& e : edges) {
         Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
@@ -88,8 +90,8 @@ void edge_collapsing_aux(Mesh&                            mesh,
     std::vector<int>                tet_tss;
     tet_tss.assign(tets.size(), 0);
 
-    do {
-        suc_counter = 0;
+    for (;;) {
+        int suc_counter = 0;
         while (!ec_queue.empty()) {
             std::array<int, 2> v_ids      = ec_queue.top().v_ids;
             Scalar             old_weight = ec_queue.top().weight;
@@ -161,7 +163,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
                 }
             }
             if (is_recal)
-                ec_queue.push(ElementInQueue(e, weight));
+                ec_queue.push({e, weight});
             else
                 tmp_inf_es.push_back(e);
         }
@@ -170,17 +172,7 @@ void edge_collapsing_aux(Mesh&                            mesh,
 
         ts++;
         inf_e_tss = std::vector<int>(inf_es.size(), ts);
-    } while (suc_counter > 0);
-}
-
-}  // namespace
-}  // namespace floatTetWild
-
-void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
-{
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-    edge_collapsing_aux(mesh, tree, edges);
+    }
 }
 
 // Moves v1 onto v2, or leaves the mesh untouched and returns false when the collapse would
@@ -245,10 +237,10 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     int ii = 0;
     for (int t_id : n1_t_ids) {
         int    j     = js_n1_t_ids[ii++];
-        Scalar new_q = get_quality(tet_vertices[v2_id],
-                                   tet_vertices[tets[t_id][(j + 1) % 4]],
-                                   tet_vertices[tets[t_id][(j + 2) % 4]],
-                                   tet_vertices[tets[t_id][(j + 3) % 4]]);
+        Scalar new_q = get_quality(tet_vertices[v2_id].pos,
+                                   tet_pos(mesh, t_id, (j + 1) % 4),
+                                   tet_pos(mesh, t_id, (j + 2) % 4),
+                                   tet_pos(mesh, t_id, (j + 3) % 4));
         if (is_check_quality && new_q > old_max_quality)
             return false;
         new_qs.push_back(new_q);
@@ -328,16 +320,12 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
           facing[1].bbox != NOT_BBOX ? facing[1].bbox : facing[0].bbox;
 
         for (int i = 0; i < 2; i++) {
-            // Face i is the one facing the other end, so it is the one the collapse keeps.
-            const std::array<int, 3> f = face_corners(t, facing[(i + 1) % 2].j);
-
-            std::vector<int> pair;
-            get_face_tets(mesh, f[0], f[1], f[2], pair);
-            if (pair.size() <= 1)
+            // Face i is the one facing the other end, so it is the one the collapse keeps, and
+            // the marks go onto its far side.
+            int opp_t_id, j;
+            if (!get_opp_face(mesh, t_id, facing[(i + 1) % 2].j, opp_t_id, j))
                 continue;
 
-            const int opp_t_id = pair[0] == t_id ? pair[1] : pair[0];
-            const int j = get_local_f_id(opp_t_id, f[0], f[1], f[2], mesh);
             tets[opp_t_id].is_surface_fs[j] = sf_connecting_v12[i];
             tets[opp_t_id].surface_tags[j]  = tag_connecting_v12[i];
             tets[opp_t_id].is_bbox_fs[j]    = bbox_connecting_v12;

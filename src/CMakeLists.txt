@@ -1,14 +1,19 @@
 set(SOURCES
-	AABBWrapper.h
-	AABBWrapper.cpp
+	# The mesher, from the top down.
+	FloatTetwild.h
+	FloatTetwild.cpp
+	Simplification.h
+	Simplification.cpp
+	FloatTetDelaunay.h
+	FloatTetDelaunay.cpp
+	TriangleInsertion.h
+	TriangleInsertion.cpp
+	CutMesh.h
+	CutMesh.cpp
+	MeshImprovement.h
+	MeshImprovement.cpp
 
-
-	auto_table.hpp
-	auto_table.cpp
-
-	CSGTreeParser.hpp
-	CSGTreeParser.cpp
-
+	# The local operations the optimization loop runs.
 	LocalOperations.h
 	LocalOperations.cpp
 	EdgeSplitting.h
@@ -20,46 +25,26 @@ set(SOURCES
 	VertexSmoothing.h
 	VertexSmoothing.cpp
 
-	MeshImprovement.h
-	MeshImprovement.cpp
-
-
-	FloatTetwild.h
-	FloatTetwild.cpp
-
-	FloatTetDelaunay.h
-	FloatTetDelaunay.cpp
-		TriangleInsertion.cpp
-		TriangleInsertion.h
-
-		CutMesh.cpp
-		CutMesh.h
-
+	# Supporting pieces.
+	AABBWrapper.h
+	AABBWrapper.cpp
+	auto_table.hpp
+	auto_table.cpp
+	CSGTreeParser.hpp
+	CSGTreeParser.cpp
 	intersections.h
 	intersections.cpp
-
-	Simplification.h
-	Simplification.cpp
-
-	Mesh.hpp
-
-
 	Logger.hpp
 	Logger.cpp
-
 	ParallelFor.hpp
 	ParallelFor.cpp
-
-	Parameters.h
-
 	Matrix.hpp
 	Matrix.ipp
-
-	Types.hpp
-
+	Mesh.hpp
+	Parameters.h
 	Statistics.h
-
 	Timer.h
+	Types.hpp
 )
 
 # Code from other projects, kept under its own licence, listed in THIRD_PARTY.md and repeated in

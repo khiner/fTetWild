@@ -14,32 +14,28 @@
 #include <vector>
 #include <array>
 #include <cassert>
+#include <climits>
 
 namespace floatTetWild {
 
-#define NOT_SURFACE SCHAR_MAX
-#define KNOWN_NOT_SURFACE -SCHAR_MAX/2
-#define KNOWN_SURFACE SCHAR_MAX/2
+    // The per-face marks. is_surface_fs holds NOT_SURFACE, one of the two KNOWN_ values while
+    // triangle insertion is deciding, or +1/-1 once it has: the two sides of a surface face carry
+    // opposite signs.
+    constexpr int NOT_SURFACE = SCHAR_MAX;
+    constexpr int KNOWN_NOT_SURFACE = -(SCHAR_MAX / 2);
+    constexpr int KNOWN_SURFACE = SCHAR_MAX / 2;
 
-#define NO_SURFACE_TAG 0
-#define NOT_BBOX -1
-#define OPP_T_ID_BOUNDARY -1
+    constexpr int NO_SURFACE_TAG = 0;
+    constexpr int NOT_BBOX = -1;
+
+    // What get_opp_t_id returns for a face with nothing on the other side.
+    constexpr int OPP_T_ID_BOUNDARY = -1;
 
     class MeshVertex {
     public:
         MeshVertex() {}
 
         Vector3 pos;
-
-        inline Scalar &operator[](const int index) {
-            assert(index >= 0 && index < 3);
-            return pos[index];
-        }
-
-        inline Scalar operator[](const int index) const {
-            assert(index >= 0 && index < 3);
-            return pos[index];
-        }
 
         std::vector<int> conn_tets;
 

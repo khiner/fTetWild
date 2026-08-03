@@ -275,13 +275,6 @@ namespace geo {
             return data()[i];
         }
 
-        /** \brief Optimizes coordinate representation */
-        void optimize() {
-            Numeric::optimize_number_representation(x);
-            Numeric::optimize_number_representation(y);
-            Numeric::optimize_number_representation(z);
-        }
-
         /** \brief Vector x coordinate */
         T x;
         /** \brief Vector y coordinate */
@@ -332,18 +325,4 @@ namespace geo {
 
     /************************************************************************/
 
-    namespace Numeric {
-
-        template<class T>
-        inline void optimize_number_representation(
-            vecng<3,T>& v
-        ) {
-            v.optimize();
-        }
-
-    }
-
-    /************************************************************************/
-
 } }
-

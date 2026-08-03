@@ -125,14 +125,6 @@ bool floatTetWild::is_valid_edge(const Mesh& mesh, int v1_id, int v2_id)
     return !mesh.tet_vertices[v1_id].is_removed && !mesh.tet_vertices[v2_id].is_removed;
 }
 
-bool floatTetWild::is_valid_edge(const Mesh&             mesh,
-                                 int                     v1_id,
-                                 int                     v2_id,
-                                 const std::vector<int>& n12_t_ids)
-{
-    return !n12_t_ids.empty() && is_valid_edge(mesh, v1_id, v2_id);
-}
-
 bool floatTetWild::is_isolate_surface_point(const Mesh& mesh, int v_id)
 {
     for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
@@ -169,14 +161,6 @@ Scalar floatTetWild::get_quality(const Mesh& mesh, int t_id)
     return get_quality(mesh, mesh.tets[t_id]);
 }
 
-Scalar floatTetWild::get_quality(const MeshVertex& v0,
-                                 const MeshVertex& v1,
-                                 const MeshVertex& v2,
-                                 const MeshVertex& v3)
-{
-    return get_quality(v0.pos, v1.pos, v2.pos, v3.pos);
-}
-
 Scalar floatTetWild::get_quality(const Vector3& v0,
                                  const Vector3& v1,
                                  const Vector3& v2,
@@ -195,11 +179,6 @@ Scalar floatTetWild::get_max_quality(const Mesh& mesh, const std::vector<int>& t
             max_quality = mesh.tets[t_id].quality;
     }
     return max_quality;
-}
-
-bool floatTetWild::is_inverted(const Mesh& mesh, int t_id)
-{
-    return is_inverted(mesh, mesh.tets[t_id]);
 }
 
 bool floatTetWild::is_inverted(const Mesh& mesh, const MeshTet& t)

@@ -54,21 +54,36 @@ std::vector<int> tets_overlapping_bbox(const Mesh&    mesh,
     });
 }
 
-// The cut carries on through every tet around a corner it reached, each visited once.
-void push_unvisited_around_cut_vertices(const Mesh&                mesh,
-                                        int                        t_id,
-                                        const std::array<bool, 4>& is_cut_vs,
-                                        std::vector<bool>&         is_visited,
-                                        std::queue<int>&           queue)
+// Walks outward from seeds, visiting each tet once. visit(t_id, is_cut_vs) does the work for one
+// tet and marks the corners the cut reached there; the walk carries on through every tet around
+// those, and stops where nothing was reached.
+template<typename Visit>
+void flood_from_cut(const Mesh& mesh, const std::vector<int>& seeds, Visit&& visit)
 {
-    for (int j = 0; j < 4; j++) {
-        if (!is_cut_vs[j])
-            continue;
-        for (int n_t_id : mesh.tet_vertices[mesh.tets[t_id][j]].conn_tets) {
-            if (!is_visited[n_t_id]) {
-                is_visited[n_t_id] = true;
-                queue.push(n_t_id);
-            }
+    std::vector<bool> is_visited(mesh.tets.size(), false);
+    std::queue<int>   queue;
+    const auto        push = [&](int t_id) {
+        if (!is_visited[t_id]) {
+            is_visited[t_id] = true;
+            queue.push(t_id);
+        }
+    };
+
+    for (int t_id : seeds)
+        push(t_id);
+
+    while (!queue.empty()) {
+        const int t_id = queue.front();
+        queue.pop();
+
+        std::array<bool, 4> is_cut_vs = {{false, false, false, false}};
+        visit(t_id, is_cut_vs);
+
+        for (int j = 0; j < 4; j++) {
+            if (!is_cut_vs[j])
+                continue;
+            for (int n_t_id : mesh.tet_vertices[mesh.tets[t_id][j]].conn_tets)
+                push(n_t_id);
         }
     }
 }
@@ -191,39 +206,23 @@ void find_cutting_tets(int                           f_id,
                        std::vector<int>&             cut_t_ids,
                        bool                          is_again)
 {
-    std::vector<bool> is_visited(mesh.tets.size(), false);
-    std::queue<int>   queue_t_ids;
-
+    std::vector<int> seeds;
     if (!is_again) {
-        std::vector<int> n_t_ids;
         for (int j = 0; j < 3; j++) {
-            n_t_ids.insert(n_t_ids.end(),
-                           mesh.tet_vertices[input_faces[f_id][j]].conn_tets.begin(),
-                           mesh.tet_vertices[input_faces[f_id][j]].conn_tets.end());
+            seeds.insert(seeds.end(),
+                         mesh.tet_vertices[input_faces[f_id][j]].conn_tets.begin(),
+                         mesh.tet_vertices[input_faces[f_id][j]].conn_tets.end());
         }
-        vector_unique(n_t_ids);
-
-        for (int t_id : n_t_ids) {
-            is_visited[t_id] = true;
-            queue_t_ids.push(t_id);
-        }
+        vector_unique(seeds);
     }
     else {
         const std::array<Vector3, 3> fps = face_points(input_vertices, input_faces, f_id);
         Vector3                      min_f, max_f;
         get_bbox({fps[0], fps[1], fps[2]}, min_f, max_f);
-        const std::vector<int> bbox_t_ids =
-          tets_overlapping_bbox(mesh, min_f, max_f, [](size_t) { return true; });
-        for (int t_id : bbox_t_ids) {
-            queue_t_ids.push(t_id);
-            is_visited[t_id] = true;
-        }
+        seeds = tets_overlapping_bbox(mesh, min_f, max_f, [](size_t) { return true; });
     }
 
-    while (!queue_t_ids.empty()) {
-        int t_id = queue_t_ids.front();
-        queue_t_ids.pop();
-
+    flood_from_cut(mesh, seeds, [&](int t_id, std::array<bool, 4>& is_cut_vs) {
         if (is_again) {
             bool is_cut = false;
             for (int j = 0; j < 3; j++) {
@@ -238,9 +237,8 @@ void find_cutting_tets(int                           f_id,
             }
             if (is_cut) {
                 cut_t_ids.push_back(t_id);
-                push_unvisited_around_cut_vertices(
-                  mesh, t_id, {{true, true, true, true}}, is_visited, queue_t_ids);
-                continue;
+                is_cut_vs = {{true, true, true, true}};
+                return;
             }
         }
 
@@ -248,8 +246,7 @@ void find_cutting_tets(int                           f_id,
         for (int j = 0; j < 4; j++)
             oris[j] = Predicates::orient_3d(vs[0], vs[1], vs[2], tet_pos(mesh, t_id, j));
 
-        bool                is_cutted = false;
-        std::array<bool, 4> is_cut_vs = {{false, false, false, false}};
+        bool is_cutted = false;
         for (int j = 0; j < 4; j++) {
             const int face_oris[3] = {
               oris[(j + 1) % 4], oris[(j + 2) % 4], oris[(j + 3) % 4]};
@@ -289,9 +286,7 @@ void find_cutting_tets(int                           f_id,
         }
         if (is_cutted)
             cut_t_ids.push_back(t_id);
-
-        push_unvisited_around_cut_vertices(mesh, t_id, is_cut_vs, is_visited, queue_t_ids);
-    }
+    });
 }
 
 bool subdivide_tets(
@@ -485,19 +480,14 @@ bool subdivide_tets(
                           return a.second < b.second;
                       });
 
-            if (min_qualities.back().second < SCALAR_ZERO_3) {
+            if (min_qualities.back().second < SCALAR_ZERO_3)
                 return false;
-            }
 
             diag_config_id = min_qualities.back().first;
             centroids      = all_centroids[diag_config_id];
         }
-        else {
-            Scalar min_q = check_config(diag_config_id, centroids);
-            if (min_q < SCALAR_ZERO_3) {
-                return false;
-            }
-        }
+        else if (check_config(diag_config_id, centroids) < SCALAR_ZERO_3)
+            return false;
 
         for (int i = 0; i < centroids.size(); i++) {
             map_lv_to_v_id[centroids[i].first] = vp_size + i;
@@ -594,15 +584,15 @@ void simplify_subdivision_result(
         freezed_v_ids.insert(edges.back()[1]);
     }
 
-    std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ec_queue;
+    ShortestFirstQueue ec_queue;
     // Collapsing an edge moves its first end onto its second, so an edge goes in once per end that
     // is free to move.
     const auto push_free_ends = [&](int v0_id, int v1_id) {
         Scalar l_2 = get_edge_length_2(mesh, v0_id, v1_id);
         if (freezed_v_ids.find(v0_id) == freezed_v_ids.end())
-            ec_queue.push(ElementInQueue({{v0_id, v1_id}}, l_2));
+            ec_queue.push({{{v0_id, v1_id}}, l_2});
         if (freezed_v_ids.find(v1_id) == freezed_v_ids.end())
-            ec_queue.push(ElementInQueue({{v1_id, v0_id}}, l_2));
+            ec_queue.push({{{v1_id, v0_id}}, l_2});
     };
 
     for (const auto& e : edges)
@@ -844,8 +834,6 @@ bool insert_boundary_edges_get_intersecting_edges_and_points(
     const Vector3& pp = fps[0];
     const Vector3  n  = plane_normal(fps);
 
-    std::vector<bool> is_visited(mesh.tets.size(), false);
-    std::queue<int>   t_ids_queue;
     /// find seed t_ids: the tets already covering one of the faces, plus the tets around the edge
     std::vector<int> t_ids;
     for (int f_id : n_f_ids) {
@@ -870,17 +858,9 @@ bool insert_boundary_edges_get_intersecting_edges_and_points(
         t_ids.insert(t_ids.end(), bbox_t_ids.begin(), bbox_t_ids.end());
     }
     vector_unique(t_ids);
-    for (int t_id : t_ids) {
-        t_ids_queue.push(t_id);
-        is_visited[t_id] = true;
-    }
 
     std::vector<int> v_oris(mesh.tet_vertices.size(), Predicates::ORI_UNKNOWN);
-    while (!t_ids_queue.empty()) {
-        int t_id = t_ids_queue.front();
-        t_ids_queue.pop();
-
-        std::array<bool, 4> is_cut_vs = {{false, false, false, false}};
+    flood_from_cut(mesh, t_ids, [&](int t_id, std::array<bool, 4>& is_cut_vs) {
         for (int j = 0; j < 4; j++) {
             if (track_surface_fs[t_id][j].empty())
                 continue;
@@ -980,8 +960,7 @@ bool insert_boundary_edges_get_intersecting_edges_and_points(
             is_cut_vs[(j + 2) % 4] = true;
             is_cut_vs[(j + 3) % 4] = true;
         }
-        push_unvisited_around_cut_vertices(mesh, t_id, is_cut_vs, is_visited, t_ids_queue);
-    }
+    });
     vector_unique(cut_fs);
 
     std::vector<std::array<int, 2>> tet_edges;
@@ -1222,8 +1201,7 @@ void mark_surface_fs(const std::vector<Vector3>&                   input_vertice
                     mesh.tets[opp_t_id].is_surface_fs[k] = NOT_SURFACE;
                     continue;
                 }
-                else
-                    ff_id = track_surface_fs[t_id][j].front();
+                ff_id = track_surface_fs[t_id][j].front();
             }
             else {
                 if (t.is_surface_fs[j] != NOT_SURFACE || is_visited[t_id][j])
@@ -1243,8 +1221,7 @@ void mark_surface_fs(const std::vector<Vector3>&                   input_vertice
                 if (sample_triangle_and_check_is_out(
                       {{tp1_3d, tp2_3d, tp3_3d}}, dd, eps_2, tree, prev_facet))
                     continue;
-                else
-                    ff_id = track_surface_fs[t_id][j].front();
+                ff_id = track_surface_fs[t_id][j].front();
 
                 if (!get_opp_face(mesh, t_id, j, opp_t_id, k)) {
                     t.is_surface_fs[j] = NOT_SURFACE;

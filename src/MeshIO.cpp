@@ -96,7 +96,7 @@ void write_mesh(const std::string&         path,
         if (mesh.tet_vertices[i].is_removed)
             continue;
         for (int j = 0; j < 3; j++)
-            V_flat[index * 3 + j] = mesh.tet_vertices[i][j];
+            V_flat[index * 3 + j] = mesh.tet_vertices[i].pos[j];
         index++;
     }
 

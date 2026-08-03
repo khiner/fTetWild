@@ -242,25 +242,5 @@ namespace geo {
             }
         }
 
-        /**
-         * \brief Inverts a permutation.
-         * \details Computes the inverse of a given \p permutation and
-         *  stores the result in another one.
-         * \param[in] permutation the permutation to invert
-         * \param[out] invert the computed inverse of \p permutation
-         * \note there is also a variant of invert() that computes the
-         *  permutation in-place.
-         */
-        inline void invert(
-            const vector<index_t>& permutation, vector<index_t>& invert
-        ) {
-            geo_debug_assert(is_valid(permutation));
-            invert.resize(permutation.size());
-            for(index_t i=0; i<permutation.size(); ++i) {
-                invert[permutation[i]] = i;
-            }
-        }
-
     }
 } }
-

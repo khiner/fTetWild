@@ -14,12 +14,14 @@
 #include <initializer_list>
 
 namespace floatTetWild {
-#define CUT_EDGE_0 0
-#define CUT_EDGE_1 1
-#define CUT_EDGE_2 2
-#define CUT_FACE 3
-#define CUT_COPLANAR 4
-#define CUT_EMPTY -1
+    // What is_tri_tri_cutted_hint is asked about, and what it answers. The three edge cases are
+    // 0..2 so that they double as the local edge index.
+    constexpr int CUT_EDGE_0 = 0;
+    constexpr int CUT_EDGE_1 = 1;
+    constexpr int CUT_EDGE_2 = 2;
+    constexpr int CUT_FACE = 3;
+    constexpr int CUT_COPLANAR = 4;
+    constexpr int CUT_EMPTY = -1;
 
     Scalar p_seg_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
 
