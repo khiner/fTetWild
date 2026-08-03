@@ -246,9 +246,9 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     for (int t_id : n1_t_ids) {
         int    j     = js_n1_t_ids[ii++];
         Scalar new_q = get_quality(tet_vertices[v2_id],
-                                   tet_vertices[tets[t_id][mod4(j + 1)]],
-                                   tet_vertices[tets[t_id][mod4(j + 2)]],
-                                   tet_vertices[tets[t_id][mod4(j + 3)]]);
+                                   tet_vertices[tets[t_id][(j + 1) % 4]],
+                                   tet_vertices[tets[t_id][(j + 2) % 4]],
+                                   tet_vertices[tets[t_id][(j + 3) % 4]]);
         if (is_check_quality && new_q > old_max_quality)
             return false;
         new_qs.push_back(new_q);
@@ -280,12 +280,7 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     }
 
     std::vector<int> n1_v_ids;
-    n1_v_ids.reserve(n1_t_ids.size() * 4);
-    for (int t_id : n1_t_ids) {
-        for (int j = 0; j < 4; j++)
-            n1_v_ids.push_back(tets[t_id][j]);
-    }
-    vector_unique(n1_v_ids);
+    collect_tet_vertices(mesh, n1_t_ids, n1_v_ids);
 
     // The marks on the face of a tet that faces one end of the edge.
     struct FaceMarks

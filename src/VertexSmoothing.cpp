@@ -19,7 +19,6 @@ namespace {
 void one_ring_vertex_coloring(const Mesh& mesh, std::vector<int>& colors)
 {
     const auto& tet_vertices = mesh.tet_vertices;
-    const auto& tets         = mesh.tets;
 
     colors.assign(tet_vertices.size(), -1);
     colors[0] = 0;
@@ -34,11 +33,7 @@ void one_ring_vertex_coloring(const Mesh& mesh, std::vector<int>& colors)
             continue;
 
         ring.clear();
-        for (const auto& t : v.conn_tets) {
-            for (int j = 0; j < 4; ++j)
-                ring.push_back(tets[t][j]);
-        }
-        vector_unique(ring);
+        collect_tet_vertices(mesh, v.conn_tets, ring);
 
         for (const auto n : ring) {
             if (colors[n] != -1)
@@ -143,9 +138,9 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
 
         std::array<Scalar, 12> T;
         for (int k = 0; k < loop_ids.size(); k++) {
-            T[k * 3]     = tet_vertices[tets[t_id][(j + loop_ids[k]) % 4]].pos[0];
-            T[k * 3 + 1] = tet_vertices[tets[t_id][(j + loop_ids[k]) % 4]].pos[1];
-            T[k * 3 + 2] = tet_vertices[tets[t_id][(j + loop_ids[k]) % 4]].pos[2];
+            const Vector3& p = tet_pos(mesh, t_id, (j + loop_ids[k]) % 4);
+            for (int c = 0; c < 3; c++)
+                T[k * 3 + c] = p[c];
         }
         Ts.push_back(T);
     }
@@ -301,5 +296,4 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
 
     for (size_t v_id : serial_set)
         smooth_one(v_id);
-
 }

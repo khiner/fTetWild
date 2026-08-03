@@ -23,7 +23,6 @@ namespace floatTetWild {
         void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, Mesh &mesh);
 
         void init_tmp_b_mesh_and_tree(const std::vector<Vector3> &input_vertices,
-                                      const std::vector<Vector3i> &input_faces,
                                       const std::vector<std::array<int, 2>> &b_edges1,
                                       const Mesh &mesh, const std::vector<std::array<int, 2>> &b_edges2);
 
@@ -126,5 +125,4 @@ namespace floatTetWild {
         std::unique_ptr<MeshFacetsAABBWithEps> tmp_b_tree;
         MeshFacetsAABBWithEps sf_tree;
     };
-
 }

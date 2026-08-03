@@ -241,12 +241,11 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
             const int j = moved_corner(f_id);
             if (j < 0)
                 continue;
-            Vector3 old_nv =
-              (input_vertices[input_faces[f_id][1]] - input_vertices[input_faces[f_id][2]])
-                .cross(input_vertices[input_faces[f_id][0]] - input_vertices[input_faces[f_id][2]]);
-            Vector3 new_nv = (input_vertices[input_faces[f_id][mod3(j + 1)]] -
-                              input_vertices[input_faces[f_id][mod3(j + 2)]])
-                               .cross(p - input_vertices[input_faces[f_id][mod3(j + 2)]]);
+            const Vector3i& f = input_faces[f_id];
+            const Vector3 old_nv = tri_normal(
+              input_vertices[f[0]], input_vertices[f[1]], input_vertices[f[2]]);
+            const Vector3 new_nv =
+              tri_normal(p, input_vertices[f[(j + 1) % 3]], input_vertices[f[(j + 2) % 3]]);
             if (old_nv.dot(new_nv) <= 0)
                 return false;
             if (new_nv.norm() / 2 <= SCALAR_ZERO_2)
@@ -259,8 +258,8 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
                 continue;
             const std::array<Vector3, 3> tri = {
               {p,
-               input_vertices[input_faces[f_id][mod3(j + 1)]],
-               input_vertices[input_faces[f_id][mod3(j + 2)]]}};
+               input_vertices[input_faces[f_id][(j + 1) % 3]],
+               input_vertices[input_faces[f_id][(j + 2) % 3]]}};
             if (is_out_envelope(tri, tree, params))
                 return false;
         }
@@ -363,16 +362,16 @@ void swapping(std::vector<Vector3>&                 input_vertices,
         if (n12_f_ids.size() != 2)
             continue;
 
-        std::array<int, 2> n_v_ids = {{-1, -1}};
-        for (int j = 0; j < 3; j++) {
-            if (n_v_ids[0] < 0 && input_faces[n12_f_ids[0]][j] != v1_id &&
-                input_faces[n12_f_ids[0]][j] != v2_id)
-                n_v_ids[0] = input_faces[n12_f_ids[0]][j];
-
-            if (n_v_ids[1] < 0 && input_faces[n12_f_ids[1]][j] != v1_id &&
-                input_faces[n12_f_ids[1]][j] != v2_id)
-                n_v_ids[1] = input_faces[n12_f_ids[1]][j];
-        }
+        // The first corner of each face that is off the edge.
+        const auto corner_off_edge = [&](int f_id) {
+            for (int j = 0; j < 3; j++) {
+                if (input_faces[f_id][j] != v1_id && input_faces[f_id][j] != v2_id)
+                    return input_faces[f_id][j];
+            }
+            return -1;
+        };
+        const std::array<int, 2> n_v_ids = {
+          {corner_off_edge(n12_f_ids[0]), corner_off_edge(n12_f_ids[1])}};
 
         Scalar cos_a0 =
           get_angle_cos(input_vertices[n_v_ids[0]], input_vertices[v1_id], input_vertices[v2_id]);
@@ -380,10 +379,9 @@ void swapping(std::vector<Vector3>&                 input_vertices,
           get_angle_cos(input_vertices[n_v_ids[1]], input_vertices[v1_id], input_vertices[v2_id]);
         std::array<Vector3, 2> old_nvs;
         for (int f = 0; f < 2; f++) {
-            auto& a    = input_vertices[input_faces[n12_f_ids[f]][0]];
-            auto& b    = input_vertices[input_faces[n12_f_ids[f]][1]];
-            auto& c    = input_vertices[input_faces[n12_f_ids[f]][2]];
-            old_nvs[f] = ((b - c).cross(a - c)).normalized();
+            const Vector3i& fv = input_faces[n12_f_ids[f]];
+            old_nvs[f] = tri_normal(input_vertices[fv[0]], input_vertices[fv[1]],
+                                    input_vertices[fv[2]]).normalized();
         }
         if (cos_a0 > -0.999) {                          // maybe it's for avoiding numerical issue
             if (old_nvs[0].dot(old_nvs[1]) < 1 - 1e-6)  // not coplanar
@@ -423,7 +421,6 @@ void swapping(std::vector<Vector3>&                 input_vertices,
         conn_fs[n_v_ids[0]].insert(n12_f_ids[1]);
         conn_fs[n_v_ids[1]].insert(n12_f_ids[0]);
         cnt++;
-
     }
 
     logger().debug("{}  faces are swapped!!", cnt);

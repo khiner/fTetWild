@@ -40,7 +40,7 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
         if (mesh.tets[i].is_removed)
             continue;
         for (int j = 0; j < 4; j++)
-            C.row(index) += mesh.tet_vertices[mesh.tets[i][j]].pos.cast<double>();
+            C.row(index) += tet_pos(mesh, i, j).cast<double>();
         C.row(index) /= 4.0;
         index++;
     }
@@ -239,7 +239,6 @@ void drop_isolated_vertices(Mesh &mesh) {
         v.is_removed = is_remove;
     }
 }
-
 
 // Steps of the optimization loop and the manifold fix-ups. Everything above and below is
 // reached only from this file; MeshImprovement.h carries the entry points.
@@ -586,24 +585,11 @@ void manifold_edges(Mesh& mesh) {
             }
         }
 
-        get_new_tet_slots(mesh, old_t_ids.size(), new_t_ids);
-        for (int t_id: new_t_ids)
-            tets[t_id].reset();
-
+        split_tets_at(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
         for (int i = 0; i < old_t_ids.size(); i++) {
-            tets[new_t_ids[i]] = tets[old_t_ids[i]];
-            for (int j = 0; j < 4; j++) {
-                if (tets[old_t_ids[i]][j] == v1_id)
-                    tets[old_t_ids[i]][j] = v_id;
-
-                if (tets[new_t_ids[i]][j] == v2_id)
-                    tets[new_t_ids[i]][j] = v_id;
-            }
             tets[new_t_ids[i]].quality = get_quality(mesh, new_t_ids[i]);
             tets[old_t_ids[i]].quality = get_quality(mesh, old_t_ids[i]);
         }
-
-        relink_split_tets(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
 
         return v_id;
     };
@@ -727,7 +713,7 @@ void init(Mesh &mesh) {
             if (!on_surface && !on_bbox)
                 continue;
             for (int k = 1; k < 4; k++) {
-                auto &v = mesh.tet_vertices[t[mod4(j + k)]];
+                auto &v = mesh.tet_vertices[t[(j + k) % 4]];
                 v.is_on_surface = v.is_on_surface || on_surface;
                 v.is_on_bbox = v.is_on_bbox || on_bbox;
             }
@@ -877,7 +863,6 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
             if (quality_queue[it][0] - quality_queue[it - N][0] >= SCALAR_ZERO
                 && quality_queue[it][1] - quality_queue[it - N][1] >= SCALAR_ZERO)
                 break;
-
         }
     }
 
@@ -888,7 +873,6 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
     if(mesh.params.coarsen){
         apply_coarsening(mesh, tree);
     }
-
 }
 
 void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_sf, int c_id) {
@@ -956,8 +940,8 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
                 continue;
             }
             is_visited[opp_t_id][k] = true;
-            Vector3 c = (mesh.tet_vertices[t[(j + 1) % 4]].pos + mesh.tet_vertices[t[(j + 2) % 4]].pos +
-                         mesh.tet_vertices[t[(j + 3) % 4]].pos) / 3;
+            Vector3 c = (tet_pos(mesh, t_id, (j + 1) % 4) + tet_pos(mesh, t_id, (j + 2) % 4) +
+                         tet_pos(mesh, t_id, (j + 3) % 4)) / 3;
             int f_id = tree.get_nearest_face_sf(c);
             const auto &fv1 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 0));
             const auto &fv2 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 1));
@@ -1014,9 +998,7 @@ void floatTetWild::boolean_operation(Mesh&                                     m
 }
 
 void floatTetWild::boolean_operation(Mesh& mesh, int op){
-    const int OP_UNION = 0;
-    const int OP_INTERSECTION = 1;
-    const int OP_DIFFERENCE = 2;
+    enum { OP_UNION = 0, OP_INTERSECTION = 1, OP_DIFFERENCE = 2 };
 
     const MatrixXd C = tet_barycenters(mesh);
     const auto tracked_surface_wn = [&](int c_id) {
@@ -1032,14 +1014,15 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
     for (auto &t : mesh.tets) {
         if(t.is_removed)
             continue;
-        const bool out1 = w1(cnt) <= 0.5;
-        const bool out2 = w2(cnt) <= 0.5;
-        if ((op == OP_UNION && out1 && out2) || (op == OP_INTERSECTION && (out1 || out2)) ||
-            (op == OP_DIFFERENCE && (out1 || !out2)))
-            t.is_removed = true;
+        const bool in1 = w1(cnt) > 0.5;
+        const bool in2 = w2(cnt) > 0.5;
+        // Anything else the command line let through keeps every tet, as it always has.
+        t.is_removed = !(op == OP_UNION        ? in1 || in2
+                       : op == OP_INTERSECTION ? in1 && in2
+                       : op == OP_DIFFERENCE   ? in1 && !in2
+                                               : true);
         cnt++;
     }
-
 }
 
 void floatTetWild::filter_outside(Mesh& mesh, const MatrixXs& V, const MatrixXi& F) {
@@ -1169,9 +1152,9 @@ void floatTetWild::smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree) {
                         is_valid = false;
                         break;
                     }
-                    if (get_quality(p, tet_vertices[tets[t_id][(j + 1) % 4]].pos,
-                                    tet_vertices[tets[t_id][(j + 2) % 4]].pos,
-                                    tet_vertices[tets[t_id][(j + 3) % 4]].pos) > mesh.params.stop_energy) {
+                    if (get_quality(p, tet_pos(mesh, t_id, (j + 1) % 4),
+                                    tet_pos(mesh, t_id, (j + 2) % 4),
+                                    tet_pos(mesh, t_id, (j + 3) % 4)) > mesh.params.stop_energy) {
                         is_valid = false;
                         break;
                     }
@@ -1289,5 +1272,4 @@ void floatTetWild::manifold_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
         }
         conn_f4v.push_back(f_groups[0]);
     }
-
 }

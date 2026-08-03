@@ -10,7 +10,6 @@
 
 #include <floattetwild/Types.hpp>
 
-
 #include <floattetwild/Logger.hpp>
 
 namespace floatTetWild {
@@ -21,7 +20,6 @@ namespace floatTetWild {
         std::string output_path = "";
         std::string tag_path = "";
         std::string postfix = "";
-
 
         bool not_sort_input = false;
         bool is_quiet = false;

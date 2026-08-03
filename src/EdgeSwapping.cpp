@@ -195,56 +195,46 @@ bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
 
     bool is_valid = false;
     std::vector<Vector4i> new_tets;
-    new_tets.reserve(4);
-    std::vector<int> tags;
     std::array<int, 2> v_ids;
     std::vector<Scalar> new_qs;
     Scalar old_max_quality = get_max_quality(mesh, old_t_ids);
     Scalar new_max_quality = 0;
+    // The two candidate diagonals. Either loop below stopping short means the diagonal is out,
+    // which is what the size checks after them say.
     for (int i = 0; i < 2; i++) {
+        const std::array<int, 2> tmp_v_ids = {{n12_v_ids[i], n12_v_ids[2 + i]}};
+
         std::vector<Vector4i> tmp_new_tets;
-        std::vector<int> tmp_tags;
-        const std::array<int, 2> tmp_v_ids = {{n12_v_ids[0 + i], n12_v_ids[2 + i]}};
-        bool is_break = false;
-        for (int j = 0; j < old_t_ids.size(); j++) {
-            auto t = tets[old_t_ids[j]];
-            int ii = t.find(tmp_v_ids[0]);
-            if (ii >= 0) {
-                int jt = t.find(v2_id);
-                t[jt] = tmp_v_ids[1];
-                tmp_tags.push_back(1);
-            } else {
-                int jt = t.find(v1_id);
-                t[jt] = tmp_v_ids[0];
-                tmp_tags.push_back(0);
-            }
-            if (is_inverted(mesh, t)) {
-                is_break = true;
+        for (int t_id : old_t_ids) {
+            // A tet that already has the diagonal's first end gives up its v2 corner to the
+            // second end; one that does not gives up its v1 corner to the first.
+            MeshTet t = tets[t_id];
+            if (t.find(tmp_v_ids[0]) >= 0)
+                t[t.find(v2_id)] = tmp_v_ids[1];
+            else
+                t[t.find(v1_id)] = tmp_v_ids[0];
+            if (is_inverted(mesh, t))
                 break;
-            }
             tmp_new_tets.push_back(t.indices);
         }
-        if (is_break)
+        if (tmp_new_tets.size() != old_t_ids.size())
             continue;
 
         std::vector<Scalar> tmp_new_qs;
         for (auto &t: tmp_new_tets) {
             Scalar q = get_quality(mesh, t);
-            if (q >= old_max_quality) {
-                is_break = true;
+            if (q >= old_max_quality)
                 break;
-            }
             if (q > new_max_quality)
                 new_max_quality = q;
             tmp_new_qs.push_back(q);
         }
-        if (is_break)
+        if (tmp_new_qs.size() != tmp_new_tets.size())
             continue;
 
         is_valid = true;
         old_max_quality = new_max_quality;
         new_tets = tmp_new_tets;
-        tags = tmp_tags;
         new_qs = tmp_new_qs;
         v_ids = tmp_v_ids;
     }
@@ -256,13 +246,11 @@ bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
         marks.record(tets[t_id], v1_id, v2_id);
 
     for (int j = 0; j < new_tets.size(); j++) {
-        if (tags[j] == 0) {
-            vector_erase(tet_vertices[v1_id].conn_tets, old_t_ids[j]);
-            tet_vertices[v_ids[0]].conn_tets.push_back(old_t_ids[j]);
-        } else {
-            vector_erase(tet_vertices[v2_id].conn_tets, old_t_ids[j]);
-            tet_vertices[v_ids[1]].conn_tets.push_back(old_t_ids[j]);
-        }
+        // Which end of the edge this tet gave up, read off the old tet, which is still in place
+        // here, so it is the same side it was rebuilt on above.
+        const int gave_up = tets[old_t_ids[j]].find(v_ids[0]) >= 0 ? 1 : 0;
+        vector_erase(tet_vertices[gave_up == 0 ? v1_id : v2_id].conn_tets, old_t_ids[j]);
+        tet_vertices[v_ids[gave_up]].conn_tets.push_back(old_t_ids[j]);
         tets[old_t_ids[j]].indices = new_tets[j];
         tets[old_t_ids[j]].quality = new_qs[j];
     }
@@ -362,9 +350,9 @@ bool remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
     for (int t_id : old_t_ids)
         marks.record(tets[t_id], v1_id, v2_id);
 
+    // Every slot below, the freshly claimed one included, is overwritten outright.
     std::vector<int> new_t_ids = old_t_ids;
     get_new_tet_slots(mesh, 1, new_t_ids);
-    tets[new_t_ids.back()].reset();
 
     for (int i = 0; i < 2; i++) {
         tets[new_t_ids[i]] = new_tets[(selected_id + 1) % 5][i];

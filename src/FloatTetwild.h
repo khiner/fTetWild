@@ -34,5 +34,4 @@ int tetrahedralization(AABBWrapper&           tree,
                        std::vector<int>&      input_tags,
                        Mesh&                  mesh,
                        bool                   skip_simplify = false);
-
 }

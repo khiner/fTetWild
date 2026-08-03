@@ -8,11 +8,9 @@
 
 #pragma once
 
-
 #include <floattetwild/Matrix.hpp>
 
 #include <vector>
-
 
 namespace floatTetWild {
 #ifdef FLOAT_TETWILD_USE_FLOAT
@@ -38,10 +36,18 @@ namespace floatTetWild {
     typedef Vector<Scalar, 3> Vector3;
     typedef Vector<Scalar, 2> Vector2;
 
-
     typedef Vector<int, 4> Vector4i;
     typedef Vector<int, 3> Vector3i;
     typedef Vector<int, 2> Vector2i;
+
+    // The normal of the triangle abc, not normalised and wound away from c. Callers that only look
+    // at a length, a sign or a ratio use it as it is.
+    //
+    // Not the only way to spell this: (b - a).cross(c - a) is the same normal and a different
+    // double, and the plane fitting in TriangleInsertion needs that one. The two are kept apart.
+    inline Vector3 tri_normal(const Vector3& a, const Vector3& b, const Vector3& c) {
+        return (b - c).cross(a - c);
+    }
 
     // A list of points or faces as a matrix with one row each, which is the form the surface
     // cleanup and the winding number take.

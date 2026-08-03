@@ -16,18 +16,10 @@
 namespace floatTetWild {
 namespace {
 
-// Sort each row of a #X by 2 matrix ascending. igl::sort dispatched on the inner dimension and
-// returned the permutation too; orientable_patches, the one caller, always passes dim 2 and
-// discards the permutation.
-void sort2(const MatrixXi& X, MatrixXi& Y)
+void sort_unique(std::vector<int>& v)
 {
-    assert(X.cols() == 2);
-    Y = X;
-    for (int i = 0; i < X.rows(); i++) {
-        if (Y(i, 0) > Y(i, 1)) {
-            std::swap(Y(i, 0), Y(i, 1));
-        }
-    }
+    std::sort(v.begin(), v.end());
+    v.erase(std::unique(v.begin(), v.end()), v.end());
 }
 
 // Compute connected components of a graph. libigl walked a sparse adjacency matrix column by
@@ -84,16 +76,16 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
     assert(F.cols() == 3);
     const int nf = F.rows();
 
-    // List of all "half"-edges: 3*#F by 2
-    MatrixXi allE(nf * 3, 2);
+    // All "half"-edges, each with its two ends ascending: 3*#F by 2
+    MatrixXi sortallE(nf * 3, 2);
     for (int f = 0; f < nf; f++) {
         for (int e = 0; e < 3; e++) {
-            allE(e * nf + f, 0) = F(f, (e + 1) % 3);
-            allE(e * nf + f, 1) = F(f, (e + 2) % 3);
+            const int a = F(f, (e + 1) % 3);
+            const int b = F(f, (e + 2) % 3);
+            sortallE(e * nf + f, 0) = std::min(a, b);
+            sortallE(e * nf + f, 1) = std::max(a, b);
         }
     }
-    MatrixXi sortallE;
-    sort2(allE, sortallE);
     // IC(i) tells us where to find sortallE(i,:) in uE:
     // so that sortallE(i,:) = uE(IC(i),:)
     MatrixXi uE, IA, IC;
@@ -104,10 +96,8 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
     for (int e = 0; e < IC.rows(); e++) {
         edge_faces[IC(e)].push_back(e % nf);
     }
-    for (auto& faces : edge_faces) {
-        std::sort(faces.begin(), faces.end());
-        faces.erase(std::unique(faces.begin(), faces.end()), faces.end());
-    }
+    for (auto& faces : edge_faces)
+        sort_unique(faces);
 
     A.assign(nf, std::vector<int>());
     for (const auto& faces : edge_faces) {
@@ -119,10 +109,8 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
                 if (i != j)
                     A[faces[i]].push_back(faces[j]);
     }
-    for (auto& neighbours : A) {
-        std::sort(neighbours.begin(), neighbours.end());
-        neighbours.erase(std::unique(neighbours.begin(), neighbours.end()), neighbours.end());
-    }
+    for (auto& neighbours : A)
+        sort_unique(neighbours);
 
     vertex_components(A, C);
 }

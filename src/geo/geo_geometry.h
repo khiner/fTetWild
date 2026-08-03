@@ -1,7 +1,9 @@
 // Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
 // Source: geogram/basic/geometry.h
-// Copied rather than reimplemented: vec3, Box and the Geom helpers, unchanged
+// Copied rather than reimplemented: vec3 and Box, unchanged. The Geom helpers that lived here as
+// well, tetra_signed_volume in both its shapes, had no caller and are gone; what is left of Geom
+// is in geo_geometry_nd.h.
 
 #pragma once
 
@@ -20,52 +22,6 @@ namespace geo {
      * \details Syntax is (mostly) compatible with GLSL.
      */
     typedef vecng<3, Numeric::float64> vec3;
-
-    /************************************************************************/
-
-    /**
-     * \brief Geometric functions and utilities.
-     */
-    namespace Geom {
-
-        /**
-         * \brief Computes the signed volume of a 3d tetrahedron
-         * \param[in] p1 first vertex of the tetrahedron
-         * \param[in] p2 second vertex of the tetrahedron
-         * \param[in] p3 third vertex of the tetrahedron
-         * \param[in] p4 fourth vertex of the tetrahedron
-         * \return the signed volume of the tetrahedron
-         *  (\p p1, \p p2, \p p3, \p p4)
-         */
-        inline double tetra_signed_volume(
-            const vec3& p1, const vec3& p2,
-            const vec3& p3, const vec3& p4
-        ) {
-            return dot(p2 - p1, cross(p3 - p1, p4 - p1)) / 6.0;
-        }
-
-        /**
-         * \brief Computes the signed volume of a 3d tetrahedron
-         * \param[in] p1 first vertex of the tetrahedron
-         * \param[in] p2 second vertex of the tetrahedron
-         * \param[in] p3 third vertex of the tetrahedron
-         * \param[in] p4 fourth vertex of the tetrahedron
-         * \return the signed volume of the tetrahedron
-         *  (\p p1, \p p2, \p p3, \p p4)
-         */
-        inline double tetra_signed_volume(
-            const double* p1, const double* p2,
-            const double* p3, const double* p4
-        ) {
-            return tetra_signed_volume(
-                *reinterpret_cast<const vec3*>(p1),
-                *reinterpret_cast<const vec3*>(p2),
-                *reinterpret_cast<const vec3*>(p3),
-                *reinterpret_cast<const vec3*>(p4)
-            );
-        }
-
-    }
 
     /*******************************************************************/
 

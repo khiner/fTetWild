@@ -51,27 +51,18 @@ bool split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repush,
     }
 
     std::vector<int> new_t_ids;
-    get_new_tet_slots(mesh, old_t_ids.size(), new_t_ids);
-    for(int t_id: new_t_ids)
-        tets[t_id].reset();
+    split_tets_at(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
 
-    // Each old tet keeps its v1 end and each new copy keeps its v2 end, with the other end moved
-    // onto the new vertex. The face opposite the end that was moved away is new, so its marks go.
-    const auto move_end = [&](MeshTet &t, int moved_v_id, int dropped_v_id) {
-        for (int j = 0; j < 4; j++) {
-            if (t[j] == moved_v_id)
-                t[j] = v_id;
-            else if (t[j] == dropped_v_id)
-                clear_face_marks(t, j);
-        }
-        t.scalar = TET_MODIFIED;  // marks it for a quality update
+    // The face opposite the end each half gave away is new, so its marks go, and both halves are
+    // marked for a quality update.
+    const auto finish = [&](int t_id, int dropped_v_id) {
+        clear_face_marks(tets[t_id], tets[t_id].find(dropped_v_id));
+        tets[t_id].scalar = TET_MODIFIED;
     };
     for (int i = 0; i < old_t_ids.size(); i++) {
-        tets[new_t_ids[i]] = tets[old_t_ids[i]];
-        move_end(tets[old_t_ids[i]], v1_id, v2_id);
-        move_end(tets[new_t_ids[i]], v2_id, v1_id);
+        finish(old_t_ids[i], v2_id);
+        finish(new_t_ids[i], v1_id);
     }
-    relink_split_tets(mesh, v_id, v1_id, v2_id, old_t_ids, new_t_ids);
 
     if(mesh.tets.size()!=is_splittable.size())
         is_splittable.resize(mesh.tets.size(), true);

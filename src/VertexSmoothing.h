@@ -12,7 +12,6 @@
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/AABBWrapper.h>
 
-
 namespace floatTetWild {
     void vertex_smoothing(Mesh& mesh, const AABBWrapper& tree);
 }

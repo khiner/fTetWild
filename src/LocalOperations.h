@@ -18,8 +18,10 @@
 namespace floatTetWild {
     extern bool use_old_energy;
 
-    inline int mod4(int j) { return j % 4; }
-    inline int mod3(int j) { return j % 3; }
+    // The position of corner j of tet t_id.
+    inline const Vector3& tet_pos(const Mesh& mesh, int t_id, int j) {
+        return mesh.tet_vertices[mesh.tets[t_id][j]].pos;
+    }
 
     int get_opp_t_id(const Mesh& mesh, int t_id, int j);
     inline int get_local_f_id(int t_id, int v1_id, int v2_id, int v3_id, const Mesh &mesh) {
@@ -50,10 +52,10 @@ namespace floatTetWild {
     // The normal of face j of tet t_id, pointing away from the corner the face is opposite to.
     // Not normalised: the callers either normalise it or only look at the sign of a dot product.
     inline Vector3 get_face_normal(const Mesh& mesh, int t_id, int j) {
-        const Vector3& v1 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 1)]].pos;
-        const Vector3& v2 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 2)]].pos;
-        const Vector3& v3 = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 3)]].pos;
-        if (Predicates::orient_3d(v1, v2, v3, mesh.tet_vertices[mesh.tets[t_id][j]].pos) ==
+        const Vector3& v1 = tet_pos(mesh, t_id, (j + 1) % 4);
+        const Vector3& v2 = tet_pos(mesh, t_id, (j + 2) % 4);
+        const Vector3& v3 = tet_pos(mesh, t_id, (j + 3) % 4);
+        if (Predicates::orient_3d(v1, v2, v3, tet_pos(mesh, t_id, j)) ==
             Predicates::ORI_POSITIVE)
             return (v2 - v1).cross(v3 - v1);
         return (v3 - v1).cross(v2 - v1);
@@ -74,7 +76,7 @@ namespace floatTetWild {
     // The three corners of face j of a tet, in the local order that winds away from corner j.
     template<typename Tet>
     std::array<int, 3> face_corners(const Tet& t, int j) {
-        return {{t[mod4(j + 1)], t[mod4(j + 2)], t[mod4(j + 3)]}};
+        return {{t[(j + 1) % 4], t[(j + 2) % 4], t[(j + 3) % 4]}};
     }
 
     // The same three, ascending, so a face has one spelling wherever it is collected.
@@ -90,7 +92,7 @@ namespace floatTetWild {
     void push_tet_edges(const Tet& t, std::vector<std::array<int, 2>>& out) {
         for (int j = 0; j < 3; j++) {
             out.push_back(sorted_edge(t[0], t[j + 1]));
-            out.push_back(sorted_edge(t[j + 1], t[mod3(j + 1) + 1]));
+            out.push_back(sorted_edge(t[j + 1], t[(j + 1) % 3 + 1]));
         }
     }
 
@@ -141,11 +143,11 @@ namespace floatTetWild {
 
     void get_new_tet_slots(Mesh& mesh, int n, std::vector<int>& new_conn_tets);
     int get_new_vertex_slot(Mesh& mesh, const MeshVertex& v);
-    void relink_split_tets(Mesh& mesh, int v_id, int v1_id, int v2_id,
-                           const std::vector<int>& old_t_ids, const std::vector<int>& new_t_ids);
+    void split_tets_at(Mesh& mesh, int v_id, int v1_id, int v2_id,
+                       const std::vector<int>& old_t_ids, std::vector<int>& new_t_ids);
 
     inline Scalar get_area(const Vector3& a, const Vector3& b, const Vector3& c) {
-        return ((b - c).cross(a - c)).norm();
+        return tri_normal(a, b, c).norm();
     }
 
     template<typename T>
@@ -181,6 +183,17 @@ namespace floatTetWild {
         out.reserve(out.size() + t_ids.size() * 6);
         for (int t_id : t_ids)
             push_tet_edges(mesh.tets[t_id], out);
+        vector_unique(out);
+    }
+
+    // The corners of the given tets, each once, ascending.
+    inline void collect_tet_vertices(const Mesh& mesh, const std::vector<int>& t_ids,
+                                     std::vector<int>& out) {
+        out.reserve(out.size() + t_ids.size() * 4);
+        for (int t_id : t_ids) {
+            for (int j = 0; j < 4; j++)
+                out.push_back(mesh.tets[t_id][j]);
+        }
         vector_unique(out);
     }
 
@@ -225,6 +238,5 @@ namespace floatTetWild {
     void AMIPS_jacobian(const std::array<Scalar, 12>& T, Vector3& result_0);
     void AMIPS_hessian(const std::array<Scalar, 12>& T, Matrix3& result_0);
 }
-
 
 #endif //FLOATTETWILD_LOCALOPERATIONS_H

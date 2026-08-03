@@ -215,7 +215,7 @@ bool floatTetWild::is_inverted(const Mesh& mesh, int t_id, int j, const Vector3&
 {
     const Vector3* ps[4];
     for (int k = 0; k < 4; k++)
-        ps[k] = k == j ? &new_p : &mesh.tet_vertices[mesh.tets[t_id][k]].pos;
+        ps[k] = k == j ? &new_p : &tet_pos(mesh, t_id, k);
     return is_inverted(*ps[0], *ps[1], *ps[2], *ps[3]);
 }
 
@@ -297,10 +297,8 @@ bool floatTetWild::is_out_envelope(Mesh&              mesh,
             if (mesh.tets[t_id][j] != v_id && mesh.tets[t_id].is_surface_fs[j] <= 0) {
                 std::array<Vector3, 3> vs;
                 for (int k = 0; k < 3; k++) {
-                    if (mesh.tets[t_id][mod4(j + 1 + k)] == v_id)
-                        vs[k] = new_pos;
-                    else
-                        vs[k] = mesh.tet_vertices[mesh.tets[t_id][mod4(j + 1 + k)]].pos;
+                    const int lv = (j + 1 + k) % 4;
+                    vs[k] = mesh.tets[t_id][lv] == v_id ? new_pos : tet_pos(mesh, t_id, lv);
                 }
                 if (sample_triangle_and_check_is_out(
                       vs, mesh.params.dd, mesh.params.eps_2, tree, prev_facet))
@@ -326,7 +324,7 @@ bool walk_triangle_samples(const std::array<Vector3, 3>& vs, Scalar sampling_dis
 
     std::array<Scalar, 3> ls;
     for (int i = 0; i < 3; i++)
-        ls[i] = (vs[i] - vs[mod3(i + 1)]).squaredNorm();
+        ls[i] = (vs[i] - vs[(i + 1) % 3]).squaredNorm();
     // minmax_element, not max_element: on a tie it picks the last of the equal lengths, and which
     // corner the lattice starts from decides the samples.
     const int max_i = std::minmax_element(ls.begin(), ls.end()).second - ls.begin();
@@ -343,8 +341,8 @@ bool walk_triangle_samples(const std::array<Vector3, 3>& vs, Scalar sampling_dis
         N -= 1;
 
     const geo::vec3 v0 = to_geo_p(vs[max_i]);
-    const geo::vec3 v1 = to_geo_p(vs[mod3(max_i + 1)]);
-    const geo::vec3 v2 = to_geo_p(vs[mod3(max_i + 2)]);
+    const geo::vec3 v1 = to_geo_p(vs[(max_i + 1) % 3]);
+    const geo::vec3 v2 = to_geo_p(vs[(max_i + 2) % 3]);
 
     const geo::vec3 n_v0v1 = geo::normalize(v1 - v0);
     for (int n = 0; n <= N; n++) {
@@ -394,7 +392,7 @@ bool walk_triangle_samples(const std::array<Vector3, 3>& vs, Scalar sampling_dis
     const std::array<geo::vec3, 2> from = {{v1, v2}};
     const std::array<geo::vec3, 2> dir  = {{n_v1v2, geo::normalize(v0 - v2)}};
     for (int e = 0; e < 2; e++) {
-        N = sqrt(ls[mod3(max_i + 1 + e)]) / sampling_dist;
+        N = sqrt(ls[(max_i + 1 + e) % 3]) / sampling_dist;
         if (N <= 1)
             continue;
         if (N == int(N))
@@ -469,18 +467,31 @@ int floatTetWild::get_new_vertex_slot(Mesh& mesh, const MeshVertex& v)
     return v_id;
 }
 
-// After a split has duplicated each tet of old_t_ids into new_t_ids, hand the connectivity over:
-// the new vertex joins both halves, v1_id keeps only the new copies, and the corners that are on
-// neither end of the split edge gain them.
-void floatTetWild::relink_split_tets(Mesh&                   mesh,
-                                     int                     v_id,
-                                     int                     v1_id,
-                                     int                     v2_id,
-                                     const std::vector<int>& old_t_ids,
-                                     const std::vector<int>& new_t_ids)
+// Splits every tet around the edge in two. Each old tet keeps its v1 end and a fresh copy of it
+// keeps its v2 end, with the other end moved onto v_id, and new_t_ids comes back holding the
+// copies. Then the connectivity is handed over: the new vertex joins both halves, v1_id keeps only
+// the new copies, and the corners on neither end of the split edge gain them.
+//
+// The marks the two halves inherit are the caller's to fix up: the face opposite the end each half
+// gave away is new.
+void floatTetWild::split_tets_at(Mesh&                   mesh,
+                                 int                     v_id,
+                                 int                     v1_id,
+                                 int                     v2_id,
+                                 const std::vector<int>& old_t_ids,
+                                 std::vector<int>&       new_t_ids)
 {
     auto& tet_vertices = mesh.tet_vertices;
     auto& tets         = mesh.tets;
+
+    get_new_tet_slots(mesh, old_t_ids.size(), new_t_ids);
+    for (int i = 0; i < old_t_ids.size(); i++) {
+        MeshTet& old_t = tets[old_t_ids[i]];
+        MeshTet& new_t = tets[new_t_ids[i]];
+        new_t          = old_t;
+        old_t[old_t.find(v1_id)] = v_id;
+        new_t[new_t.find(v2_id)] = v_id;
+    }
 
     auto& conn = tet_vertices[v_id].conn_tets;
     conn.insert(conn.end(), old_t_ids.begin(), old_t_ids.end());

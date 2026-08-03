@@ -80,7 +80,6 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
 }
 
 void AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vector3>&            input_vertices,
-                                           const std::vector<Vector3i>&           input_faces,
                                            const std::vector<std::array<int, 2>>& b_edges1,
                                            const Mesh&                            mesh,
                                            const std::vector<std::array<int, 2>>& b_edges2)

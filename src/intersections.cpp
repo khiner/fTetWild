@@ -157,7 +157,7 @@ bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2
 
 // The axis the triangle's normal leans on most, which is the one to drop when flattening to 2d.
 int floatTetWild::get_t(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2) {
-    Vector3 n = (p1 - p2).cross(p0 - p2);
+    Vector3 n = tri_normal(p0, p1, p2);
     Scalar max = 0;
     int t = 0;
     for (int i = 0; i < 3; i++) {

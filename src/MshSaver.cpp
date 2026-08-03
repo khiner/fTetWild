@@ -1,42 +1,14 @@
 /* This file is part of PyMesh. Copyright (c) 2015 by Qingnan Zhou */
 #include <floattetwild/MshSaver.h>
 
+#include <array>
 #include <cassert>
-#include <exception>
 #include <iostream>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 
-// PyMesh's exception hierarchy, which only this file ever threw. Its RuntimeError is unreached and
-// stays behind.
-namespace PyMesh {
-
-class PyMeshException : public std::exception {
-public:
-    PyMeshException(const std::string& description) :
-            exception(), m_description(description) {}
-    virtual ~PyMeshException() throw() {}
-
-public:
-    virtual const char* what() const throw() {
-        return m_description.c_str();
-    }
-
-private:
-    std::string m_description;
-};
-
-class IOError : public PyMeshException {
-public:
-    IOError(const std::string& description) :
-            PyMeshException(description) {}
-    virtual ~IOError() throw() {}
-};
-
-}  // namespace PyMesh
-
 namespace floatTetWild {
-using namespace PyMesh;
+namespace PyMesh {
 
 // Gmsh's element type for a 4-node tetrahedron.
 static const int TetElementType = 4;
@@ -50,11 +22,8 @@ MshSaver::MshSaver(const std::string& filename, bool binary) :
     } else {
         fout.open(filename.c_str(), std::fstream::binary);
     }
-    if (!fout) {
-        std::stringstream err_msg;
-        err_msg << "Error opening " << filename << " to write msh file." << std::endl;
-        throw ::PyMesh::IOError(err_msg.str());
-    }
+    if (!fout)
+        throw std::runtime_error("Error opening " + filename + " to write msh file.");
 }
 
 MshSaver::~MshSaver() {
@@ -87,14 +56,14 @@ void MshSaver::save_nodes(const VectorF& nodes) {
     fout << "$Nodes" << std::endl;
     fout << m_num_nodes << std::endl;
     for (size_t i=0; i<nodes.size(); i+=Dim) {
-        const VectorF& v = nodes.segment(i,Dim);
+        const Float* v = &nodes[i];
         int node_idx = i/Dim+1;
 
         if (!m_binary) {
             fout << node_idx << " " << v[0] << " " << v[1] << " " << v[2] << std::endl;
         } else {
             fout.write((char*)&node_idx, sizeof(int));
-            fout.write((char*)v.data(), sizeof(Float)*Dim);
+            fout.write((char*)v, sizeof(Float)*Dim);
         }
     }
     fout << "$EndNodes" << std::endl;
@@ -118,8 +87,8 @@ void MshSaver::save_elements(const VectorI& elements, const VectorI& components)
         }
         for (size_t i=0; i<elements.size(); i+=NodesPerTet) {
             int elem_num = i/NodesPerTet + 1;
-            VectorI elem = elements.segment(i, NodesPerTet);
-            for (size_t j=0; j<NodesPerTet; j++) elem[j] += 1;
+            std::array<int, NodesPerTet> elem;
+            for (size_t j=0; j<NodesPerTet; j++) elem[j] = elements[i+j] + 1;
 
             if (!m_binary) {
                 fout << elem_num << " " << elem_type << " " << tags << " ";
@@ -179,5 +148,5 @@ void MshSaver::save_elem_scalar_field(const std::string& fieldname, const Vector
     save_field("ElementData", m_num_elements, fieldname, field);
 }
 
-
-}
+}  // namespace PyMesh
+}  // namespace floatTetWild

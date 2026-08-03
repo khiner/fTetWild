@@ -13,7 +13,6 @@
 
 #include <map>
 
-
 namespace floatTetWild {
 
 namespace {

@@ -1,7 +1,12 @@
 // Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
 // Source: geogram/numerics/multi_precision.h
-// Copied rather than reimplemented: Shewchuk expansion arithmetic, unchanged
+// Copied rather than reimplemented: Shewchuk expansion arithmetic, arithmetic unchanged
+//
+// Trimmed to the entry points the mesher reaches: gone are compare(), is_same_as(), optimize() and
+// compress_expansion(), sign_of_expansion_determinant(), grow_expansion_zeroelim() and the sum and
+// difference of an expansion with a double. The expansion constructor is explicit here, which
+// upstream's is not -- see the note on it.
 
 #pragma once
 
@@ -280,8 +285,13 @@ namespace geo {
      *  and capacity. Note that it should be created with enough space,
      *  using placement syntax of operator new.
      * \param[in] capa the capacity
+     *
+     * explicit, unlike upstream. Without it a double converts to an expansion of that many
+     * components, so dropping any assign_xxx(const expansion&, double) overload silently rebinds
+     * its callers to the (expansion, expansion) one and the exact arithmetic quietly goes wrong
+     * instead of failing to build.
      */
-    expansion(index_t capa) :
+    explicit expansion(index_t capa) :
     length_(0),
     capacity_(capa) {
     }
@@ -418,60 +428,6 @@ namespace geo {
     }
 
     // ====== Initialization from expansion and double
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact sum of an expansion and a double.
-     * \param[in] a first number as an expansion
-     * \param[in] b second number as a double
-     * \return the required capacity of an expansion
-     *  to store the exact sum of \p a and \p b
-     * \note The result does not depend on the value of the
-     *  double argument \p b.
-     */
-    static index_t sum_capacity(const expansion& a, double b) {
-        geo_argused(b);
-        return a.length() + 1;
-    }
-
-    /**
-     * \brief Assigns the sum of an expansion and a double
-     * to this expansion (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_sum() macro instead.
-     * \param[in] a the expansion
-     * \param[in] b the double
-     * \return the new value of this expansion (\p a + \p b)
-     * \pre capacity() >= sum_capacity(a,b)
-     */
-    expansion& assign_sum(const expansion& a, double b);
-
-    /**
-     * \brief Computes the required capacity of an expansion
-     *  to store the exact difference between an expansion and a double.
-     * \param[in] a first number as an expansion
-     * \param[in] b second number as a double
-     * \return the required capacity of an expansion
-     *  to store the exact difference of \p a and \p b
-     * \note The result does not depend on the value of the
-     *  double argument \p b.
-     */
-    static index_t diff_capacity(const expansion& a, double b) {
-        geo_argused(b);
-        return a.length() + 1;
-    }
-
-    /**
-     * \brief Assigns the difference between an expansion and a double
-     * to this expansion (should not be used by client code).
-     * \details Do not use directly,
-     * use expansion_diff() macro instead.
-     * \param[in] a the expansion
-     * \param[in] b the double
-     * \return the new value of this expansion (\p a - \p b)
-     * \pre capacity() >= diff_capacity(a,b)
-     */
-    expansion& assign_diff(const expansion& a, double b);
 
     /**
      * \brief Computes the required capacity of an expansion
@@ -792,45 +748,6 @@ namespace geo {
         return geo_sgn(x_[length() - 1]);
     }
 
-    /**
-     * \brief Compares two expansions bit-by-bit
-     * \details This function may return false even if the
-     *  expansion and \p rhs represent the same number
-     * \retval true if the two expansions are the same
-     * \retval false otherwise
-     */
-    bool is_same_as(const expansion& rhs) const;
-
-    /**
-     * \brief Compares an expansion and a double bit-by-bit
-     * \details This function may return false even if the
-     *  expansion and \p rhs represent the same number
-     * \retval true if the expansion has a single component
-     *  with value \p rhs
-     * \retval false otherwise
-     */
-    bool is_same_as(double rhs) const;
-
-
-    /**
-     * \brief Compares two expansions
-     * \return the sign of this expansion minus rhs.
-     */
-    Sign compare(const expansion& rhs) const;
-
-    /**
-     * \brief Compares two expansions
-     * \return the sign of this expansion minus rhs.
-     */
-    Sign compare(double rhs) const;
-
-    /**
-     * \brief Optimizes the internal representation without changing the
-     *  represented value
-     * \details this function can reduce the length of an expansion
-     */
-    void optimize();
-
 
     protected:
     /**
@@ -1071,65 +988,7 @@ namespace geo {
 
     /************************************************************************/
 
-    /**
-     * \brief Computes the sign of a 2x2 determinant
-     * \details Specialization using the low-evel API for expansions.
-     *  This gains some performance as compared to using CGAL's
-     *  determinant template with expansion_nt.
-     */
-    Sign sign_of_expansion_determinant(
-        const expansion& a00,const expansion& a01,
-        const expansion& a10,const expansion& a11
-    );
-
-    /**
-     * \brief Computes the sign of a 3x3 determinant
-     * \details Specialization using the low-evel API for expansions.
-     *  This gains some performance as compared to using CGAL's determinant
-     *  template with expansion_nt.
-     */
-    Sign sign_of_expansion_determinant(
-        const expansion& a00,const expansion& a01,const expansion& a02,
-        const expansion& a10,const expansion& a11,const expansion& a12,
-        const expansion& a20,const expansion& a21,const expansion& a22
-    );
-
-    /**
-     * \brief Computes the sign of a 4x4 determinant
-     * \details Specialization using the low-evel API for expansions.
-     *  This gains some performance as compared to using CGAL's determinant
-     *  template with expansion_nt.
-     */
-    Sign sign_of_expansion_determinant(
-        const expansion& a00,const expansion& a01,
-        const expansion& a02,const expansion& a03,
-        const expansion& a10,const expansion& a11,
-        const expansion& a12,const expansion& a13,
-        const expansion& a20,const expansion& a21,
-        const expansion& a22,const expansion& a23,
-        const expansion& a30,const expansion& a31,
-        const expansion& a32,const expansion& a33
-    );
-
     /************************************************************************/
-
-    /**
-     * \brief Adds a scalar to an expansion, eliminating zero components
-     *  from the output expansion.
-     * \param[in] e first expansion
-     * \param[in] b double to be added to \p e
-     * \param[out] h the result \p e + \p b
-     * \details Sets \p h = (\p e + \p b). \p e and \p h can be the same.
-     *  This function is adapted from Jonathan Shewchuk's code.
-     *  See the long version of his paper for details.
-     *  Maintains the nonoverlapping property.  If round-to-even is used (as
-     *  with IEEE 754), maintains the strongly nonoverlapping and nonadjacent
-     *  properties as well.  (That is, if e has one of these properties, so
-     *  will h.)
-     */
-    void grow_expansion_zeroelim(
-        const expansion& e, double b, expansion& h
-    );
 
     /**
      * \brief Multiplies an expansion by a scalar,

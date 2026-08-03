@@ -65,8 +65,6 @@ namespace floatTetWild {
         const Vector3 p_n;
         const std::array<Vector3, 3> p_vs;
     };
-
 }
-
 
 #endif //FLOATTETWILD_CUTMESH_H

@@ -116,9 +116,9 @@ int main(int argc, char** argv)
         return command_line.exit(e);
     }
 
-    unsigned int num_threads = std::max(1u, std::thread::hardware_concurrency());
-    num_threads              = std::min(max_threads, num_threads);
-    params.num_threads       = num_threads;
+    const unsigned int num_threads =
+      std::min(max_threads, std::max(1u, std::thread::hardware_concurrency()));
+    params.num_threads = num_threads;
     floatTetWild::set_num_threads(num_threads);
 
     Logger::init(!params.is_quiet, params.log_path);
@@ -159,12 +159,12 @@ int main(int argc, char** argv)
         }
     }
 
-    Timer               timer;
-    geo::Mesh                sf_mesh;
-    CSGTree                  tree_with_ids;
-    std::vector<std::string>                 meshes;
-    std::vector<std::vector<Vector3>>        csg_Vs;
-    std::vector<std::vector<Vector3i>>       csg_Fs;
+    Timer                              timer;
+    geo::Mesh                          sf_mesh;
+    CSGTree                            tree_with_ids;
+    std::vector<std::string>           meshes;
+    std::vector<std::vector<Vector3>>  csg_Vs;
+    std::vector<std::vector<Vector3i>> csg_Fs;
     if (!csg_file.empty()) {
         CSGTree       csg_tree;
         std::ifstream file(csg_file);
@@ -195,16 +195,11 @@ int main(int argc, char** argv)
             }
         }
         CSGTreeParser::merge(csg_Vs, csg_Fs, input_vertices, input_faces, sf_mesh, input_tags);
-
     }
     else {
-        if (!load_mesh(
-              params.input_path, input_vertices, input_faces, sf_mesh, input_tags)) {
+        if (!load_mesh(params.input_path, input_vertices, input_faces, sf_mesh, input_tags))
             logger().error("Unable to load mesh at {}", params.input_path);
-            write_mesh(output_mesh_name, mesh);
-            return EXIT_FAILURE;
-        }
-        else if (input_vertices.empty() || input_faces.empty()) {
+        if (input_vertices.empty() || input_faces.empty()) {
             write_mesh(output_mesh_name, mesh);
             return EXIT_FAILURE;
         }

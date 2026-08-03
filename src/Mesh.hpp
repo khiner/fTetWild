@@ -62,17 +62,6 @@ namespace floatTetWild {
         MeshTet(const Vector4i &idx) : indices(idx) {}
         MeshTet(int v0, int v1, int v2, int v3) : indices(v0, v1, v2, v3) {}
 
-        inline void reset() {
-            is_surface_fs = {{NOT_SURFACE, NOT_SURFACE, NOT_SURFACE, NOT_SURFACE}};
-            is_bbox_fs = {{NOT_BBOX, NOT_BBOX, NOT_BBOX, NOT_BBOX}};
-            surface_tags = {{0, 0, 0, 0}};
-
-            quality = 0;
-            scalar = 0;
-            is_removed = false;
-            is_outside = false;
-        }
-
         inline int &operator[](const int index) {
             assert(index >= 0 && index < 4);
             return indices[index];
