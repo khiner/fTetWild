@@ -68,7 +68,7 @@ namespace geo {
         //   Sort the vertices spatially. This makes localisation
         // faster. geogram could be asked to skip this, which changes the insertion order and with
         // it the triangulation of cospherical input.
-        compute_BRIO_order(nb_vertices, vertex_ptr(0), reorder_, 3, 3);
+        compute_BRIO_order(nb_vertices, vertex_ptr(0), reorder_, 3);
 
         // The indices of the vertices of the first tetrahedron.
         index_t v0, v1, v2, v3;
@@ -244,8 +244,7 @@ namespace geo {
 
 
     index_t Delaunay3d::locate(
-        const double* p, index_t hint, bool thread_safe,
-        Sign* orient
+        const double* p, index_t hint, Sign* orient
     ) const {
 
         //   Try improving the hint by using the
@@ -258,16 +257,6 @@ namespace geo {
         // since there exists configurations in which
         // locate_inexact() loops forever !
         hint = locate_inexact(p, hint, 2500);
-
-        static Process::spinlock lock = GEOGRAM_SPINLOCK_INIT;
-
-        // We need to have this spinlock because
-        // of random() that is not thread-safe
-        // (TODO: implement a random() function with
-        //  thread local storage)
-        if(thread_safe) {
-            Process::acquire_spinlock(lock);
-        }
 
         // If no hint specified, find a tetrahedron randomly
         while(hint == NO_TETRAHEDRON) {
@@ -318,9 +307,6 @@ namespace geo {
                 // nearest_vertex) within a tetrahedralization
                 // from which the infinite tets were removed.
                 if(t_next == NO_INDEX) {
-                    if(thread_safe) {
-                        Process::release_spinlock(lock);
-                    }
                     return NO_TETRAHEDRON;
                 }
 
@@ -357,9 +343,6 @@ namespace geo {
                 // thus t_next is a tet in conflict and we are
                 // done.
                 if(tet_is_virtual(t_next)) {
-                    if(thread_safe) {
-                        Process::release_spinlock(lock);
-                    }
                     for(index_t lf = 0; lf < 4; ++lf) {
                         orient[lf] = POSITIVE;
                     }
@@ -379,9 +362,6 @@ namespace geo {
         // thus we reached the tet for which p has all positive
         // face orientations (i.e. the tet that contains p).
 
-        if(thread_safe) {
-            Process::release_spinlock(lock);
-        }
         return t;
     }
 
@@ -654,7 +634,7 @@ namespace geo {
         const double* p = vertex_ptr(v);
 
         Sign orient[4];
-        index_t t = locate(p, hint, false, orient);
+        index_t t = locate(p, hint, orient);
         find_conflict_zone(
             v,t,orient,t_bndry,f_bndry,first_conflict,last_conflict
         );

@@ -22,11 +22,6 @@ namespace geo {
     namespace PCK {
 
         /**
-         * \brief Mode for symbolic perturbations.
-         */
-        enum SOSMode { SOS_ADDRESS, SOS_LEXICO };
-
-        /**
          * \brief Tests whether a point is in the circumscribed sphere of
          *  four other points.
          * \details If the tetrahedron \p p0, \p p1, \p p2, \p p3 is oriented

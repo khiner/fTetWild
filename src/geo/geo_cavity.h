@@ -8,14 +8,6 @@
 #include "geo_basic.h"
 #include <string.h>
 
-// Uncomment to display histogram of
-// number of collisions per set() and
-// get() operations.
-// There is probably room for improvement
-// in my hash function, but for large
-// pointsets, more then 99% of queries are
-// in the first slot (seems to be good enough).
-
 namespace floatTetWild {
 namespace geo {
 

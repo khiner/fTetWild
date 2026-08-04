@@ -18,7 +18,6 @@ namespace geo {
 
     static const index_t NO_VERTEX = index_t(-1);
     static const index_t NO_FACET = index_t(-1);
-    static const index_t NO_CORNER = index_t(-1);
 
     class Mesh;
 

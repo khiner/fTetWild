@@ -447,96 +447,6 @@ namespace {
     /************************************************************************/
 
     /**
-     * \brief Generic class for sorting arbitrary elements in
-     *  Hilbert and Morton orders in 3d.
-     * \details The implementation is inspired by:
-     *  - Christophe Delage and Olivier Devillers. Spatial Sorting.
-     *   In CGAL User and Reference Manual. CGAL Editorial Board,
-     *   3.9 edition, 2011
-     * \tparam CMP the comparator class for ordering the elements. CMP
-     *  is itself a template parameterized by~:
-     *    - COORD the coordinate along which elements should be
-     *      sorted
-     *    - UP a boolean that indicates whether direct or reverse
-     *      order should be used
-     *    - MESH the class that represents meshes
-     * \tparam MESH  the class that represents meshes
-     */
-    template <template <int COORD, bool UP, class MESH> class CMP, class MESH>
-    struct HilbertSort2d {
-
-        /**
-         * \brief Low-level recursive spatial sorting function
-         * \details This function is recursive
-         * \param[in] M the mesh in which the elements reside
-         * \param[in] begin an iterator that points to the
-         *  first element of the sequence
-         * \param[in] end an iterator that points one position past the
-         *  last element of the sequence
-         * \param[in] limit subsequences smaller than limit are left unsorted
-         * \tparam COORDX the first coordinate, can be 0,1 or 2. The second
-         *  coordinate is COORDX+1 modulo 2.
-         * \tparam UPX whether ordering along the first coordinate
-         *  is direct or inverse
-         * \tparam UPY whether ordering along the second coordinate
-         *  is direct or inverse
-         */
-        template <int COORDX, bool UPX, bool UPY, class IT>
-        static void sort(
-            const MESH& M, IT begin, IT end, index_t limit = 1
-        ) {
-            const int COORDY = (COORDX + 1) % 2;
-            if(end - begin <= signed_index_t(limit)) {
-                return;
-            }
-            IT m0 = begin, m4 = end;
-
-            IT m2 = reorder_split (m0, m4, CMP<COORDX,  UPX, MESH>(M));
-            IT m1 = reorder_split (m0, m2, CMP<COORDY,  UPY, MESH>(M));
-            IT m3 = reorder_split (m2, m4, CMP<COORDY, !UPY, MESH>(M));
-
-            sort<COORDY, UPY, UPX> (M, m0, m1);
-            sort<COORDX, UPX, UPY> (M, m1, m2);
-            sort<COORDX, UPX, UPY> (M, m2, m3);
-            sort<COORDY,!UPY,!UPX> (M, m3, m4);
-        }
-
-        /**
-         * \brief Sorts a sequence of elements spatially.
-         * \details This function does an indirect sort,
-         *  in the sense that a sequence
-         *  of indices that refer to the elements is sorted.
-         *  This function uses a multithreaded implementation.
-         * \param[in] M the mesh in which the elements to sort reside
-         * \param[in] b an iterator to the first index to be sorted
-         * \param[in] e an iterator one position past the last index
-         *  to be sorted
-         * \param[in] limit subsequences smaller than limit are left unsorted
-         */
-        HilbertSort2d(
-            const MESH& M,
-            vector<index_t>::iterator b,
-            vector<index_t>::iterator e,
-            index_t limit = 1
-        ) :
-            M_(M)
-            {
-                geo_debug_assert(e > b);
-
-                // If the sequence is smaller than the limit, skip it
-                if(index_t(e - b) <= limit) {
-                    return;
-                }
-                sort<0, false, false>(M_, b, e);
-            }
-    private:
-        const MESH& M_;
-    };
-
-    /************************************************************************/
-
-
-    /**
      * \brief Sorts the vertices of a mesh according to the Morton ordering.
      * \details The function does not change the mesh, it computes instead
      *  the permutation. The permutation can then be reused to order other
@@ -586,57 +496,32 @@ namespace {
      * \param[in] nb_vertices number of vertices to sort
      * \param[in] vertices pointer to the coordinates of the vertices
      * \param[in] stride number of doubles between two consecutive vertices
-     * \param[in,out] sorted_indices indices to sort
      * \param[in] b iterator to the first index to sort
      * \param[in] e iterator one position past the last index to sort
      * \param[in] threshold minimum size of interval to be sorted
      * \param[in] ratio splitting ratio between current interval and
      *  the rest to be sorted
-     * \param[in,out] depth iteration depth
-     * \param[out] levels if non-null, bounds of each level
      */
     void compute_BRIO_order_recursive(
         index_t nb_vertices, const double* vertices,
-        index_t dimension, index_t stride,
-        vector<index_t>& sorted_indices,
+        index_t stride,
         vector<index_t>::iterator b,
         vector<index_t>::iterator e,
         index_t threshold,
-        double ratio,
-        index_t& depth,
-        vector<index_t>* levels
+        double ratio
     ) {
         geo_debug_assert(e > b);
 
         vector<index_t>::iterator m = b;
         if(index_t(e - b) > threshold) {
-            ++depth;
             m = b + signed_index_t(double(e - b) * ratio);
             compute_BRIO_order_recursive(
-                nb_vertices, vertices,
-                dimension, stride,
-                sorted_indices, b, m,
-                threshold, ratio, depth,
-                levels
+                nb_vertices, vertices, stride, b, m, threshold, ratio
             );
         }
 
         VertexMesh M(nb_vertices, vertices, stride);
-        if(dimension == 3) {
-            HilbertSort3d<Hilbert_vcmp, VertexMesh>(
-                M, m, e
-            );
-        } else if(dimension ==2) {
-            HilbertSort2d<Hilbert_vcmp, VertexMesh>(
-                M, m, e
-            );
-        } else {
-            geo_assert_not_reached;
-        }
-
-        if(levels != nullptr) {
-            levels->push_back(index_t(e - sorted_indices.begin()));
-        }
+        HilbertSort3d<Hilbert_vcmp, VertexMesh>(M, m, e);
     }
 }
 
@@ -673,17 +558,10 @@ namespace geo {
     void compute_BRIO_order(
         index_t nb_vertices, const double* vertices,
         vector<index_t>& sorted_indices,
-        index_t dimension,
         index_t stride,
         index_t threshold,
-        double ratio,
-        vector<index_t>* levels
+        double ratio
     ) {
-        if(levels != nullptr) {
-            levels->clear();
-            levels->push_back(0);
-        }
-        index_t depth = 0;
         sorted_indices.resize(nb_vertices);
         for(index_t i = 0; i < nb_vertices; ++i) {
             sorted_indices[i] = i;
@@ -692,11 +570,9 @@ namespace geo {
 	geo::random_shuffle(sorted_indices.begin(), sorted_indices.end());
 
         compute_BRIO_order_recursive(
-            nb_vertices, vertices,
-            dimension, stride,
-            sorted_indices,
+            nb_vertices, vertices, stride,
             sorted_indices.begin(), sorted_indices.end(),
-            threshold, ratio, depth, levels
+            threshold, ratio
         );
     }
 } }

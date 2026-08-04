@@ -37,21 +37,6 @@ namespace geo {
         }
 
         /**
-         * \brief Computes the distance between two nd points.
-         * \param[in] p1 a pointer to the coordinates of the first point
-         * \param[in] p2 a pointer to the coordinates of the second point
-         * \param[in] dim dimension (number of coordinates of the points)
-         * \return the distance between \p p1 and \p p2
-         * \tparam COORD_T the numeric type of the point coordinates
-         */
-        template <class COORD_T>
-        inline double distance(
-            const COORD_T* p1, const COORD_T* p2, coord_index_t dim
-        ) {
-            return ::sqrt(distance2(p1, p2, dim));
-        }
-
-        /**
          * \brief Computes the squared distance between two nd points.
          * \param[in] p1 first point
          * \param[in] p2 second point
@@ -68,24 +53,6 @@ namespace geo {
             return distance2(
                 p1.data(), p2.data(), coord_index_t(p1.dimension())
             );
-        }
-
-        /**
-
-         * \brief Computes the distance between two nd points.
-         * \param[in] p1 first point
-         * \param[in] p2 second point
-         * \tparam VEC the class that represents the points. VEC needs to
-         *   implement data(), that returns a pointer to the coordinates
-         *   of the point.
-         * \return the distance between \p p1 and \p p2
-         */
-        template <class VEC>
-        inline double distance(
-            const VEC& p1, const VEC& p2
-        ) {
-            geo_debug_assert(p1.dimension() == p2.dimension());
-            return distance(p1.data(), p2.data(), coord_index_t(p1.dimension()));
         }
 
         /**
@@ -129,29 +96,6 @@ namespace geo {
             lambda0 = 1.0-lambda1;
             closest_point = lambda0 * V0 + lambda1 * V1;
             return distance2(point, closest_point);
-        }
-
-        /**
-         * \brief Computes the point closest to a given point in a nd segment
-         * \param[in] point the query point
-         * \param[in] V0 first extremity of the segment
-         * \param[in] V1 second extremity of the segment
-         * \tparam VEC the class that represents the points.
-         * \return the squared distance between the point and
-         *  the segment [\p V0, \p V1]
-         */
-        template <class VEC>
-        inline double point_segment_squared_distance(
-            const VEC& point,
-            const VEC& V0,
-            const VEC& V1
-        ) {
-            VEC closest_point;
-            double lambda0;
-            double lambda1;
-            return point_segment_squared_distance(
-                point, V0, V1, closest_point, lambda0, lambda1
-            );
         }
 
         /**

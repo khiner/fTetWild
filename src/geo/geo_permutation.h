@@ -155,57 +155,6 @@ namespace geo {
         }
 
         /**
-         * \brief Applies a permutation in-place.
-         * Permutes the first \p N elements of vector \p data using
-         * permutation \p permutation where \p N is the number of elements in
-         * \p permutation. The result of the permutation is left in \p data.
-         * The array \p data must contain at least \c permutation.size()
-         * elements otherwise the function throws an out_of_range exception.
-         *
-         * Applying permutation \p permutation is equivalent to:
-         * \code
-         * for(i=0; i<permutation.size(); i++) {
-         *    data2[i] = data[permutation[i]]
-         * }
-         * data = data2 ;
-         * \endcode
-         * \param[in,out] data the vector to permute
-         * \param[in] permutation_in the permutation.
-         *  It is temporarily changed during execution of the
-         *  function, but identical to the input on exit.
-         */
-        template <class T>
-        inline void apply(
-            vector<T>& data, const vector<index_t>& permutation_in
-        ) {
-	    geo_debug_assert(permutation_in.size() <= MAX_SIZE);
-            vector<index_t>& permutation =
-                const_cast<vector<index_t>&>(permutation_in);
-            geo_debug_assert(is_valid(permutation));
-            T temp;
-            for(index_t k = 0; k < permutation.size(); k++) {
-                if(is_marked(permutation, k)) {
-                    continue;
-                }
-                index_t i = k;
-                temp = data[i];
-                index_t j = permutation[k];
-                mark(permutation, k);
-                while(j != k) {
-                    data[i] = data[j];
-                    index_t nj = permutation[j];
-                    mark(permutation, j);
-                    i = j;
-                    j = nj;
-                }
-                data[i] = temp;
-            }
-            for(index_t k = 0; k < permutation.size(); k++) {
-                unmark(permutation, k);
-            }
-        }
-
-        /**
          * \brief Inverts a permutation in-place.
          * \details Inverses the given \p permutation in place, the
          * result of the inversion is left in \p permutation.

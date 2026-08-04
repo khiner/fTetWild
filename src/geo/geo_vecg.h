@@ -7,7 +7,6 @@
 
 #include "geo_basic.h"
 #include "geo_determinant.h"
-#include <initializer_list>
 
 #include <iostream>
 #include <cfloat>
@@ -55,6 +54,9 @@ namespace geo {
 
     /**
      * \brief Gets the square distance between 2 vectors
+     * \details Unqualified `distance2(a, b)` on two vec3 resolves here rather than to
+     *  Geom::distance2, which is a less specialized template: ADL reaches this one from
+     *  inside Geom, and the two do not sum the three squared components the same way.
      * \param[in] v1 the first vector
      * \param[in] v2 the second vector
      * \return the square distance between \p v1 and \p v2.
@@ -118,9 +120,6 @@ namespace geo {
         /** \copydoc vecng::vector_type */
         typedef vecng<dim, T> vector_type;
 
-        /** \copydoc vecng::value_type */
-        typedef T value_type;
-
         /** \copydoc vecng::vecng() */
         vecng() :
             x(T(0.0)),
@@ -146,24 +145,6 @@ namespace geo {
             z(v.z) {
         }
 
-        /** \copydoc vecng::vecng(const T2*) */
-        template <class T2>
-        explicit vecng(const T2* v) :
-            x(v[0]),
-            y(v[1]),
-            z(v[2]) {
-        }
-
-        /** \copydoc vecng::vecng(const std::initializer_list<T>) */
-        vecng(const std::initializer_list<T>& Vi) {
-            index_t i = 0;
-            for(auto& it: Vi) {
-                geo_debug_assert(i < dim);
-                data()[i] = it;
-                ++i;
-            }
-        }
-
         /** \copydoc vecng::length2() const */
         inline T length2() const {
             return x * x + y * y + z * z;
@@ -187,40 +168,6 @@ namespace geo {
             return sqrt(distance2(v));
         }
 
-        /** \copydoc vecng::operator+=(const vector_type&) */
-        inline vector_type& operator+= (const vector_type& v) {
-            x += v.x;
-            y += v.y;
-            z += v.z;
-            return *this;
-        }
-
-        /** \copydoc vecng::operator-=(const vector_type&) */
-        inline vector_type& operator-= (const vector_type& v) {
-            x -= v.x;
-            y -= v.y;
-            z -= v.z;
-            return *this;
-        }
-
-        /** \copydoc vecng::operator*=(T2) */
-        template <class T2>
-        inline vector_type& operator*= (T2 s) {
-            x *= T(s);
-            y *= T(s);
-            z *= T(s);
-            return *this;
-        }
-
-        /** \copydoc vecng::operator/=(T2) */
-        template <class T2>
-        inline vector_type& operator/= (T2 s) {
-            x /= T(s);
-            y /= T(s);
-            z /= T(s);
-            return *this;
-        }
-
         /** \copydoc vecng::operator+(const vector_type&) const */
         inline vector_type operator+ (const vector_type& v) const {
             return vector_type(x + v.x, y + v.y, z + v.z);
@@ -241,11 +188,6 @@ namespace geo {
         template <class T2>
         inline vector_type operator/ (T2 s) const {
             return vector_type(x / T(s), y / T(s), z / T(s));
-        }
-
-        /** \copydoc vecng::operator-() const */
-        inline vector_type operator- () const {
-            return vector_type(-x, -y, -z);
         }
 
         /** \copydoc vecng::dimension() const */

@@ -20,9 +20,6 @@
 
 #define GEOGRAM_SPINLOCK_INIT ATOMIC_FLAG_INIT
 
-// geogram/basic/common.h defines this per compiler.
-#define geo_restrict __restrict__
-
 namespace floatTetWild {
 namespace geo {
 
@@ -134,19 +131,13 @@ namespace geo {
         }                                                                     \
     }
 
-#define geo_range_assert(x, min_val, max_val) \
-    geo_assert((x) >= (min_val) && (x) <= (max_val))
-
 #define geo_assert_not_reached \
     ::floatTetWild::geo::geo_should_not_have_reached(__FILE__, __LINE__)
 
 #ifdef GEO_DEBUG
 #define geo_debug_assert(x) geo_assert(x)
-#define geo_debug_range_assert(x, min_val, max_val) \
-    geo_range_assert(x, min_val, max_val)
 #else
 #define geo_debug_assert(x)
-#define geo_debug_range_assert(x, min_val, max_val)
 #endif
 
 namespace floatTetWild {

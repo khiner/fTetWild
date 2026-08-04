@@ -141,9 +141,6 @@ namespace geo {
          *  the function returns one of the tetrahedra incident
          *  to that face, edge or vertex.
          * \param[in] p a pointer to the coordinates of the point
-         * \param[in] thread_safe if true, a global spinlock is
-         *  used to protect the calls to random(), this is necessary
-         *  if multiple threads use locate() simultaneously
          * \param[out] orient a pointer to an array of four Sign%s
          *  or nullptr. If non-nullptr, returns the orientation with respect
          *  to the four facets of the tetrahedron that contains \p p.
@@ -156,7 +153,6 @@ namespace geo {
          */
         index_t locate(
             const double* p, index_t hint = NO_TETRAHEDRON,
-            bool thread_safe = false,
             Sign* orient = nullptr
         ) const;
 

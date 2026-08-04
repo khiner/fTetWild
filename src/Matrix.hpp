@@ -314,16 +314,20 @@ inline Vector<T, 3> operator*(const Matrix33<T>& a, const Vector<T, 3>& b)
 template <typename T>
 struct MatrixX;
 
-template <typename T, bool Const>
-struct RowRefBase
+// A reference to one row, so that assigning to it writes through to the matrix. That is why the
+// copy assignment below is not the implicit one, and why the copy constructor has to be spelled
+// out alongside it.
+template <typename T>
+struct RowRef
 {
-    typedef typename std::conditional<Const, const T, T>::type Elem;
+    T*  p;
+    int n;
 
-    Elem* p;
-    int   n;
+    RowRef(T* q, int m) : p(q), n(m) {}
+    RowRef(const RowRef&) = default;
 
-    Elem&       operator()(int j) const { return p[j]; }
-    Elem&       operator[](int j) const { return p[j]; }
+    T& operator()(int j) const { return p[j]; }
+    T& operator[](int j) const { return p[j]; }
 
     template <int N>
     operator Vector<T, N>() const
@@ -334,58 +338,41 @@ struct RowRefBase
         return r;
     }
 
-    bool operator==(const RowRefBase& o) const
+    bool operator==(const RowRef& o) const
     {
         assert(n == o.n);
         for (int i = 0; i < n; i++)
             if (!(p[i] == o.p[i])) return false;
         return true;
     }
-    bool operator!=(const RowRefBase& o) const { return !(*this == o); }
-};
-
-template <typename T>
-struct RowRef : RowRefBase<T, false>
-{
-    RowRef(T* q, int m) : RowRefBase<T, false>{q, m} {}
-    // Assigning a row writes through to the matrix, so the copy assignment below is not the
-    // implicit one and the copy constructor has to be spelled out alongside it.
-    RowRef(const RowRef&) = default;
+    bool operator!=(const RowRef& o) const { return !(*this == o); }
 
     template <int N>
     const RowRef& operator=(const Vector<T, N>& v) const
     {
-        assert(this->n == N);
-        for (int i = 0; i < N; i++) this->p[i] = v.v[i];
-        return *this;
-    }
-
-    template <bool C>
-    const RowRef& operator=(const RowRefBase<T, C>& o) const
-    {
-        assert(this->n == o.n);
-        for (int i = 0; i < this->n; i++) this->p[i] = o.p[i];
+        assert(n == N);
+        for (int i = 0; i < N; i++) p[i] = v.v[i];
         return *this;
     }
 
     const RowRef& operator=(const RowRef& o) const
     {
-        assert(this->n == o.n);
-        for (int i = 0; i < this->n; i++) this->p[i] = o.p[i];
+        assert(n == o.n);
+        for (int i = 0; i < n; i++) p[i] = o.p[i];
         return *this;
     }
 
     template <int N>
     const RowRef& operator+=(const Vector<T, N>& v) const
     {
-        assert(this->n == N);
-        for (int i = 0; i < N; i++) this->p[i] += v.v[i];
+        assert(n == N);
+        for (int i = 0; i < N; i++) p[i] += v.v[i];
         return *this;
     }
 
     const RowRef& operator/=(T s) const
     {
-        for (int i = 0; i < this->n; i++) this->p[i] /= s;
+        for (int i = 0; i < n; i++) p[i] /= s;
         return *this;
     }
 };
@@ -457,14 +444,6 @@ struct MatrixX
 
     T        coeff(int i, int j) const { return a[size_t(i) * ncols + j]; }
 
-    MatrixX segment(int start, int n) const
-    {
-        assert(ncols == 1);
-        MatrixX r(n);
-        for (int i = 0; i < n; i++) r.a[i] = a[start + i];
-        return r;
-    }
-
     T maxCoeff() const
     {
         assert(!a.empty());
@@ -476,11 +455,7 @@ struct MatrixX
     T*       data() { return a.data(); }
     const T* data() const { return a.data(); }
 
-    RowRef<T>            row(int i) { return RowRef<T>(a.data() + size_t(i) * ncols, ncols); }
-    RowRefBase<T, true>  row(int i) const
-    {
-        return RowRefBase<T, true>{a.data() + size_t(i) * ncols, ncols};
-    }
+    RowRef<T> row(int i) { return RowRef<T>(a.data() + size_t(i) * ncols, ncols); }
 
     template <typename U>
     MatrixX<U> cast() const

@@ -27,91 +27,6 @@ namespace {
 
     using namespace floatTetWild::geo;
 
-    PCK::SOSMode SOS_mode_ = PCK::SOS_ADDRESS;
-
-    /**
-     * \brief Comparator class for nD points using lexicographic order.
-     * \details Used by symbolic perturbations.
-     */
-    class LexicoCompare {
-    public:
-
-        /**
-         * \brief LexicoCompare constructor.
-         * \param[in] dim dimension of the points to compare.
-         */
-        LexicoCompare(index_t dim) : dim_(dim) {
-        }
-
-        /**
-         * \brief Compares two points with respect to the lexicographic
-         *  order.
-         * \param[in] x , y pointers to the coordinates of the two points.
-         * \retval true if x is strictly before y in the lexicographic order.
-         * \retval false otherwise.
-         */
-        bool operator()(const double* x, const double* y) const {
-            for(index_t i=0; i<dim_-1; ++i) {
-                if(x[i] < y[i]) {
-                    return true;
-                }
-                if(x[i] > y[i]) {
-                    return false;
-                }
-            }
-            return (x[dim_-1] < y[dim_-1]);
-        }
-    private:
-        index_t dim_;
-    };
-
-    /**
-     * \brief Compares two 3D points with respect to the lexicographic
-     *  order.
-     * \param[in] x , y pointers to the coordinates of the two 3D points.
-     * \retval true if x is strictly before y in the lexicographic order.
-     * \retval false otherwise.
-     */
-    bool lexico_compare_3d(const double* x, const double* y) {
-        if(x[0] < y[0]) {
-            return true;
-        }
-        if(x[0] > y[0]) {
-            return false;
-        }
-        if(x[1] < y[1]) {
-            return true;
-        }
-        if(x[1] > y[1]) {
-            return false;
-        }
-        return x[2] < y[2];
-    }
-
-    /**
-     * \brief Sorts an array of pointers to points.
-     * \details set_SOS_mode() alters the behavior of this function.
-     *  If set to PCK::SOS_ADDRESS, then just the addresses of the points
-     *  are sorted. If set to PCK::SOS_LEXICO, then the points are sorted
-     *  in function of the lexicographic order of their coordinates.
-     * \param[in] begin a pointer to the first point.
-     * \param[in] end one position past the pointer to the last point.
-     * \param[in] dim the dimension of the points.
-     */
-    void SOS_sort(
-        const double** begin, const double** end, index_t dim
-    ) {
-        if(SOS_mode_ == PCK::SOS_ADDRESS) {
-            std::sort(begin, end);
-        } else {
-            if(dim == 3) {
-                std::sort(begin, end, lexico_compare_3d);
-            } else {
-                std::sort(begin, end, LexicoCompare(dim));
-            }
-        }
-    }
-
     /**
      * \brief Gets the maximum of 4 double precision numbers.
      * \param[in] x1 , x2 , x3 , x4 the four numbers.
@@ -256,12 +171,12 @@ namespace {
     /**
      * \brief Exact implementation of the side4_3d_SOS() predicate
      *  using low-level exact arithmetics API (expansion class).
-     * \param[in] sos if true, applies symbolic perturbation when
-     *  result is zero, else returns zero
+     * \details Symbolic perturbation is always applied. geogram could be asked to return zero
+     *  instead, through a parameter no caller here sets.
      */
     Sign side4_3d_exact_SOS(
         const double* p0, const double* p1, const double* p2, const double* p3,
-        const double* p4, bool sos = true
+        const double* p4
     ) {
 
         const expansion& a11 = expansion_diff(p1[0], p0[0]);
@@ -349,7 +264,7 @@ namespace {
         Sign r_sign = r.sign();
 
         // Simulation of Simplicity (symbolic perturbation)
-        if(sos && r_sign == ZERO) {
+        if(r_sign == ZERO) {
 
             const double* p_sort[5];
             p_sort[0] = p0;
@@ -357,7 +272,10 @@ namespace {
             p_sort[2] = p2;
             p_sort[3] = p3;
             p_sort[4] = p4;
-            SOS_sort(p_sort, p_sort + 5, 3);
+            // Symbolic perturbation ordered by point address, which is what geogram's
+            // SOS_ADDRESS mode does. Its other mode, sorting by the coordinates themselves,
+            // was reachable only through set_SOS_mode(), which is not vendored.
+            std::sort(p_sort, p_sort + 5);
             for(index_t i = 0; i < 5; ++i) {
                 if(p_sort[i] == p0) {
                     const expansion& z1 = expansion_diff(Delta2, Delta1);

@@ -16,12 +16,6 @@
 namespace floatTetWild {
 namespace {
 
-void sort_unique(std::vector<int>& v)
-{
-    std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end());
-}
-
 // Compute connected components of a graph. libigl walked a sparse adjacency matrix column by
 // column, skipping stored zeros; A is that column with the zeros already dropped, in the same
 // ascending order the sparse iterator produced.
@@ -97,7 +91,7 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
         edge_faces[IC(e)].push_back(e % nf);
     }
     for (auto& faces : edge_faces)
-        sort_unique(faces);
+        vector_unique(faces);
 
     A.assign(nf, std::vector<int>());
     for (const auto& faces : edge_faces) {
@@ -110,7 +104,7 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
                     A[faces[i]].push_back(faces[j]);
     }
     for (auto& neighbours : A)
-        sort_unique(neighbours);
+        vector_unique(neighbours);
 
     vertex_components(A, C);
 }

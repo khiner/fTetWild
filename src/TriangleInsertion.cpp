@@ -931,15 +931,14 @@ bool insert_boundary_edges_get_intersecting_edges_and_points(
                     if (seg_seg_intersection_2d(evs_2d, {{fvs_2d[k], fvs_2d[(k + 1) % 3]}}, t2)) {
                         Vector3 p = (1 - t2) * mesh.tet_vertices[f_v_ids[k]].pos +
                                     t2 * mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos;
+                        // Either end of the tet edge being close enough to the crossing point
+                        // snaps that edge onto the boundary edge, and it is the first end that
+                        // takes the mark whichever end it was.
                         double dis1 = (p - mesh.tet_vertices[f_v_ids[k]].pos).squaredNorm();
                         double dis2 =
                           (p - mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos).squaredNorm();
-                        if (dis1 < mesh.params.eps_2_coplanar) {
-                            v_oris[f_v_ids[k]] = Predicates::ORI_ZERO;
-                            is_intersected     = true;
-                            break;
-                        }
-                        if (dis2 < mesh.params.eps_2_coplanar) {
+                        if (dis1 < mesh.params.eps_2_coplanar ||
+                            dis2 < mesh.params.eps_2_coplanar) {
                             v_oris[f_v_ids[k]] = Predicates::ORI_ZERO;
                             is_intersected     = true;
                             break;

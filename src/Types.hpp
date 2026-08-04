@@ -10,6 +10,7 @@
 
 #include <floattetwild/Matrix.hpp>
 
+#include <algorithm>
 #include <vector>
 
 namespace floatTetWild {
@@ -47,6 +48,26 @@ namespace floatTetWild {
     // double, and the plane fitting in TriangleInsertion needs that one. The two are kept apart.
     inline Vector3 tri_normal(const Vector3& a, const Vector3& b, const Vector3& c) {
         return (b - c).cross(a - c);
+    }
+
+    // Plain vector helpers, here rather than beside the mesh operations because the vendored
+    // surface cleanup wants them too and includes nothing else of the mesher.
+    template<typename T>
+    void vector_unique(std::vector<T>& v) {
+        std::sort(v.begin(), v.end());
+        v.erase(std::unique(v.begin(), v.end()), v.end());
+    }
+    template<typename T>
+    bool vector_erase(std::vector<T>& v, const T& t) {
+        auto it = std::find(v.begin(), v.end(), t);
+        if (it == v.end())
+            return false;
+        v.erase(it);
+        return true;
+    }
+    template<typename T>
+    bool vector_contains(const std::vector<T>& v, const T& t) {
+        return std::find(v.begin(), v.end(), t) != v.end();
     }
 
     // A list of points or faces as a matrix with one row each, which is the form the surface

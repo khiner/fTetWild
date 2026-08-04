@@ -711,8 +711,6 @@ namespace geo {
     index_t length_;
     index_t capacity_;
     double x_[2];  // x_ is in fact of size [capacity_]
-
-    friend class expansion_nt;
     };
 
     // =============== arithmetic operations ===========================

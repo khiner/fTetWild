@@ -148,24 +148,6 @@ namespace floatTetWild {
         return tri_normal(a, b, c).norm();
     }
 
-    template<typename T>
-    void vector_unique(std::vector<T>& v){
-        std::sort(v.begin(), v.end());
-        v.erase(std::unique(v.begin(), v.end()), v.end());
-    }
-    template<typename T>
-    bool vector_erase(std::vector<T>& v, const T& t){
-        auto it = std::find(v.begin(), v.end(), t);
-        if(it == v.end())
-            return false;
-        v.erase(it);
-        return true;
-    }
-    template<typename T>
-    bool vector_contains(const std::vector<T>& v, const T& t){
-        return std::find(v.begin(), v.end(), t) != v.end();
-    }
-
     // The edges of the given tets, each once, appended to out. This is what an operation re-queues
     // after it rebuilds a patch.
     template<typename Tets>

@@ -234,9 +234,9 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
         old_max_quality = get_max_quality(mesh, tet_vertices[v1_id].conn_tets);
     std::vector<Scalar> new_qs;
     new_qs.reserve(tet_vertices[v1_id].conn_tets.size());
-    int ii = 0;
-    for (int t_id : n1_t_ids) {
-        int    j     = js_n1_t_ids[ii++];
+    for (size_t i = 0; i < n1_t_ids.size(); i++) {
+        const int t_id = n1_t_ids[i];
+        const int j    = js_n1_t_ids[i];
         Scalar new_q = get_quality(tet_vertices[v2_id].pos,
                                    tet_pos(mesh, t_id, (j + 1) % 4),
                                    tet_pos(mesh, t_id, (j + 2) % 4),
@@ -265,11 +265,6 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
       tet_vertices[v1_id].is_on_surface || tet_vertices[v2_id].is_on_surface;
     tet_vertices[v2_id].is_on_boundary =
       tet_vertices[v1_id].is_on_boundary || tet_vertices[v2_id].is_on_boundary;
-
-    int q_i = 0;
-    for (int t_id : n1_t_ids) {
-        tets[t_id].quality = new_qs[q_i++];
-    }
 
     std::vector<int> n1_v_ids;
     collect_tet_vertices(mesh, n1_t_ids, n1_v_ids);
@@ -333,10 +328,10 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     }
 
     ts++;
-    ii = 0;
-    for (int t_id : n1_t_ids) {
-        int j         = js_n1_t_ids[ii++];
-        tets[t_id][j] = v2_id;
+    for (size_t i = 0; i < n1_t_ids.size(); i++) {
+        const int t_id     = n1_t_ids[i];
+        tets[t_id][js_n1_t_ids[i]] = v2_id;
+        tets[t_id].quality = new_qs[i];
         tet_vertices[v2_id].conn_tets.push_back(t_id);
         if (is_update_tss)
             tet_tss[t_id] = ts;
