@@ -24,17 +24,17 @@ void build_reordered_sf_mesh(std::vector<Vector3>&  points,
                              std::vector<int>&      flags)
 {
     input.clear();
-    input.vertices.create_vertices((int)points.size());
-    for (int i = 0; i < (int)input.vertices.nb(); ++i) {
-        geo::vec3& p = input.vertices.point(i);
+    input.create_vertices((int)points.size());
+    for (int i = 0; i < (int)input.nb_vertices(); ++i) {
+        geo::vec3& p = input.point(i);
         p[0]         = points[i](0);
         p[1]         = points[i](1);
         p[2]         = points[i](2);
     }
-    input.facets.create_triangles((int)faces.size());
-    for (int c = 0; c < (int)input.facets.nb(); ++c) {
+    input.create_triangles((int)faces.size());
+    for (int c = 0; c < (int)input.nb_facets(); ++c) {
         for (int lv = 0; lv < 3; ++lv) {
-            input.facets.set_vertex(c, lv, faces[c](lv));
+            input.set_facet_vertex(c, lv, faces[c](lv));
         }
     }
 

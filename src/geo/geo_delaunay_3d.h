@@ -1011,8 +1011,8 @@ namespace geo {
             void push(index_t t1, index_t t1fbord, index_t t1fprev) {
                 store_.resize(store_.size()+1);
                 top().t1 = t1;
-                top().t1fbord = Numeric::uint8(t1fbord);
-                top().t1fprev = Numeric::uint8(t1fprev);
+                top().t1fbord = uint8_t(t1fbord);
+                top().t1fprev = uint8_t(t1fprev);
             }
 
             /**
@@ -1024,8 +1024,8 @@ namespace geo {
             void save_locals(index_t new_t, index_t t1ft2, index_t t2ft1) {
                 geo_debug_assert(!empty());
                 top().new_t = new_t;
-                top().t1ft2 = Numeric::uint8(t1ft2);
-                top().t2ft1 = Numeric::uint8(t2ft1);
+                top().t1ft2 = uint8_t(t1ft2);
+                top().t2ft1 = uint8_t(t2ft1);
             }
 
             /**
@@ -1089,12 +1089,12 @@ namespace geo {
                 // Parameters
                 index_t t1;
                 index_t new_t;
-                Numeric::uint8 t1fbord ;
+                uint8_t t1fbord ;
 
                 // Local variables
-                Numeric::uint8 t1fprev ;
-                Numeric::uint8 t1ft2   ;
-                Numeric::uint8 t2ft1   ;
+                uint8_t t1fprev ;
+                uint8_t t1ft2   ;
+                uint8_t t2ft1   ;
             };
 
             /**

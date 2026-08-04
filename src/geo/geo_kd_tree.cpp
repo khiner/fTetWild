@@ -7,58 +7,6 @@
 #include "geo_geometry_nd.h"
 #include "geo_parallel.h"
 
-namespace {
-
-    using namespace floatTetWild::geo;
-
-    /**
-     * \brief Comparison functor used to
-     *  sort the point indices. Used by
-     *  BalancedKdTree.
-     */
-    class ComparePointCoord {
-    public:
-        /**
-         * \brief Creates a new ComparePointCoord
-         * \param[in] points pointer to first point
-         * \param[in] stride number of doubles between two
-         *  consecutive points in array (=dimension if point
-         *  array is compact).
-         * \param[in] splitting_coord the coordinate to compare
-         */
-        ComparePointCoord(
-            const double* points,
-            index_t stride,
-            coord_index_t splitting_coord
-        ) :
-            points_(points),
-            stride_(stride),
-            splitting_coord_(splitting_coord) {
-        }
-
-        /**
-         * \brief Compares to point indices (does the
-         * indirection and coordinate lookup).
-         * \param[in] i index of first point to compare
-         * \param[in] j index of second point to compare
-         * \return true if point \p i is before point \p j, false otherwise
-         */
-        bool operator() (index_t i, index_t j) const {
-            return
-                (points_ + i * stride_)[splitting_coord_] <
-                (points_ + j * stride_)[splitting_coord_]
-                ;
-        }
-
-    private:
-        const double* points_;
-        index_t stride_;
-        coord_index_t splitting_coord_;
-    };
-}
-
-/****************************************************************************/
-
 namespace floatTetWild {
 namespace geo {
 
@@ -74,13 +22,13 @@ namespace geo {
         }
 
         // Compute the bounding box.
-        for(coord_index_t c = 0; c < dimension(); ++c) {
-            bbox_min_[c] =  Numeric::max_float64();
-            bbox_max_[c] = -Numeric::max_float64();
+        for(coord_index_t c = 0; c < DIMENSION; ++c) {
+            bbox_min_[c] =  std::numeric_limits<double>::max();
+            bbox_max_[c] = -std::numeric_limits<double>::max();
         }
         for(index_t i = 0; i < nb_points; ++i) {
             const double* p = point_ptr(i);
-            for(coord_index_t c = 0; c < dimension(); ++c) {
+            for(coord_index_t c = 0; c < DIMENSION; ++c) {
                 bbox_min_[c] = std::min(bbox_min_[c], p[c]);
                 bbox_max_[c] = std::max(bbox_max_[c], p[c]);
             }
@@ -94,9 +42,9 @@ namespace geo {
         // stack locals. The traversal moves bbox_min and bbox_max as it descends, which is what
         // lets it measure the distance from the query point to the current node's box.
         double box_dist = 0.0;
-        double* bbox_min = (double*) (alloca(dimension() * sizeof(double)));
-        double* bbox_max = (double*) (alloca(dimension() * sizeof(double)));
-        for(coord_index_t c = 0; c < dimension(); ++c) {
+        double bbox_min[DIMENSION];
+        double bbox_max[DIMENSION];
+        for(coord_index_t c = 0; c < DIMENSION; ++c) {
             bbox_min[c] = bbox_min_[c];
             bbox_max[c] = bbox_max_[c];
             if(query_point[c] < bbox_min_[c]) {
@@ -107,7 +55,7 @@ namespace geo {
         }
 
         // Root node is number 1. This is because "children at 2*n and 2*n+1" does not work with 0.
-        double best_sq_dist = Numeric::max_float64();
+        double best_sq_dist = std::numeric_limits<double>::max();
         nearest_recursive(
             1, 0, nb_points(), bbox_min, bbox_max, box_dist, query_point, best_sq_dist
         );
@@ -125,7 +73,7 @@ namespace geo {
         if((e - b) <= MAX_LEAF_SIZE) {
             for(index_t i = b; i < e; ++i) {
                 double sq_dist = Geom::distance2(
-                    query_point, point_ptr(point_index_[i]), dimension()
+                    query_point, point_ptr(point_index_[i]), DIMENSION
                 );
                 if(sq_dist < best_sq_dist) {
                     best_sq_dist = sq_dist;
@@ -222,7 +170,7 @@ namespace geo {
         // create the tree in parallel
         if(
             nb_points() < (16 * MAX_LEAF_SIZE) ||
-            Process::maximum_concurrent_threads() <= 1
+            std::thread::hardware_concurrency() <= 1
         ) {
             create_kd_tree_recursive(1, 0, nb_points());
             return;
@@ -281,7 +229,9 @@ namespace geo {
             point_index_.begin() + std::ptrdiff_t(b),
             point_index_.begin() + std::ptrdiff_t(m),
             point_index_.begin() + std::ptrdiff_t(e),
-            ComparePointCoord(points_, dimension_, splitting_coord)
+            [this, splitting_coord](index_t i, index_t j) {
+                return point_ptr(i)[splitting_coord] < point_ptr(j)[splitting_coord];
+            }
         );
 
         // Initialize node's variables (splitting coord and
@@ -303,7 +253,7 @@ namespace geo {
         // results in our case.
         coord_index_t result = 0;
         double max_spread = spread(b, e, 0);
-        for(coord_index_t c = 1; c < dimension(); ++c) {
+        for(coord_index_t c = 1; c < DIMENSION; ++c) {
             double coord_spread = spread(b, e, c);
             if(coord_spread > max_spread) {
                 result = c;

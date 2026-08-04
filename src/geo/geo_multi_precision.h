@@ -316,9 +316,7 @@ namespace geo {
      * \note The result does not depend on the values of the
      *  two numbers.
      */
-    static index_t diff_capacity(double a, double b) {
-        geo_argused(a);
-        geo_argused(b);
+    static index_t diff_capacity(double, double) {
         return 2;
     }
 
@@ -350,8 +348,7 @@ namespace geo {
      * \note The result does not depend on the value of the
      *  double argument \p b.
      */
-    static index_t product_capacity(const expansion& a, double b) {
-        geo_argused(b);
+    static index_t product_capacity(const expansion& a, double) {
         // TODO: implement special case where the double argument
         // is a power of two.
         return a.length() * 2;

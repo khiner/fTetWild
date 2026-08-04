@@ -37,6 +37,24 @@ struct identity
 };
 }  // namespace matrix_detail
 
+// Eigen's `target << a, b, c` over a fixed-size buffer. Each operator<< below writes the first
+// coefficient and hands back one of these positioned on the second, and every comma after it
+// writes the next one.
+template <typename T>
+struct CommaInit
+{
+    T*  p;
+    int n;
+    int index;
+
+    CommaInit& operator,(typename matrix_detail::identity<T>::type x)
+    {
+        assert(index < n);
+        p[index++] = x;
+        return *this;
+    }
+};
+
 // `s + a * b`, kept unfused. The multiply is its own statement so that no compiler folds it into
 // the add, which is what Eigen's reductions did by accident: the two halves reached the compiler
 // from separate inlined calls. Anywhere the fusion is wanted, std::fma says so.
@@ -221,24 +239,10 @@ inline Vector<T, N> operator/(const Vector<T, N>& a, typename matrix_detail::ide
 }
 
 template <typename T, int N>
-struct VectorCommaInit
-{
-    Vector<T, N>& target;
-    int           index;
-
-    VectorCommaInit& operator,(typename matrix_detail::identity<T>::type x)
-    {
-        assert(index < N);
-        target.v[index++] = x;
-        return *this;
-    }
-};
-
-template <typename T, int N>
-inline VectorCommaInit<T, N> operator<<(Vector<T, N>& target, typename matrix_detail::identity<T>::type x)
+inline CommaInit<T> operator<<(Vector<T, N>& target, typename matrix_detail::identity<T>::type x)
 {
     target.v[0] = x;
-    return VectorCommaInit<T, N>{target, 1};
+    return CommaInit<T>{target.v, N, 1};
 }
 
 // 3x3 matrix. Row-major storage: nothing reads the buffer directly, and the solve below walks
@@ -269,24 +273,10 @@ struct Matrix33
 };
 
 template <typename T>
-struct Matrix33CommaInit
-{
-    Matrix33<T>& target;
-    int          index;
-
-    Matrix33CommaInit& operator,(typename matrix_detail::identity<T>::type x)
-    {
-        assert(index < 9);
-        target.m[index++] = x;
-        return *this;
-    }
-};
-
-template <typename T>
-inline Matrix33CommaInit<T> operator<<(Matrix33<T>& target, typename matrix_detail::identity<T>::type x)
+inline CommaInit<T> operator<<(Matrix33<T>& target, typename matrix_detail::identity<T>::type x)
 {
     target.m[0] = x;
-    return Matrix33CommaInit<T>{target, 1};
+    return CommaInit<T>{target.m, 9, 1};
 }
 
 // Matrix times vector. The two shapes below are Eigen's, and they are genuinely different from
@@ -378,25 +368,10 @@ struct RowRef
 };
 
 template <typename T>
-struct RowCommaInit
-{
-    T*  p;
-    int n;
-    int index;
-
-    RowCommaInit& operator,(typename matrix_detail::identity<T>::type x)
-    {
-        assert(index < n);
-        p[index++] = x;
-        return *this;
-    }
-};
-
-template <typename T>
-inline RowCommaInit<T> operator<<(const RowRef<T>& target, typename matrix_detail::identity<T>::type x)
+inline CommaInit<T> operator<<(const RowRef<T>& target, typename matrix_detail::identity<T>::type x)
 {
     target.p[0] = x;
-    return RowCommaInit<T>{target.p, target.n, 1};
+    return CommaInit<T>{target.p, target.n, 1};
 }
 
 template <typename T>

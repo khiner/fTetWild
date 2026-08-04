@@ -66,7 +66,7 @@ namespace floatTetWild {
          * \brief Creates the Axis Aligned Bounding Boxes tree.
          * \param[in] M the input mesh, already triangulated and already Morton-ordered by
          *  mesh_reorder(): geogram did both here, and every caller now does them beforehand.
-         * \pre M.facets.are_simplices()
+         * \pre every facet of M is a triangle
          */
         MeshFacetsAABBWithEps(const geo::Mesh& M);
 
@@ -85,7 +85,7 @@ namespace floatTetWild {
             nearest_facet_recursive(
                 p,
                 nearest_facet, nearest_point, sq_dist,
-                1, 0, mesh_.facets.nb()
+                1, 0, mesh_.nb_facets()
             );
             return nearest_facet;
         }
@@ -107,7 +107,7 @@ namespace floatTetWild {
             facet_in_envelope_recursive(
                 p, sq_epsilon,
                 nearest_facet, nearest_point, sq_dist,
-                1, 0, mesh_.facets.nb()
+                1, 0, mesh_.nb_facets()
             );
         }
 
@@ -190,13 +190,9 @@ inline void get_point_facet_nearest_point(
     double& squared_dist
 ) {
     using namespace floatTetWild::geo;
-    geo_debug_assert(M.facets.nb_vertices(f) == 3);
-    index_t c = M.facets.corners_begin(f);
-    const vec3& p1 = M.vertices.point(M.facet_corners.vertex(c));
-    ++c;
-    const vec3& p2 = M.vertices.point(M.facet_corners.vertex(c));
-    ++c;
-    const vec3& p3 = M.vertices.point(M.facet_corners.vertex(c));
+    const vec3& p1 = M.facet_point(f, 0);
+    const vec3& p2 = M.facet_point(f, 1);
+    const vec3& p3 = M.facet_point(f, 2);
     double lambda1, lambda2, lambda3;  // barycentric coords, not used.
     squared_dist = Geom::point_triangle_squared_distance(
         p, p1, p2, p3, nearest_p, lambda1, lambda2, lambda3

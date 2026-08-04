@@ -18,8 +18,6 @@
 #include <thread>
 #include <vector>
 
-#define GEOGRAM_SPINLOCK_INIT ATOMIC_FLAG_INIT
-
 namespace floatTetWild {
 namespace geo {
 
@@ -42,39 +40,16 @@ namespace geo {
         );
     }
 
-    namespace Numeric {
-        typedef int32_t int32;
-        typedef uint8_t uint8;
-        typedef uint64_t uint64;
-        typedef double float64;
-
-        inline float64 max_float64() {
-            return std::numeric_limits<float64>::max();
-        }
-
-        inline float64 min_float64() {
-            return -max_float64();
-        }
-
-        /**
-         * \brief The random engine that random_int32() draws from.
-         * \details geogram keeps one default-seeded std::mt19937_64 for the whole process and
-         *  never reseeds it, so the stream depends only on the order in which callers draw from
-         *  it. Delaunay3d is the only caller here, and it draws to pick a starting tetrahedron
-         *  for point location, so keeping the same stream keeps the same walk.
-         */
-        inline std::mt19937_64& random_engine() {
-            static std::mt19937_64 engine;
-            return engine;
-        }
-
-        /**
-         * \brief Returns a 32 bits integer between 0 and RAND_MAX.
-         */
-        inline int32 random_int32() {
-            return std::uniform_int_distribution<int32>(0, RAND_MAX)(random_engine());
-        }
-
+    /**
+     * \brief Returns a 32 bits integer between 0 and RAND_MAX.
+     * \details geogram keeps one default-seeded std::mt19937_64 for the whole process and never
+     *  reseeds it, so the stream depends only on the order in which callers draw from it.
+     *  Delaunay3d is the only caller here, and it draws to pick a starting tetrahedron for point
+     *  location, so keeping the same stream keeps the same walk.
+     */
+    inline int32_t random_int32() {
+        static std::mt19937_64 engine;
+        return std::uniform_int_distribution<int32_t>(0, RAND_MAX)(engine);
     }
 
     /**
@@ -87,9 +62,6 @@ namespace geo {
 
     /** \brief The type for storing and manipulating indices. */
     typedef uint32_t index_t;
-
-    /** \brief The type for storing and manipulating index differences. */
-    typedef int32_t signed_index_t;
 
     /** \brief The type for storing coordinate indices. */
     typedef uint8_t coord_index_t;
@@ -108,20 +80,6 @@ namespace geo {
         std::abort();
     }
 
-    [[noreturn]] inline void geo_should_not_have_reached(
-        const char* file, int line
-    ) {
-        std::cerr << "Control should not have reached this point\n"
-                  << "  at " << file << ':' << line << std::endl;
-        std::abort();
-    }
-
-    /**
-     * \brief Placeholder that suppresses unused-parameter warnings.
-     */
-    template <class T>
-    inline void geo_argused(const T&) {
-    }
 }
 }
 
@@ -130,9 +88,6 @@ namespace geo {
             ::floatTetWild::geo::geo_assertion_failed(#x, __FILE__, __LINE__); \
         }                                                                     \
     }
-
-#define geo_assert_not_reached \
-    ::floatTetWild::geo::geo_should_not_have_reached(__FILE__, __LINE__)
 
 #ifdef GEO_DEBUG
 #define geo_debug_assert(x) geo_assert(x)
@@ -172,106 +127,10 @@ namespace geo {
             return baseclass::operator[] (i);
         }
 
-        T& operator[] (signed_index_t i) {
-            geo_debug_assert(i >= 0 && index_t(i) < size());
-            return baseclass::operator[] (index_t(i));
-        }
-
-        const T& operator[] (signed_index_t i) const {
-            geo_debug_assert(i >= 0 && index_t(i) < size());
-            return baseclass::operator[] (index_t(i));
-        }
-
         T* data() {
             return size() == 0 ? nullptr : &(*this)[0];
         }
     };
-
-    /**
-     * \brief A half-open range of indices, so that vendored code can write
-     *  `for(index_t v: M.vertices)` and `for(index_t c: M.facets.corners(f))` as it does in
-     *  geogram.
-     */
-    class index_range {
-    public:
-        class iterator {
-        public:
-            explicit iterator(index_t i) : i_(i) {
-            }
-
-            index_t operator* () const {
-                return i_;
-            }
-
-            iterator& operator++ () {
-                ++i_;
-                return *this;
-            }
-
-            bool operator!= (const iterator& rhs) const {
-                return i_ != rhs.i_;
-            }
-
-        private:
-            index_t i_;
-        };
-
-        index_range(index_t begin, index_t end) : begin_(begin), end_(end) {
-        }
-
-        iterator begin() const {
-            return iterator(begin_);
-        }
-
-        iterator end() const {
-            return iterator(end_);
-        }
-
-    private:
-        index_t begin_;
-        index_t end_;
-    };
-
-    /**
-     * \brief The slice of geogram's Memory:: that the vendored expansion allocator uses.
-     */
-    namespace Memory {
-        typedef unsigned char byte;
-        typedef byte* pointer;
-
-        inline void copy(void* to, const void* from, size_t size) {
-            ::memcpy(to, from, size);
-        }
-    }
-
-    /**
-     * \brief The slice of geogram's Process:: that the vendored expansion allocator uses.
-     * \details geogram's spinlock is a std::atomic_flag on every platform we build for, so this
-     *  is the same lock, not a substitute.
-     */
-    namespace Process {
-        typedef std::atomic_flag spinlock;
-
-        inline void acquire_spinlock(spinlock& x) {
-            while(x.test_and_set(std::memory_order_acquire)) {
-                // Spin.
-            }
-        }
-
-        inline void release_spinlock(spinlock& x) {
-            x.clear(std::memory_order_release);
-        }
-
-        /**
-         * \brief How many threads can run at once.
-         * \details Only used to decide whether a tree is built in parallel. The work is split
-         *  into disjoint ranges either way, so this changes the wall clock and nothing else.
-         */
-        inline index_t maximum_concurrent_threads() {
-            unsigned int n = std::thread::hardware_concurrency();
-            return n == 0 ? 1 : index_t(n);
-        }
-    }
 
 }
 }

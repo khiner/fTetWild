@@ -21,10 +21,23 @@
 #include <floattetwild/Logger.hpp>
 
 #include <floattetwild/Timer.h>
-#include <floattetwild/fast_winding_number.h>
+#include <floattetwild/ParallelFor.hpp>
 #include <floattetwild/geo_kd_tree.h>
 #include <floattetwild/Predicates.hpp>
 #include <floattetwild/MeshCleanup.hpp>
+
+// Third-party header, so there is no source file to put compile options on. The first two lines
+// let each compiler skip the other's warning names.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#pragma GCC diagnostic ignored "-Wgnu-anonymous-struct"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#pragma GCC diagnostic ignored "-Wshadow"
+#include <floattetwild/FastWindingNumberForSoups.h>
+#pragma GCC diagnostic pop
 
 namespace floatTetWild {
 namespace {
@@ -47,17 +60,43 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
     return C;
 }
 
-// The winding number of every barycentre against the given surface. Flipping the faces flips the
-// sign convention, which is the fallback when the input turned out to be inside out.
-MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F_in, const MatrixXd &C,
+// The winding number of every query point in C against the surface (V, F), by the approximation
+// in "Fast Winding Numbers for Soups and Clouds" [Barill et al. 2018]. Flipping the faces flips
+// the sign convention, which is the fallback when the input turned out to be inside out.
+//
+// libigl also exposed the two halves of this, building the hierarchy once and querying it many
+// times. Nothing here reuses a hierarchy, so the two are one call.
+MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C,
                          bool invert_faces) {
-    MatrixXi F = F_in;
-    if (invert_faces) {
-        for (int i = 0; i < F.rows(); i++)
-            std::swap(F(i, 1), F(i, 2));
+    using namespace FastWindingNumber::HDK_Sample;
+
+    // The tree points into these, so they have to outlive it.
+    std::vector<UT_Vector3T<float>> points(V.rows());
+    for (int i = 0; i < V.rows(); i++) {
+        for (int j = 0; j < 3; j++)
+            points[i][j] = V(i, j);
     }
-    MatrixXd W;
-    fast_winding_number(MatrixXd(V.cast<double>()), F, C, W);
+    std::vector<int> faces(F.size());
+    for (int f = 0; f < F.rows(); f++) {
+        faces[3 * f] = F(f, 0);
+        faces[3 * f + 1] = F(f, invert_faces ? 2 : 1);
+        faces[3 * f + 2] = F(f, invert_faces ? 1 : 2);
+    }
+
+    // Taylor series expansion order 2, and below the accuracy scale that goes with it.
+    UT_SolidAngle<float, float> solid_angle;
+    solid_angle.init(faces.size() / 3, faces.data(), points.size(), points.data(), 2);
+
+    // igl::PI, and the 4 pi a solid angle is divided by to become a winding number.
+    constexpr double Pi = 3.1415926535897932384626433832795;
+
+    MatrixXd W(C.rows(), 1);
+    parallel_for(0, C.rows(), [&](size_t p) {
+        UT_Vector3T<float> q;
+        for (int j = 0; j < 3; j++)
+            q[j] = C(int(p), j);
+        W(int(p)) = solid_angle.computeSolidAngle(q, 2.0f) / (4.0 * Pi);
+    }, 1000);
     return W;
 }
 
@@ -338,7 +377,7 @@ bool update_scaling_field(Mesh &mesh, Scalar max_energy) {
             is_visited.insert(v_id);
             scale_multipliers[v_id] = refine_scale;
         }
-        geo::BalancedKdTree nnsearch(3);
+        geo::BalancedKdTree nnsearch;
         nnsearch.set_points(int(v_ids[n].size()), pts.data());
 
         while (!v_queue.empty()) {
@@ -951,9 +990,9 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
             Vector3 c = (tet_pos(mesh, t_id, (j + 1) % 4) + tet_pos(mesh, t_id, (j + 2) % 4) +
                          tet_pos(mesh, t_id, (j + 3) % 4)) / 3;
             int f_id = tree.get_nearest_face_sf(c);
-            const auto &fv1 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 0));
-            const auto &fv2 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 1));
-            const auto &fv3 = tree.sf_mesh.vertices.point(tree.sf_mesh.facets.vertex(f_id, 2));
+            const auto &fv1 = tree.sf_mesh.point(tree.sf_mesh.facet_vertex(f_id, 0));
+            const auto &fv2 = tree.sf_mesh.point(tree.sf_mesh.facet_vertex(f_id, 1));
+            const auto &fv3 = tree.sf_mesh.point(tree.sf_mesh.facet_vertex(f_id, 2));
             auto nf = geo::cross((fv2 - fv1), (fv3 - fv1));
             const Vector3 n(nf[0], nf[1], nf[2]);
             // The face carries opposite signs on its two sides.

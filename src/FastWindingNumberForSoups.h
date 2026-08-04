@@ -1,5 +1,5 @@
 // Trimmed to the slice fTetWild reaches: the entry points are UT_SolidAngle::init and
-// ::computeSolidAngle, called from fast_winding_number.h. UT_SubtendedAngle, which computes
+// ::computeSolidAngle, called from MeshImprovement.cpp. UT_SubtendedAngle, which computes
 // angles subtended by 2D curves, and the unreached parts of the supporting containers, SIMD
 // wrappers and BVH are gone, so the header no longer matches the amalgamation command below
 // or the README text that follows it. Everything kept is unmodified.
@@ -2813,7 +2813,7 @@ using UT_BVH = UT::BVH<N>;
 #ifndef __HDK_UT_BVHImpl_h__
 #define __HDK_UT_BVHImpl_h__
 
-#include <floattetwild/parallel_for.h>
+#include <floattetwild/ParallelFor.hpp>
 
 #include <iostream>
 #include <algorithm>
@@ -3060,8 +3060,8 @@ inline void BVH<N>::traverseParallelHelper(
         }
         // Now do the parallel ones
         floatTetWild::parallel_for(
-          nparallel,
-          [this,nodei,&node,&nnodes,&next_nodes,&parallel_threshold,&functors,&local_data](int taski)
+          0, nparallel,
+          [this,nodei,&node,&nnodes,&next_nodes,&parallel_threshold,&functors,&local_data](size_t taski)
           {
             INT_TYPE parallel_count = 0;
             // NOTE: The check for s < N is just so that the compiler can
@@ -3154,7 +3154,7 @@ inline void BVH<N>::traverseVectorHelper(
 template<uint N>
 template<typename SRC_INT_TYPE>
 inline void BVH<N>::createTrivialIndices(SRC_INT_TYPE* indices, const INT_TYPE n) noexcept {
-    floatTetWild::parallel_for(n, [indices](INT_TYPE i) { indices[i] = i; }, 65536);
+    floatTetWild::parallel_for(0, n, [indices](size_t i) { indices[i] = i; }, 65536);
 }
 
 template<uint N>
@@ -3188,29 +3188,27 @@ inline void BVH<N>::computeFullBoundingBox(Box<T,NAXES>& axes_minmax, const BOX_
     else {
         UT_SmallArray<Box<T,NAXES>> parallel_boxes;
         Box<T,NAXES> box;
-        floatTetWild::parallel_for(
-          nboxes,
-          [&parallel_boxes](int n){parallel_boxes.setSize(n);},
-          [&parallel_boxes,indices,&boxes](int i, int t)
+        const size_t nslots = floatTetWild::detail::chunk_count(0, nboxes);
+        parallel_boxes.setSize(int(nslots));
+        floatTetWild::detail::parallel_ranges(0, nboxes,
+          [&parallel_boxes,indices,&boxes](size_t lo, size_t hi, size_t t)
           {
-            if(indices)
+            for (size_t i = lo; i < hi; ++i)
             {
-              parallel_boxes[t].combine(boxes[indices[i]]);
-            }else
-            {
-              parallel_boxes[t].combine(boxes[i]);
-            }
-          },
-          [&parallel_boxes,&box](int t)
-          {
-            if(t == 0)
-            {
-              box = parallel_boxes[0];
-            }else
-            {
-              box.combine(parallel_boxes[t]);
+              if(indices)
+              {
+                parallel_boxes[t].combine(boxes[indices[i]]);
+              }else
+              {
+                parallel_boxes[t].combine(boxes[i]);
+              }
             }
           });
+        box = parallel_boxes[0];
+        for (size_t t = 1; t < nslots; ++t)
+        {
+          box.combine(parallel_boxes[t]);
+        }
 
         axes_minmax = box;
     }
@@ -3267,8 +3265,8 @@ inline void BVH<N>::initNode(UT_Array<Node>& nodes, Node &node, const Box<T,NAXE
         parallel_nodes.setSize(nparallel);
         parallel_parent_nodes.setSize(nparallel);
         floatTetWild::parallel_for(
-          nparallel,
-          [&parallel_nodes,&parallel_parent_nodes,&sub_indices,boxes,&sub_boxes](int taski)
+          0, nparallel,
+          [&parallel_nodes,&parallel_parent_nodes,&sub_indices,boxes,&sub_boxes](size_t taski)
           {
             // First, find which child this is
             INT_TYPE counted_parallel = 0;
@@ -3920,38 +3918,38 @@ inline void BVH<N>::split(const Box<T,NAXES>& axes_minmax, const BOX_TYPE* boxes
     else {
         UT_SmallArray<Box<T,NAXES>> parallel_boxes;
         UT_SmallArray<INT_TYPE> parallel_counts;
-        floatTetWild::parallel_for(
-          nboxes,
-          [&parallel_boxes,&parallel_counts](int n)
+        const size_t nslots = floatTetWild::detail::chunk_count(0, nboxes);
+        parallel_boxes.setSize( NSPANS*int(nslots));
+        parallel_counts.setSize(NSPANS*int(nslots));
+        for(size_t t = 0;t<nslots;t++)
+        {
+          for (INT_TYPE i = 0; i < NSPANS; ++i)
           {
-            parallel_boxes.setSize( NSPANS*n);
-            parallel_counts.setSize(NSPANS*n);
-            for(int t = 0;t<n;t++)
+            parallel_boxes[t*NSPANS+i].initBounds();
+            parallel_counts[t*NSPANS+i] = 0;
+          }
+        }
+        floatTetWild::detail::parallel_ranges(0, nboxes,
+          [&parallel_boxes,&parallel_counts,&boxes,indices,axis,axis_min_x2,axis_index_scale](size_t lo, size_t hi, size_t t)
+          {
+            for (size_t j = lo; j < hi; ++j)
             {
-              for (INT_TYPE i = 0; i < NSPANS; ++i) 
-              {
-                parallel_boxes[t*NSPANS+i].initBounds();
-                parallel_counts[t*NSPANS+i] = 0;
-              }
-            }
-          },
-          [&parallel_boxes,&parallel_counts,&boxes,indices,axis,axis_min_x2,axis_index_scale](int j, int t)
-          {
-            const auto& box = boxes[indices[j]];
-            const T sum = utBoxCenter(box, axis);
-            const uint span_index = SYSclamp(int((sum-axis_min_x2)*axis_index_scale), int(0), int(NSPANS-1));
-            ++parallel_counts[t*NSPANS+span_index];
-            Box<T,NAXES>& span_box = parallel_boxes[t*NSPANS+span_index];
-            span_box.combine(box);
-          },
-          [&parallel_boxes,&parallel_counts,&span_boxes,&span_counts](int t)
-          {
-            for(int i = 0;i<NSPANS;i++)
-            {
-              span_counts[i] += parallel_counts[t*NSPANS + i];
-              span_boxes[i].combine(parallel_boxes[t*NSPANS + i]);
+              const auto& box = boxes[indices[j]];
+              const T sum = utBoxCenter(box, axis);
+              const uint span_index = SYSclamp(int((sum-axis_min_x2)*axis_index_scale), int(0), int(NSPANS-1));
+              ++parallel_counts[t*NSPANS+span_index];
+              Box<T,NAXES>& span_box = parallel_boxes[t*NSPANS+span_index];
+              span_box.combine(box);
             }
           });
+        for(size_t t = 0;t<nslots;t++)
+        {
+          for(int i = 0;i<NSPANS;i++)
+          {
+            span_counts[i] += parallel_counts[t*NSPANS + i];
+            span_boxes[i].combine(parallel_boxes[t*NSPANS + i]);
+          }
+        }
 
     }
 
@@ -4477,7 +4475,7 @@ inline void ut_ArrayImplFree(void *p)
  *      Functions and structures for computing solid angles.
  */
 
-#include <floattetwild/parallel_for.h>
+#include <floattetwild/ParallelFor.hpp>
 #include <type_traits>
 #include <utility>
 
@@ -4599,8 +4597,8 @@ inline void UT_SolidAngle<T,S>::init(
     }
     else
     {
-      floatTetWild::parallel_for(ntriangles,
-        [triangle_points,&triangle_boxes,positions](int i)
+      floatTetWild::parallel_for(0, ntriangles,
+        [triangle_points,&triangle_boxes,positions](size_t i)
         {
           const int *cur_triangle_points = triangle_points + i*3;
           UT::Box<S,3> &box = triangle_boxes[i];

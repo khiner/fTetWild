@@ -1,13 +1,15 @@
 // A stand-in for the slice of geogram/mesh/mesh.h that fTetWild and the vendored spatial sort,
-// loaders and AABB use: vertices, facets and facet corners.
+// loaders and AABB use.
 //
 // Reimplemented rather than copied, unlike its neighbours here. A container addresses elements by
 // index and has no comparisons of its own, so there is no tie-breaking to preserve; what it does
 // have to match is the element order geogram's operations leave behind, which is why
-// permute_elements(), triangulate() and connect() follow geogram's implementations step for step.
+// permute_vertices() and permute_facets() reproduce what geogram's permute_elements() leaves.
 //
-// geogram's cells are not here: fTetWild's only use of them was Mesh::partition(), which has no
-// live caller.
+// geogram spreads this over MeshVertices, MeshFacetCorners and MeshFacets, and supports polygons,
+// other dimensions and cells. Every facet built here is a triangle -- the loaders fan polygons as
+// they read them -- every mesh is 3d, and fTetWild's only use of cells was Mesh::partition(),
+// which has no live caller. So the whole thing is two flat arrays.
 
 #pragma once
 
@@ -19,35 +21,32 @@ namespace geo {
     static const index_t NO_VERTEX = index_t(-1);
     static const index_t NO_FACET = index_t(-1);
 
-    class Mesh;
-
     /**
-     * \brief The vertices of a Mesh, stored as one contiguous array of coordinates.
+     * \brief A triangle surface mesh.
      */
-    class MeshVertices {
-    public:
-        explicit MeshVertices(Mesh& mesh) : mesh_(mesh) {
+    struct Mesh {
+        /** \brief Three coordinates per vertex. */
+        std::vector<double> points;
+
+        /** \brief Three vertex indices per facet, in order around it. */
+        std::vector<index_t> corners;
+
+        index_t nb_vertices() const {
+            return index_t(points.size() / 3);
         }
 
-        index_t nb() const {
-            return index_t(points_.size() / DIMENSION);
-        }
-
-        /**
-         * \brief geogram supports other dimensions. fTetWild only ever builds 3d meshes.
-         */
-        index_t dimension() const {
-            return DIMENSION;
+        index_t nb_facets() const {
+            return index_t(corners.size() / 3);
         }
 
         double* point_ptr(index_t v) {
-            geo_debug_assert(v < nb());
-            return points_.data() + v * DIMENSION;
+            geo_debug_assert(v < nb_vertices());
+            return points.data() + 3 * v;
         }
 
         const double* point_ptr(index_t v) const {
-            geo_debug_assert(v < nb());
-            return points_.data() + v * DIMENSION;
+            geo_debug_assert(v < nb_vertices());
+            return points.data() + 3 * v;
         }
 
         vec3& point(index_t v) {
@@ -58,175 +57,58 @@ namespace geo {
             return *reinterpret_cast<const vec3*>(point_ptr(v));
         }
 
-        index_t create_vertex() {
-            return create_vertices(1);
+        index_t facet_vertex(index_t f, index_t lv) const {
+            geo_debug_assert(f < nb_facets() && lv < 3);
+            return corners[3 * f + lv];
         }
 
-        index_range::iterator begin() const {
-            return index_range(0, nb()).begin();
+        void set_facet_vertex(index_t f, index_t lv, index_t v) {
+            geo_debug_assert(f < nb_facets() && lv < 3);
+            corners[3 * f + lv] = v;
         }
 
-        index_range::iterator end() const {
-            return index_range(0, nb()).end();
+        const vec3& facet_point(index_t f, index_t lv) const {
+            return point(facet_vertex(f, lv));
         }
 
-        index_t create_vertices(index_t nb_to_create) {
-            index_t first = nb();
-            points_.resize((first + nb_to_create) * DIMENSION, 0.0);
+        /**
+         * \brief Creates a contiguous chunk of vertices at the origin.
+         * \return the index of the first one
+         */
+        index_t create_vertices(index_t nb) {
+            index_t first = nb_vertices();
+            points.resize(size_t(first + nb) * 3, 0.0);
+            return first;
+        }
+
+        /**
+         * \brief Creates a contiguous chunk of triangles with no vertices set yet.
+         * \return the index of the first one
+         */
+        index_t create_triangles(index_t nb) {
+            index_t first = nb_facets();
+            corners.resize(size_t(first + nb) * 3, NO_VERTEX);
             return first;
         }
 
         void clear() {
-            points_.clear();
-            points_.shrink_to_fit();
+            points.clear();
+            points.shrink_to_fit();
+            corners.clear();
+            corners.shrink_to_fit();
         }
 
         /**
          * \brief Reorders the vertices so that vertex \p k becomes the vertex that was at
-         *  \p permutation[k], and remaps everything that refers to a vertex.
-         * \details \p permutation is inverted in place, as in geogram.
+         *  \p permutation[k], and sends the facet corners after them.
          */
-        void permute_elements(vector<index_t>& permutation);
-
-    private:
-        static const index_t DIMENSION = 3;
-
-        Mesh& mesh_;
-        std::vector<double> points_;
-    };
-
-    /**
-     * \brief The corners of the facets of a Mesh: for each one, the vertex it points at.
-     * \details geogram also keeps the facet on the other side of the edge that starts at the
-     *  corner. Nothing here reads facet adjacency, so it is not stored.
-     */
-    class MeshFacetCorners {
-    public:
-        MeshFacetCorners() {
-        }
-
-        index_t nb() const {
-            return index_t(corner_vertex_.size());
-        }
-
-        index_t vertex(index_t c) const {
-            geo_debug_assert(c < nb());
-            return corner_vertex_[c];
-        }
-
-        void set_vertex(index_t c, index_t v) {
-            geo_debug_assert(c < nb());
-            corner_vertex_[c] = v;
-        }
-
-    private:
-        friend class MeshFacets;
-
-        index_t create_sub_elements(index_t nb_to_create) {
-            index_t first = nb();
-            corner_vertex_.resize(first + nb_to_create, NO_VERTEX);
-            return first;
-        }
-
-        void clear() {
-            corner_vertex_.clear();
-            corner_vertex_.shrink_to_fit();
-        }
-
-        std::vector<index_t> corner_vertex_;
-    };
-
-    /**
-     * \brief The facets of a Mesh, all of them triangles.
-     * \details geogram switches to a general polygonal representation as soon as a facet with
-     *  another number of vertices is created. Every facet built here is a triangle -- the loaders
-     *  fan polygons as they read them -- so only geogram's simplicial representation is kept, with
-     *  the corners of facet f at 3f, 3f+1, 3f+2.
-     */
-    class MeshFacets {
-    public:
-        explicit MeshFacets(MeshFacetCorners& facet_corners) :
-            facet_corners_(facet_corners) {
-        }
-
-        index_t nb() const {
-            return nb_;
-        }
-
-        index_t corners_begin(index_t f) const {
-            geo_debug_assert(f < nb());
-            return 3 * f;
-        }
-
-        index_t corners_end(index_t f) const {
-            geo_debug_assert(f < nb());
-            return 3 * (f + 1);
-        }
-
-        index_t nb_vertices(index_t f) const {
-            return corners_end(f) - corners_begin(f);
-        }
-
-        index_range corners(index_t f) const {
-            return index_range(corners_begin(f), corners_end(f));
-        }
-
-        index_range::iterator begin() const {
-            return index_range(0, nb()).begin();
-        }
-
-        index_range::iterator end() const {
-            return index_range(0, nb()).end();
-        }
-
-        index_t vertex(index_t f, index_t lv) const {
-            geo_debug_assert(lv < nb_vertices(f));
-            return facet_corners_.vertex(corners_begin(f) + lv);
-        }
-
-        void set_vertex(index_t f, index_t lv, index_t v) {
-            geo_debug_assert(lv < nb_vertices(f));
-            facet_corners_.set_vertex(corners_begin(f) + lv, v);
-        }
-
-        /**
-         * \brief Creates a contiguous chunk of triangles.
-         * \return the index of the first triangle
-         */
-        index_t create_triangles(index_t nb_triangles);
-
-        void clear();
+        void permute_vertices(const vector<index_t>& permutation);
 
         /**
          * \brief Reorders the facets so that facet \p k becomes the facet that was at
          *  \p permutation[k].
          */
-        void permute_elements(vector<index_t>& permutation);
-
-    private:
-        MeshFacetCorners& facet_corners_;
-        index_t nb_ = 0;
-    };
-
-    /**
-     * \brief A surface mesh.
-     */
-    class Mesh {
-    public:
-        Mesh() : vertices(*this), facets(facet_corners) {
-        }
-
-        Mesh(const Mesh&) = delete;
-        Mesh& operator= (const Mesh&) = delete;
-
-        void clear() {
-            vertices.clear();
-            facets.clear();
-        }
-
-        MeshVertices vertices;
-        MeshFacetCorners facet_corners;
-        MeshFacets facets;
+        void permute_facets(const vector<index_t>& permutation);
     };
 
     /**

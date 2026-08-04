@@ -57,33 +57,6 @@ namespace detail
     }
   }
 
-  // Round a scalar value
-  //
-  // http://stackoverflow.com/a/485549
-  template <typename T>
-  inline T round(const T r)
-  {
-    return (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
-  }
-
-  // Round a given matrix to nearest integers
-  //
-  // Inputs:
-  //  X  m by n matrix of scalars
-  // Outputs:
-  //  Y  m by n matrix of rounded integers
-  template <typename T>
-  inline void round(const MatrixX<T>& X, MatrixX<T>& Y)
-  {
-    Y.resize(X.rows(),X.cols());
-    for(int i = 0;i<X.rows();i++)
-    {
-      for(int j = 0;j<X.cols();j++)
-      {
-        Y(i,j) = floatTetWild::detail::round(X(i,j));
-      }
-    }
-  }
 }  // namespace detail
 
   // Act like matlab's [C,IA,IC] = unique(X,'rows')
@@ -171,12 +144,15 @@ namespace detail
     if(epsilon > 0)
     {
       // The rounded copy only feeds unique_rows: SV is gathered from V, not from it.
-      MatrixX<T> scaled(V.rows(), V.cols());
+      // Rounding is http://stackoverflow.com/a/485549, which is what libigl used.
+      MatrixX<T> rounded(V.rows(), V.cols());
       for(int i = 0;i<V.rows();i++)
         for(int j = 0;j<V.cols();j++)
-          scaled(i,j) = V(i,j) / T(epsilon);
-      MatrixX<T> rounded, unused;
-      detail::round(scaled,rounded);
+        {
+          const T r = V(i,j) / T(epsilon);
+          rounded(i,j) = (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
+        }
+      MatrixX<T> unused;
       unique_rows(rounded,unused,SVI,SVJ);
       SV.resize(SVI.rows(),V.cols());
       for(int i = 0;i<SVI.rows();i++)

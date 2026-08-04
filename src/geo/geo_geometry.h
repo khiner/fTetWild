@@ -21,7 +21,7 @@ namespace geo {
      * \brief Represents points and vectors in 3d.
      * \details Syntax is (mostly) compatible with GLSL.
      */
-    typedef vecng<3, Numeric::float64> vec3;
+    typedef vecng<3, double> vec3;
 
     /*******************************************************************/
 

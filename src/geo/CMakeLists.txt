@@ -11,7 +11,6 @@ set(SOURCES
 
 	geo_algorithm.h
 	geo_parallel.h
-	geo_permutation.h
 
 	geo_mesh.h
 	geo_mesh.cpp

@@ -35,10 +35,16 @@ void parallel_ranges(size_t                                             begin,
 size_t chunk_count(size_t begin, size_t end);
 }  // namespace detail
 
-// Runs f(i) for every i in [begin, end).
+// Runs f(i) for every i in [begin, end). A range shorter than min_parallel runs inline, for the
+// loops whose bodies are cheap enough that handing chunks to the pool costs more than the work.
 template<typename F>
-void parallel_for(size_t begin, size_t end, F&& f)
+void parallel_for(size_t begin, size_t end, F&& f, size_t min_parallel = 0)
 {
+    if (end > begin && end - begin < min_parallel) {
+        for (size_t i = begin; i < end; ++i)
+            f(i);
+        return;
+    }
     detail::parallel_ranges(begin, end, [&f](size_t lo, size_t hi, size_t /*chunk*/) {
         for (size_t i = lo; i < hi; ++i)
             f(i);

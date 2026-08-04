@@ -22,7 +22,7 @@ namespace geo {
         /**
          * \brief Type used for local indices.
          */
-        typedef Numeric::uint8 local_index_t;
+        typedef uint8_t local_index_t;
 
         /**
          * \brief Cavity constructor.
@@ -193,8 +193,8 @@ namespace geo {
             do {
                 if(h2t_[cur] == END_OF_LIST) {
                     h2t_[cur] = f;
-                    h2v_[cur] = (Numeric::uint64(v1+1) << 32) |
-                        Numeric::uint64(v2+1);
+                    h2v_[cur] = (uint64_t(v1+1) << 32) |
+                        uint64_t(v2+1);
                     return;
                 }
                 cur = (cur+1)%MAX_H;
@@ -209,8 +209,8 @@ namespace geo {
          * \return the local facet index.
          */
         local_index_t get_vv2t(index_t v1, index_t v2) const {
-            Numeric::uint64 K = (Numeric::uint64(v1+1) << 32) |
-                Numeric::uint64(v2+1);
+            uint64_t K = (uint64_t(v1+1) << 32) |
+                uint64_t(v2+1);
             index_t h = hash(v1,v2);
             index_t cur = h;
             do {
@@ -219,14 +219,14 @@ namespace geo {
                 }
                 cur = (cur+1)%MAX_H;
             } while(cur != h);
-            geo_assert_not_reached;
+            geo_assert(false);
         }
 
         /** \brief Hash index to local facet id. */
         local_index_t  h2t_[MAX_H];
 
         /** \brief Hash index to global vertex id. */
-        Numeric::uint64 h2v_[MAX_H];
+        uint64_t h2v_[MAX_H];
 
         /** \brief Number of facets. */
         index_t nb_f_;

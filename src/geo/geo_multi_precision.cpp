@@ -60,7 +60,7 @@ namespace {
             if(pools_[size] == nullptr) {
                 new_chunk(size);
             }
-            Memory::pointer result = pools_[size];
+            unsigned char* result = pools_[size];
             pools_[size] = next(pools_[size]);
             return result;
         }
@@ -76,8 +76,8 @@ namespace {
                 ::free(ptr);
                 return;
             }
-            set_next(Memory::pointer(ptr), pools_[size]);
-            pools_[size] = Memory::pointer(ptr);
+            set_next(static_cast<unsigned char*>(ptr), pools_[size]);
+            pools_[size] = static_cast<unsigned char*>(ptr);
         }
 
     protected:
@@ -95,12 +95,12 @@ namespace {
          */
         void new_chunk(size_t item_size) {
             // Allocate chunk
-            Memory::pointer chunk =
-                new Memory::byte[item_size * NB_ITEMS_PER_CHUNK];
+            unsigned char* chunk =
+                new unsigned char[item_size * NB_ITEMS_PER_CHUNK];
             // Chain items in chunk
             for(index_t i=0; i<NB_ITEMS_PER_CHUNK-1; ++i) {
-                Memory::pointer cur_item  = item(chunk, item_size, i);
-                Memory::pointer next_item = item(chunk, item_size, i+1);
+                unsigned char* cur_item  = item(chunk, item_size, i);
+                unsigned char* next_item = item(chunk, item_size, i+1);
                 set_next(cur_item, next_item);
             }
             // Last item's next is pool's first
@@ -121,8 +121,8 @@ namespace {
          * \return a pointer to the next item or
          *  nullptr if we reached the end of the free list
          */
-        Memory::pointer next(Memory::pointer item) const {
-            return *reinterpret_cast<Memory::pointer*>(item);
+        unsigned char* next(unsigned char* item) const {
+            return *reinterpret_cast<unsigned char**>(item);
         }
 
         /**
@@ -131,9 +131,9 @@ namespace {
          * \param[in] next a pointer to the next item
          */
         void set_next(
-            Memory::pointer item, Memory::pointer next
+            unsigned char* item, unsigned char* next
         ) const {
-            *reinterpret_cast<Memory::pointer*>(item) = next;
+            *reinterpret_cast<unsigned char**>(item) = next;
         }
 
         /**
@@ -145,8 +145,8 @@ namespace {
          * \param[in] index index of the item in chunk
          * \return a pointer to the item
          */
-        Memory::pointer item(
-            Memory::pointer chunk, size_t item_size, index_t index
+        unsigned char* item(
+            unsigned char* chunk, size_t item_size, index_t index
         ) const {
             geo_debug_assert(index < NB_ITEMS_PER_CHUNK);
             return chunk + (item_size * size_t(index));
@@ -156,14 +156,14 @@ namespace {
          * \brief The free lists of the pools. Index corresponds
          *  to element size in bytes.
          */
-        std::vector<Memory::pointer> pools_;
+        std::vector<unsigned char*> pools_;
 
         /**
          * \brief Pointers to all the allocated chunks.
          * \details Used by the destructor to release all the
          *   allocated memory on exit.
          */
-        std::vector<Memory::pointer> chunks_;
+        std::vector<unsigned char*> chunks_;
 
     };
 
@@ -633,22 +633,28 @@ namespace geo {
         expansion_splitter_ += 1.0;
     }
 
-    static Process::spinlock expansions_lock = GEOGRAM_SPINLOCK_INIT;
+    static std::atomic_flag expansions_lock = ATOMIC_FLAG_INIT;
+
+    static void lock_expansions() {
+        while(expansions_lock.test_and_set(std::memory_order_acquire)) {
+            // Spin.
+        }
+    }
 
     expansion* expansion::new_expansion_on_heap(index_t capa) {
-        Process::acquire_spinlock(expansions_lock);
-        Memory::pointer addr = Memory::pointer(
+        lock_expansions();
+        unsigned char* addr = static_cast<unsigned char*>(
             pools_.malloc(expansion::bytes(capa))
         );
-        Process::release_spinlock(expansions_lock);
+        expansions_lock.clear(std::memory_order_release);
         expansion* result = new(addr)expansion(capa);
         return result;
     }
 
     void expansion::delete_expansion_on_heap(expansion* e) {
-        Process::acquire_spinlock(expansions_lock);
+        lock_expansions();
         pools_.free(e, expansion::bytes(e->capacity()));
-        Process::release_spinlock(expansions_lock);
+        expansions_lock.clear(std::memory_order_release);
     }
 
     // ====== Initialization from expansion and double ===============

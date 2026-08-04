@@ -109,12 +109,12 @@ namespace geo {
             for(index_t t = 0; t < max_t(); ++t) {
                 if(tet_is_real(t)) {
                     if(t != nb_tets) {
-                        Memory::copy(
+                        std::memcpy(
                             &cell_to_v_store_[nb_tets * 4],
                             &cell_to_v_store_[t * 4],
                             4 * sizeof(index_t)
                         );
-                        Memory::copy(
+                        std::memcpy(
                             &cell_to_cell_store_[nb_tets * 4],
                             &cell_to_cell_store_[t * 4],
                             4 * sizeof(index_t)
@@ -149,7 +149,7 @@ namespace geo {
 
         // If no hint specified, find a tetrahedron randomly
         while(hint == NO_TETRAHEDRON) {
-            hint = index_t(Numeric::random_int32()) % max_t();
+            hint = index_t(random_int32()) % max_t();
             if(tet_is_free(hint)) {
                 hint = NO_TETRAHEDRON;
             }
@@ -260,7 +260,7 @@ namespace geo {
 
         // If no hint specified, find a tetrahedron randomly
         while(hint == NO_TETRAHEDRON) {
-            hint = index_t(Numeric::random_int32()) % max_t();
+            hint = index_t(random_int32()) % max_t();
             if(tet_is_free(hint)) {
                 hint = NO_TETRAHEDRON;
             }
@@ -296,7 +296,7 @@ namespace geo {
             pv[3] = vertex_ptr(finite_tet_vertex(t,3));
 
             // Start from a random facet
-            index_t f0 = index_t(Numeric::random_int32()) % 4;
+            index_t f0 = index_t(random_int32()) % 4;
             for(index_t df = 0; df < 4; ++df) {
                 index_t f = (f0 + df) % 4;
 

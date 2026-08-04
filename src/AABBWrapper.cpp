@@ -10,32 +10,31 @@ namespace {
 // triangle collapsed to the origin.
 void build_segment_mesh(geo::Mesh& mesh, const std::vector<std::array<Vector3, 2>>& segments)
 {
-    mesh.vertices.clear();
-    mesh.facets.clear();
+    mesh.clear();
 
     if (segments.empty()) {
-        mesh.vertices.create_vertices(1);
-        mesh.vertices.point(0) = geo::vec3(0, 0, 0);
-        mesh.facets.create_triangles(1);
+        mesh.create_vertices(1);
+        mesh.point(0) = geo::vec3(0, 0, 0);
+        mesh.create_triangles(1);
         for (int lv = 0; lv < 3; lv++)
-            mesh.facets.set_vertex(0, lv, 0);
+            mesh.set_facet_vertex(0, lv, 0);
         return;
     }
 
-    mesh.vertices.create_vertices((int)segments.size() * 2);
+    mesh.create_vertices((int)segments.size() * 2);
     for (int i = 0; i < segments.size(); i++) {
         for (int j = 0; j < 2; j++) {
-            geo::vec3& p = mesh.vertices.point(i * 2 + j);
+            geo::vec3& p = mesh.point(i * 2 + j);
             for (int k = 0; k < 3; k++)
                 p[k] = segments[i][j][k];
         }
     }
 
-    mesh.facets.create_triangles((int)segments.size());
+    mesh.create_triangles((int)segments.size());
     for (int i = 0; i < segments.size(); i++) {
-        mesh.facets.set_vertex(i, 0, i * 2);
-        mesh.facets.set_vertex(i, 1, i * 2);
-        mesh.facets.set_vertex(i, 2, i * 2 + 1);
+        mesh.set_facet_vertex(i, 0, i * 2);
+        mesh.set_facet_vertex(i, 1, i * 2);
+        mesh.set_facet_vertex(i, 2, i * 2 + 1);
     }
 }
 

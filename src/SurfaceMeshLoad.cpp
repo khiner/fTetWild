@@ -32,8 +32,8 @@ std::string extension_of(const std::string& path)
 
 void add_vertex(geo::Mesh& mesh, double x, double y, double z)
 {
-    const geo::index_t v = mesh.vertices.create_vertex();
-    double*            p = mesh.vertices.point_ptr(v);
+    const geo::index_t v = mesh.create_vertices(1);
+    double*            p = mesh.point_ptr(v);
     p[0]                 = x;
     p[1]                 = y;
     p[2]                 = z;
@@ -43,10 +43,10 @@ void add_vertex(geo::Mesh& mesh, double x, double y, double z)
 void add_polygon(geo::Mesh& mesh, const std::vector<geo::index_t>& vertices)
 {
     for (size_t i = 1; i + 1 < vertices.size(); ++i) {
-        const geo::index_t f = mesh.facets.create_triangles(1);
-        mesh.facets.set_vertex(f, 0, vertices[0]);
-        mesh.facets.set_vertex(f, 1, vertices[i]);
-        mesh.facets.set_vertex(f, 2, vertices[i + 1]);
+        const geo::index_t f = mesh.create_triangles(1);
+        mesh.set_facet_vertex(f, 0, vertices[0]);
+        mesh.set_facet_vertex(f, 1, vertices[i]);
+        mesh.set_facet_vertex(f, 2, vertices[i + 1]);
     }
 }
 
@@ -74,8 +74,8 @@ bool load_stl_binary(const std::string& path, geo::Mesh& mesh, uint32_t nb_trian
         return false;
     in.seekg(84);
 
-    mesh.vertices.create_vertices(nb_triangles * 3);
-    mesh.facets.create_triangles(nb_triangles);
+    mesh.create_vertices(nb_triangles * 3);
+    mesh.create_triangles(nb_triangles);
 
     for (uint32_t t = 0; t < nb_triangles; ++t) {
         float record[12];  // normal, then the three corners
@@ -84,10 +84,10 @@ bool load_stl_binary(const std::string& path, geo::Mesh& mesh, uint32_t nb_trian
         in.seekg(2, std::ios::cur);  // attribute byte count
 
         for (geo::index_t lv = 0; lv < 3; ++lv) {
-            double* p = mesh.vertices.point_ptr(3 * t + lv);
+            double* p = mesh.point_ptr(3 * t + lv);
             for (int c = 0; c < 3; ++c)
                 p[c] = double(record[3 + lv * 3 + c]);
-            mesh.facets.set_vertex(t, lv, 3 * t + lv);
+            mesh.set_facet_vertex(t, lv, 3 * t + lv);
         }
     }
     return true;
@@ -121,7 +121,7 @@ bool load_stl_ascii(const std::string& path, geo::Mesh& mesh)
                 logger().error("{}: vertex line has fewer than 3 coordinates", path);
                 return false;
             }
-            facet_vertices.push_back(mesh.vertices.nb());
+            facet_vertices.push_back(mesh.nb_vertices());
             add_vertex(mesh, xyz[0], xyz[1], xyz[2]);
         }
     }
@@ -130,7 +130,7 @@ bool load_stl_ascii(const std::string& path, geo::Mesh& mesh)
         logger().error("{}: last facet is not closed", path);
         return false;
     }
-    if (mesh.facets.nb() == 0) {
+    if (mesh.nb_facets() == 0) {
         logger().error("{}: no facet", path);
         return false;
     }
@@ -172,14 +172,14 @@ bool load_off(const std::string& path, geo::Mesh& mesh)
         return false;
     }
 
-    mesh.vertices.create_vertices(nb_vertices);
+    mesh.create_vertices(nb_vertices);
     for (geo::index_t v = 0; v < nb_vertices; ++v) {
         double xyz[3];
         if (!next_line() || !(std::istringstream(line) >> xyz[0] >> xyz[1] >> xyz[2])) {
             logger().error("{}: expected {} vertices", path, nb_vertices);
             return false;
         }
-        double* p = mesh.vertices.point_ptr(v);
+        double* p = mesh.point_ptr(v);
         std::copy(xyz, xyz + 3, p);
     }
 
@@ -193,7 +193,7 @@ bool load_off(const std::string& path, geo::Mesh& mesh)
 
         std::vector<geo::index_t> facet_vertices(nb_facet_vertices);
         for (geo::index_t j = 0; j < nb_facet_vertices; ++j) {
-            if (!(fields >> facet_vertices[j]) || facet_vertices[j] >= mesh.vertices.nb()) {
+            if (!(fields >> facet_vertices[j]) || facet_vertices[j] >= mesh.nb_vertices()) {
                 logger().error("{}: facet references an invalid vertex", path);
                 return false;
             }
@@ -228,9 +228,9 @@ bool load_obj(const std::string& path, geo::Mesh& mesh)
                 if (index == 0)
                     continue;
                 const geo::index_t v = index < 0
-                                         ? geo::index_t(int(mesh.vertices.nb()) + index)
+                                         ? geo::index_t(int(mesh.nb_vertices()) + index)
                                          : geo::index_t(index - 1);
-                if (v >= mesh.vertices.nb()) {
+                if (v >= mesh.nb_vertices()) {
                     logger().error("{}: facet references an invalid vertex: {}", path, index);
                     return false;
                 }
@@ -403,7 +403,7 @@ bool load_ply(const std::string& path, geo::Mesh& mesh)
                 add_vertex(mesh, xyz[0], xyz[1], xyz[2]);
             if (is_face && facet_vertices.size() >= 3) {
                 for (geo::index_t v : facet_vertices) {
-                    if (v >= mesh.vertices.nb()) {
+                    if (v >= mesh.nb_vertices()) {
                         logger().error("{}: facet references an invalid vertex", path);
                         return false;
                     }
@@ -444,8 +444,8 @@ bool load_surface_mesh(const std::string& path, geo::Mesh& mesh)
     // geogram zeroed NaNs on load and warned. Keep that, so a file with NaNs still produces a
     // mesh rather than poisoning every predicate downstream.
     bool has_nan = false;
-    for (geo::index_t v = 0; v < mesh.vertices.nb(); ++v) {
-        double* p = mesh.vertices.point_ptr(v);
+    for (geo::index_t v = 0; v < mesh.nb_vertices(); ++v) {
+        double* p = mesh.point_ptr(v);
         for (int c = 0; c < 3; ++c) {
             if (std::isnan(p[c])) {
                 has_nan = true;

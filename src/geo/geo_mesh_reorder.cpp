@@ -6,7 +6,6 @@
 #include "geo_mesh_reorder.h"
 #include "geo_algorithm.h"
 #include "geo_parallel.h"
-#include "geo_permutation.h"
 
 namespace {
 
@@ -39,8 +38,7 @@ namespace {
     /************************************************************************/
 
     /**
-     * \brief Used by VertexMesh.
-     * \details Exposes an interface compatible with the requirement
+     * \brief Exposes an interface compatible with the requirement
      * of Hilbert sort templates for a raw array of vertices.
      */
     class VertexArray {
@@ -75,26 +73,6 @@ namespace {
         const double* base_;
         index_t stride_;
         index_t nb_vertices_;
-    };
-
-    /**
-     * \brief Exposes an interface compatible with the requirement
-     * of Hilbert sort templates for a raw array of vertices.
-     */
-    class VertexMesh {
-    public:
-        /**
-         * \brief Constructs a new VertexMesh.
-         * \param[in] base address of the points
-         * \param[in] stride number of doubles between
-         *  two consecutive points
-         */
-        VertexMesh(
-            index_t nb_vertices,
-            const double* base, index_t stride
-        ) : vertices(nb_vertices, base, stride) {
-        }
-        VertexArray vertices;
     };
 
     /************************************************************************/
@@ -138,8 +116,8 @@ namespace {
          */
         bool operator() (index_t i1, index_t i2) {
             return
-                mesh_.vertices.point_ptr(i1)[COORD] <
-                mesh_.vertices.point_ptr(i2)[COORD];
+                mesh_.point_ptr(i1)[COORD] <
+                mesh_.point_ptr(i2)[COORD];
         }
 
         const MESH& mesh_;
@@ -173,8 +151,8 @@ namespace {
          */
         bool operator() (index_t i1, index_t i2) {
             return
-                mesh_.vertices.point_ptr(i1)[COORD] >
-                mesh_.vertices.point_ptr(i2)[COORD];
+                mesh_.point_ptr(i1)[COORD] >
+                mesh_.point_ptr(i2)[COORD];
         }
 
         const MESH& mesh_;
@@ -210,8 +188,8 @@ namespace {
          */
         bool operator() (index_t i1, index_t i2) {
             return
-                mesh_.vertices.point_ptr(i1)[COORD] <
-                mesh_.vertices.point_ptr(i2)[COORD];
+                mesh_.point_ptr(i1)[COORD] <
+                mesh_.point_ptr(i2)[COORD];
         }
 
         const MESH& mesh_;
@@ -244,10 +222,10 @@ namespace {
          */
         double center(index_t f) const {
             double result = 0.0;
-            double s = 1.0 / double(mesh_.facets.nb_vertices(f));
-            for(index_t c: mesh_.facets.corners(f)) {
-                result += s*mesh_.vertices.point_ptr(
-                    mesh_.facet_corners.vertex(c)
+            double s = 1.0 / 3.0;
+            for(index_t lv = 0; lv < 3; ++lv) {
+                result += s*mesh_.point_ptr(
+                    mesh_.facet_vertex(f, lv)
                 )[COORD];
             }
             return result;
@@ -333,7 +311,7 @@ namespace {
             const MESH& M, IT begin, IT end, index_t limit = 1
         ) {
             const int COORDY = (COORDX + 1) % 3, COORDZ = (COORDY + 1) % 3;
-            if(end - begin <= signed_index_t(limit)) {
+            if(end - begin <= int32_t(limit)) {
                 return;
             }
             IT m0 = begin, m8 = end;
@@ -458,8 +436,8 @@ namespace {
     void morton_vsort_3d(
         const Mesh& M, vector<index_t>& sorted_indices
     ) {
-        sorted_indices.resize(M.vertices.nb());
-        for(index_t i: M.vertices) {
+        sorted_indices.resize(M.nb_vertices());
+        for(index_t i = 0; i < M.nb_vertices(); ++i) {
             sorted_indices[i] = i;
         }
         HilbertSort3d<Morton_vcmp, Mesh>(
@@ -479,8 +457,8 @@ namespace {
     void morton_fsort_3d(
         const Mesh& M, vector<index_t>& sorted_indices
     ) {
-        sorted_indices.resize(M.facets.nb());
-        for(index_t i: M.facets) {
+        sorted_indices.resize(M.nb_facets());
+        for(index_t i = 0; i < M.nb_facets(); ++i) {
             sorted_indices[i] = i;
         }
         HilbertSort3d<Morton_fcmp, Mesh>(
@@ -514,14 +492,14 @@ namespace {
 
         vector<index_t>::iterator m = b;
         if(index_t(e - b) > threshold) {
-            m = b + signed_index_t(double(e - b) * ratio);
+            m = b + int32_t(double(e - b) * ratio);
             compute_BRIO_order_recursive(
                 nb_vertices, vertices, stride, b, m, threshold, ratio
             );
         }
 
-        VertexMesh M(nb_vertices, vertices, stride);
-        HilbertSort3d<Hilbert_vcmp, VertexMesh>(M, m, e);
+        VertexArray M(nb_vertices, vertices, stride);
+        HilbertSort3d<Hilbert_vcmp, VertexArray>(M, m, e);
     }
 }
 
@@ -533,23 +511,21 @@ namespace geo {
 
     void mesh_reorder(Mesh& M, vector<index_t>* facet_permutation) {
 
-        geo_assert(M.vertices.dimension() >= 3);
-
         // Step 1: reorder vertices
         {
             vector<index_t> sorted_indices;
             morton_vsort_3d(M, sorted_indices);
-            M.vertices.permute_elements(sorted_indices);
+            M.permute_vertices(sorted_indices);
         }
 
         // Step 2: reorder facets
-        if(M.facets.nb() != 0) {
+        if(M.nb_facets() != 0) {
             vector<index_t> sorted_indices;
             morton_fsort_3d(M, sorted_indices);
             if(facet_permutation != nullptr) {
                 *facet_permutation = sorted_indices;
             }
-            M.facets.permute_elements(sorted_indices);
+            M.permute_facets(sorted_indices);
         }
 
     }

@@ -60,14 +60,13 @@ namespace {
     void get_facet_bbox(
         const Mesh& M, Box& B, index_t f
     ) {
-        index_t c = M.facets.corners_begin(f);
-        const double* p = M.vertices.point_ptr(M.facet_corners.vertex(c));
+        const double* p = M.point_ptr(M.facet_vertex(f, 0));
         for(coord_index_t coord = 0; coord < 3; ++coord) {
             B.xyz_min[coord] = p[coord];
             B.xyz_max[coord] = p[coord];
         }
-        for(++c; c < M.facets.corners_end(f); ++c) {
-            p = M.vertices.point_ptr(M.facet_corners.vertex(c));
+        for(index_t lv = 1; lv < 3; ++lv) {
+            p = M.point_ptr(M.facet_vertex(f, lv));
             for(coord_index_t coord = 0; coord < 3; ++coord) {
                 B.xyz_min[coord] = std::min(B.xyz_min[coord], p[coord]);
                 B.xyz_max[coord] = std::max(B.xyz_max[coord], p[coord]);
@@ -276,11 +275,11 @@ namespace floatTetWild {
      : mesh_(M) {
         bboxes_.resize(
             max_node_index(
-                1, 0, mesh_.facets.nb()
+                1, 0, mesh_.nb_facets()
             ) + 1 // <-- this is because size == max_index + 1 !!!
         );
         init_bboxes_recursive(
-            mesh_, bboxes_, 1, 0, mesh_.facets.nb(), get_facet_bbox
+            mesh_, bboxes_, 1, 0, mesh_.nb_facets(), get_facet_bbox
         );
     }
 
@@ -295,7 +294,7 @@ namespace floatTetWild {
         // For a large mesh (20M facets) this gains up to 10%
         // performance as compared to picking nearest_f randomly.
         index_t b = 0;
-        index_t e = mesh_.facets.nb();
+        index_t e = mesh_.nb_facets();
         index_t n = 1;
         while(e != b + 1) {
             index_t m = b + (e - b) / 2;
@@ -314,10 +313,7 @@ namespace floatTetWild {
         }
         nearest_f = b;
 
-        index_t v = mesh_.facet_corners.vertex(
-            mesh_.facets.corners_begin(nearest_f)
-        );
-        nearest_point = mesh_.vertices.point(v);
+        nearest_point = mesh_.facet_point(nearest_f, 0);
         sq_dist = Geom::distance2(p, nearest_point);
     }
 

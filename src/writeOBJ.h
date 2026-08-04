@@ -14,70 +14,42 @@
 #include <cstdio>
 #include <limits>
 #include <fstream>
-#include <ostream>
 #include <string>
 
 namespace floatTetWild
 {
-  namespace writeobj_detail
-  {
-    // Eigen's IOFormat(FullPrecision, DontAlignCols, " ", "\n", prefix, "", "", "\n") over a
-    // matrix: a prefixed, space-separated row per line, one trailing newline, and nothing at all
-    // for an empty matrix but that newline. Coefficients go out through the stream's default
-    // formatting, at digits10 significant digits for a floating point matrix, which is what
-    // FullPrecision resolved to.
-    template <typename T>
-    inline void print_rows(std::ostream& s, const MatrixX<T>& m, const char* row_prefix)
-    {
-      if(m.size() == 0)
-      {
-        s << "\n";
-        return;
-      }
-      const bool is_integer = std::numeric_limits<T>::is_integer;
-      std::streamsize old_precision = 0;
-      if(!is_integer)
-        old_precision = s.precision(std::numeric_limits<T>::digits10);
-      for(int i = 0;i<m.rows();i++)
-      {
-        s << row_prefix << m.coeff(i,0);
-        for(int j = 1;j<m.cols();j++)
-          s << " " << m.coeff(i,j);
-        if(i < m.rows()-1)
-          s << "\n";
-      }
-      s << "\n";
-      if(!is_integer)
-        s.precision(old_precision);
-    }
-  }
-
   // Write a mesh in an ascii obj file
   //
   // Inputs:
-  //  str  path to outputfile
+  //  path  path to outputfile
   //  V  #V by 3 mesh vertex positions
-  //  F  #F by 3|4 mesh indices into V
+  //  F  #F by 3 mesh indices into V
   // Returns true on success, false on error
   template <typename T>
   inline bool writeOBJ(
-    const std::string str,
+    const std::string& path,
     const MatrixX<T>& V,
-    const MatrixX<int>& F)
+    const MatrixXi& F)
   {
     assert(V.cols() == 3 && "V should have 3 columns");
-    std::ofstream s(str);
+    assert(F.cols() == 3 && "F should contain triangles");
+    std::ofstream s(path);
     if(!s.is_open())
     {
-      fprintf(stderr,"IOError: writeOBJ() could not open %s\n",str.c_str());
+      fprintf(stderr,"IOError: writeOBJ() could not open %s\n",path.c_str());
       return false;
     }
-    MatrixX<int> F1(F.rows(),F.cols());
+    // Eigen wrote each block through IOFormat(FullPrecision, DontAlignCols, " ", "\n", prefix,
+    // "", "", "\n"): a prefixed, space-separated row per line, and for an empty block nothing at
+    // all but the trailing newline. FullPrecision resolved to digits10 significant digits, which
+    // is what the vertices go out at; the indices are integers and ignore it.
+    s.precision(std::numeric_limits<T>::digits10);
+    if(V.rows() == 0) s << "\n";
+    for(int i = 0;i<V.rows();i++)
+      s << "v " << V(i,0) << " " << V(i,1) << " " << V(i,2) << "\n";
+    if(F.rows() == 0) s << "\n";
     for(int i = 0;i<F.rows();i++)
-      for(int j = 0;j<F.cols();j++)
-        F1(i,j) = F(i,j)+1;
-    writeobj_detail::print_rows(s,V,"v ");
-    writeobj_detail::print_rows(s,F1,"f ");
+      s << "f " << F(i,0)+1 << " " << F(i,1)+1 << " " << F(i,2)+1 << "\n";
     return true;
   }
 }

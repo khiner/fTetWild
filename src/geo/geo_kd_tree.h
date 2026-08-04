@@ -13,6 +13,9 @@
 // single running minimum here. That is the same number: the traversal prunes on the distance to
 // the furthest neighbour kept so far, which at k=1 is that minimum, and geogram's insert() kept
 // the smaller of two equal distances just the same.
+//
+// geogram's points carry a dimension and a stride. Every tree built here is over 3d points packed
+// three doubles to a point, so both are the constant below.
 
 #pragma once
 
@@ -34,30 +37,21 @@ namespace geo {
      */
     class BalancedKdTree {
     public:
-        /**
-         * \brief Creates a new BalancedKdTree.
-         * \param[in] dim dimension of the points
-         */
-        BalancedKdTree(coord_index_t dim) :
-            dimension_(dim), bbox_min_(dim), bbox_max_(dim) {
-        }
+        /** \brief The dimension of the points, and the stride between two of them. */
+        static constexpr coord_index_t DIMENSION = 3;
 
         /**
          * \brief Sets the points and creates the search data structure.
          * \param[in] nb_points number of points
-         * \param[in] points an array of nb_points * dimension() doubles
+         * \param[in] points an array of nb_points * DIMENSION doubles
          */
         void set_points(index_t nb_points, const double* points);
 
         /**
          * \brief The squared distance from a query point to the nearest of the points.
-         * \param[in] query_point as an array of dimension() doubles
+         * \param[in] query_point as an array of DIMENSION doubles
          */
         double nearest_sq_dist(const double* query_point) const;
-
-        coord_index_t dimension() const {
-            return dimension_;
-        }
 
         index_t nb_points() const {
             return nb_points_;
@@ -65,7 +59,7 @@ namespace geo {
 
         const double* point_ptr(index_t i) const {
             geo_debug_assert(i < nb_points());
-            return points_ + i * dimension_;
+            return points_ + i * DIMENSION;
         }
 
     private:
@@ -101,27 +95,6 @@ namespace geo {
         ) const;
 
         /**
-         * \brief Computes the minimum and maximum point coordinates
-         *   along a coordinate.
-         * \param[in] b first index of the point sequence
-         * \param[in] e one position past the last index of the point sequence
-         * \param[in] coord coordinate along which the extent is measured
-         * \param[out] minval , maxval minimum and maximum
-         */
-        void get_minmax(
-            index_t b, index_t e, coord_index_t coord,
-            double& minval, double& maxval
-        ) const {
-            minval = Numeric::max_float64();
-            maxval = Numeric::min_float64();
-            for(index_t i = b; i < e; ++i) {
-                double val = point_ptr(point_index_[i])[coord];
-                minval = std::min(minval, val);
-                maxval = std::max(maxval, val);
-            }
-        }
-
-        /**
          * \brief Computes the extent of a point sequence
          *  along a given coordinate.
          * \param[in] b first index of the point sequence
@@ -130,8 +103,13 @@ namespace geo {
          * \return the extent of the sequence along the coordinate
          */
         double spread(index_t b, index_t e, coord_index_t coord) const {
-            double minval,maxval;
-            get_minmax(b,e,coord,minval,maxval);
+            double minval = std::numeric_limits<double>::max();
+            double maxval = std::numeric_limits<double>::lowest();
+            for(index_t i = b; i < e; ++i) {
+                double val = point_ptr(point_index_[i])[coord];
+                minval = std::min(minval, val);
+                maxval = std::max(maxval, val);
+            }
             return maxval - minval;
         }
 
@@ -196,13 +174,12 @@ namespace geo {
             index_t node_index, index_t b, index_t e
         );
 
-        coord_index_t dimension_;
         index_t nb_points_ = 0;
         const double* points_ = nullptr;
 
         vector<index_t> point_index_;
-        vector<double> bbox_min_;
-        vector<double> bbox_max_;
+        double bbox_min_[DIMENSION];
+        double bbox_max_[DIMENSION];
 
         /**
          * \brief One per node, splitting coordinate.
