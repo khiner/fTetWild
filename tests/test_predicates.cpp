@@ -7,10 +7,10 @@
 using namespace floatTetWild;
 
 TEST_CASE("orient_3d", "[predicates]") {
-	Vector3 p1; p1 << 0, 0, 0;
-	Vector3 p2; p2 << 1, 0, 0;
-	Vector3 p3; p3 << 0, 1, 0;
-	Vector3 p4; p4 << 0, 0, 1;
+	Vector3 p1(0, 0, 0);
+	Vector3 p2(1, 0, 0);
+	Vector3 p3(0, 1, 0);
+	Vector3 p4(0, 0, 1);
 
 	int orientation;
 

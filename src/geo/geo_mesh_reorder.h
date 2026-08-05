@@ -36,20 +36,12 @@ namespace geo {
      *   Gunter Rote, Symposium on Computational Geometry conf. proc.,
      *   2003
      * \param[in] nb_vertices number of vertices to sort
-     * \param[in] vertices pointer to the coordinates of the vertices
+     * \param[in] vertices pointer to the coordinates of the vertices, three per vertex
      * \param[out] sorted_indices a vector of element indices to
      *  be sorted spatially
-     * \param[in] stride number of doubles between two consecutive vertices
-     * \param[in] threshold minimum size of interval to be sorted
-     * \param[in] ratio splitting ratio between current interval and
-     *  the rest to be sorted
      */
     void compute_BRIO_order(
-        index_t nb_vertices, const double* vertices,
-        vector<index_t>& sorted_indices,
-        index_t stride = 3,
-        index_t threshold = 64,
-        double ratio = 0.125
+        index_t nb_vertices, const double* vertices, vector<index_t>& sorted_indices
     );
 
 }

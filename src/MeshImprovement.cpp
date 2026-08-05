@@ -25,19 +25,7 @@
 #include <floattetwild/geo_kd_tree.h>
 #include <floattetwild/Predicates.hpp>
 #include <floattetwild/MeshCleanup.hpp>
-
-// Third-party header, so there is no source file to put compile options on. The first two lines
-// let each compiler skip the other's warning names.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wcast-align"
-#pragma GCC diagnostic ignored "-Wcast-qual"
-#pragma GCC diagnostic ignored "-Wgnu-anonymous-struct"
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-#pragma GCC diagnostic ignored "-Wshadow"
-#include <floattetwild/FastWindingNumberForSoups.h>
-#pragma GCC diagnostic pop
+#include <floattetwild/FastWindingNumber.h>
 
 namespace floatTetWild {
 namespace {
@@ -68,10 +56,9 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
 // times. Nothing here reuses a hierarchy, so the two are one call.
 MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C,
                          bool invert_faces) {
-    using namespace FastWindingNumber::HDK_Sample;
+    using FastWindingNumber::Vec3f;
 
-    // The tree points into these, so they have to outlive it.
-    std::vector<UT_Vector3T<float>> points(V.rows());
+    std::vector<Vec3f> points(V.rows());
     for (int i = 0; i < V.rows(); i++) {
         for (int j = 0; j < 3; j++)
             points[i][j] = V(i, j);
@@ -82,21 +69,20 @@ MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C
         faces[3 * f + 1] = F(f, invert_faces ? 2 : 1);
         faces[3 * f + 2] = F(f, invert_faces ? 1 : 2);
     }
+    std::vector<Vec3f> queries(C.rows());
+    for (int i = 0; i < C.rows(); i++) {
+        for (int j = 0; j < 3; j++)
+            queries[i][j] = C(i, j);
+    }
 
-    // Taylor series expansion order 2, and below the accuracy scale that goes with it.
-    UT_SolidAngle<float, float> solid_angle;
-    solid_angle.init(faces.size() / 3, faces.data(), points.size(), points.data(), 2);
+    const std::vector<float> angles = FastWindingNumber::solid_angles(points, faces, queries);
 
     // igl::PI, and the 4 pi a solid angle is divided by to become a winding number.
     constexpr double Pi = 3.1415926535897932384626433832795;
 
     MatrixXd W(C.rows(), 1);
-    parallel_for(0, C.rows(), [&](size_t p) {
-        UT_Vector3T<float> q;
-        for (int j = 0; j < 3; j++)
-            q[j] = C(int(p), j);
-        W(int(p)) = solid_angle.computeSolidAngle(q, 2.0f) / (4.0 * Pi);
-    }, 1000);
+    for (int i = 0; i < C.rows(); i++)
+        W(i) = angles[i] / (4.0 * Pi);
     return W;
 }
 
@@ -956,7 +942,7 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_s
                                         tet_vertices[f[1]].pos,
                                         tet_vertices[f[2]].pos,
                                         tet_vertices[t[j]].pos) == Predicates::ORI_POSITIVE;
-                F_sf.row(cnt) << cnt * 3, cnt * 3 + (flip ? 2 : 1), cnt * 3 + (flip ? 1 : 2);
+                F_sf.row(cnt) = Vector3i(cnt * 3, cnt * 3 + (flip ? 2 : 1), cnt * 3 + (flip ? 1 : 2));
                 cnt++;
             }
         }
@@ -1245,7 +1231,8 @@ void floatTetWild::get_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
         V.row(i) = tet_vertices[b_v_ids[i]].pos;
     }
     for (int i = 0; i < b_faces.size(); i++) {
-        F.row(i) << map_v_ids[b_faces[i][0]], map_v_ids[b_faces[i][1]], map_v_ids[b_faces[i][2]];
+        F.row(i) = Vector3i(map_v_ids[b_faces[i][0]], map_v_ids[b_faces[i][1]],
+                            map_v_ids[b_faces[i][2]]);
     }
 }
 

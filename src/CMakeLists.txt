@@ -71,9 +71,9 @@ set(VENDORED_SOURCES
 	MeshCleanup.cpp
 	writeOBJ.h
 
-	# The fast winding number: libigl's wrapper, MPL 2.0, over Side Effects' implementation, MIT.
-	# runs on ParallelFor.hpp.
-	FastWindingNumberForSoups.h
+	# The fast winding number, Side Effects Software, MIT. Runs on ParallelFor.hpp.
+	FastWindingNumber.h
+	FastWindingNumber.cpp
 )
 
 list(APPEND SOURCES ${VENDORED_SOURCES})

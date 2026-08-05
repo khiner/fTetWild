@@ -175,7 +175,7 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
 
         const Scalar f = total_energy();
 
-        J << 0, 0, 0;
+        J.setZero();
         for (auto& T : Ts) {
             Vector3 tmp_J;
             AMIPS_jacobian(T, tmp_J);
@@ -185,7 +185,7 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
                                std::abs(J(2)) < J_delta))
             break;
 
-        H << 0, 0, 0, 0, 0, 0, 0, 0, 0;
+        H.setZero();
         for (auto& T : Ts) {
             Matrix3 tmp_H;
             AMIPS_hessian(T, tmp_H);

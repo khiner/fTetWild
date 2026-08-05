@@ -16,15 +16,13 @@ own header, and that per-file notice is the actual grant: libigl, for instance, 
 |---|---|---|
 | `src/MeshCleanup.hpp`, `src/MeshCleanup.cpp` | libigl — `igl/{sort,sortrows,round,unique_rows,remove_duplicate_vertices,vertex_components,orientable_patches,bfs_orient}` | MPL 2.0 |
 | `src/writeOBJ.h` | libigl — `igl/writeOBJ.h` | MPL 2.0 |
-| `src/parallel_for.h` | libigl — `igl/parallel_for.h` (signature only; the implementation is fTetWild's, over `ParallelFor.hpp`) | MPL 2.0 |
-| `src/fast_winding_number.h` | libigl — `igl/fast_winding_number.h` | MPL 2.0 |
-| `src/FastWindingNumberForSoups.h` | [Side Effects Software](https://github.com/sideeffects/WindingNumber), via libigl | MIT |
+| `src/FastWindingNumber.h`, `src/FastWindingNumber.cpp` | [Side Effects Software](https://github.com/sideeffects/WindingNumber), via libigl | MIT |
 | `src/predicates.c` | [Jonathan Richard Shewchuk](https://www.cs.cmu.edu/~quake/robust.html), CMU | Public domain |
 | `src/mesh_AABB.h`, `src/mesh_AABB.cpp` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause |
 | `src/geo/*` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause (`src/geo/LICENSE.geogram`) |
 | `src/triangle_triangle_intersection.cpp` | Guigue & Devillers, *Journal of Graphics Tools* 8(1), 2003 | **none stated** |
 | `src/getRSS.c` | David Robert Nadeau, [NadeauSoftware.com](http://NadeauSoftware.com/) | CC BY 3.0 |
-| `src/MshSaver.h`, `src/MshSaver.cpp` | [PyMesh](https://github.com/PyMesh/PyMesh) — Qingnan Zhou | **none — see below** |
+| `src/MeshIO.cpp` (the Gmsh 2.2 writer only) | [PyMesh](https://github.com/PyMesh/PyMesh) — Qingnan Zhou | **none — see below** |
 
 `src/Predicates.hpp` and `src/Predicates.cpp` are fTetWild's own wrapper over Shewchuk's
 `predicates.c`, not vendored code.
@@ -49,10 +47,10 @@ own header, and that per-file notice is the actual grant: libigl, for instance, 
 Two files carry no grant of rights at all. Both predate this tree — upstream fTetWild ships them the
 same way — and neither is a new exposure, but neither is settled either.
 
-- **`MshSaver.{h,cpp}` (PyMesh).** The files carry a bare copyright line, and the PyMesh repository
-  has no `LICENSE` file; the GitHub API reports its licence as `null`. This is the weaker of the
-  two. It is also the easy one to fix: Gmsh MSH 2.2 is a published format, `MeshIO.cpp` is the only
-  consumer, and a writer written from the spec would owe nothing to Zhou's code.
+- **The Gmsh writer in `MeshIO.cpp` (PyMesh).** It carries a bare copyright line, and the PyMesh
+  repository has no `LICENSE` file; the GitHub API reports its licence as `null`. This is the weaker
+  of the two. It is also the easy one to fix: Gmsh MSH 2.2 is a published format, and a writer
+  written from the spec would owe nothing to Zhou's code.
 - **`triangle_triangle_intersection.cpp` (Guigue–Devillers).** Companion code to a published JGT
   paper, with a citation but no licence. Weaker concern in practice — it has been redistributed for
   two decades — and rewriting it is the wrong move regardless: the routine is numerically delicate,
@@ -60,5 +58,5 @@ same way — and neither is a new exposure, but neither is settled either.
 
 Rewriting does not clear a licence in general. A rewrite of licensed code is a derivative work and
 the obligations follow it; only a genuinely independent reimplementation from a specification
-escapes. That is why the MshSaver note above is about writing from the Gmsh spec, not about editing
-the existing file until it looks different.
+escapes. That is why the Gmsh note above is about writing from the published spec, not about editing the
+existing code until it looks different.

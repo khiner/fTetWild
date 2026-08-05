@@ -134,7 +134,7 @@ bool remove_duplicates(std::vector<Vector3>&  input_vertices,
         int v0_id = F_in(i, j_min);
         int v1_id = F_in(i, (j_min + 1) % 3);
         int v2_id = F_in(i, (j_min + 2) % 3);
-        F_in.row(i) << v0_id, v1_id, v2_id;
+        F_in.row(i) = Vector3i(v0_id, v1_id, v2_id);
     }
     F_tmp.resize(0, 0);
     MatrixXi IF;

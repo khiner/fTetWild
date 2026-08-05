@@ -127,7 +127,12 @@ namespace geo {
             return baseclass::operator[] (i);
         }
 
+        // Null rather than unspecified when empty, which is what geogram's callers assume.
         T* data() {
+            return size() == 0 ? nullptr : &(*this)[0];
+        }
+
+        const T* data() const {
             return size() == 0 ? nullptr : &(*this)[0];
         }
     };

@@ -91,26 +91,17 @@ namespace geo {
         }
 
         index_t nb_cells() const {
-            return nb_cells_;
+            return cell_to_v_store_.size() / 4;
         }
 
         /**
          * \brief The cell-to-vertex array, four indices per cell.
          */
         const index_t* cell_to_v() const {
-            return cell_to_v_;
+            return cell_to_v_store_.data();
         }
 
-    protected:
-        /**
-         * \brief Publishes the computed triangulation.
-         */
-        void set_arrays(index_t nb_cells, const index_t* cell_to_v) {
-            nb_cells_ = nb_cells;
-            cell_to_v_ = cell_to_v;
-        }
-
-
+    private:
         /**
          * \brief Symbolic constant for uninitialized hint.
          * \details Locate functions can be accelerated by
@@ -926,8 +917,6 @@ namespace geo {
             return (PCK::in_sphere_3d_SOS(pv[0], pv[1], pv[2], pv[3], p) > 0);
         }
 
-    protected:
-
         /**
          * \brief Finds the index of an integer in an array of four integers.
          * \param[in] T a const pointer to an array of four integers
@@ -956,12 +945,11 @@ namespace geo {
             return result;
         }
 
-    private:
         const double* vertices_ = nullptr;
         index_t nb_vertices_ = 0;
-        index_t nb_cells_ = 0;
-        const index_t* cell_to_v_ = nullptr;
 
+        // The triangulation, four vertex indices per tetrahedron once set_vertices() has
+        // compacted the free and virtual tetrahedra out of it.
         vector<index_t> cell_to_v_store_;
         vector<index_t> cell_to_cell_store_;
         vector<index_t> cell_next_;
@@ -992,141 +980,24 @@ namespace geo {
         std::stack<index_t> S_;
 
         /**
-         * \brief Used to represent the stack in the
-         *  (de-recursified) stellate_conflict_zone_iterative()
-         *  function.
+         * \brief One frame of the de-recursified
+         *  stellate_conflict_zone_iterative(): the parameters it was called with, then the
+         *  locals it restores when a nested call returns. The narrow types keep the frame
+         *  small, because degenerate input can make the stack very deep.
          */
-        class StellateConflictStack {
-        public:
+        struct StellateFrame {
+            // Parameters
+            index_t t1;
+            uint8_t t1fbord;
+            uint8_t t1fprev;
 
-            /**
-             * \brief Pushes a new frame onto the stack.
-             * \param[in] t1 index of a tetrahedron on the border of
-             *  the conflict zone
-             * \param[in] t1fbord index of the facet of \p t1 that is
-             *  on the border of the conflict zone
-             * \param[in] t1fprev index of the facet of \p t1 that we
-             *  come from, or NO_INDEX if \p t1 is the first tetrahedron
-             */
-            void push(index_t t1, index_t t1fbord, index_t t1fprev) {
-                store_.resize(store_.size()+1);
-                top().t1 = t1;
-                top().t1fbord = uint8_t(t1fbord);
-                top().t1fprev = uint8_t(t1fprev);
-            }
-
-            /**
-             * \brief Saves local variables into the current stack frame.
-             * \param[in] new_t the index of the newly created tetrahedron
-             * \param[in] t1ft2 the facet of t1 that is adjacent to t2
-             * \param[in] t2ft1 the facet of t2 that is adjacent to t1
-             */
-            void save_locals(index_t new_t, index_t t1ft2, index_t t2ft1) {
-                geo_debug_assert(!empty());
-                top().new_t = new_t;
-                top().t1ft2 = uint8_t(t1ft2);
-                top().t2ft1 = uint8_t(t2ft1);
-            }
-
-            /**
-             * \brief Gets the parameters from the current stack frame.
-             * \param[out] t1 index of a tetrahedron on the border of
-             *  the conflict zone
-             * \param[out] t1fbord index of the facet of \p t1 that is
-             *  on the border of the conflict zone
-             * \param[out] t1fprev index of the facet of \p t1 that we
-             *  come from, or NO_INDEX if \p t1 is the first tetrahedron
-             */
-            void get_parameters(
-                index_t& t1, index_t& t1fbord, index_t& t1fprev
-            ) const {
-                geo_debug_assert(!empty());
-                t1      = top().t1;
-                t1fbord = index_t(top().t1fbord);
-                t1fprev = index_t(top().t1fprev);
-            }
-
-
-            /**
-             * \brief Gets the local variables from the current stack frame.
-             * \param[out] new_t the index of the newly created tetrahedron
-             * \param[out] t1ft2 the facet of t1 that is adjacent to t2
-             * \param[out] t2ft1 the facet of t2 that is adjacent to t1
-             */
-            void get_locals(
-		index_t& new_t, index_t& t1ft2, index_t& t2ft1
-	    ) const {
-                geo_debug_assert(!empty());
-                new_t = top().new_t;
-                t1ft2 = index_t(top().t1ft2);
-                t2ft1 = index_t(top().t2ft1);
-            }
-
-            /**
-             * \brief Pops a stack frame.
-             */
-            void pop() {
-                geo_debug_assert(!empty());
-                store_.pop_back();
-            }
-
-            /**
-             * \brief Tests whether the stack is empty.
-             * \retval true if the stack is empty
-             * \retval false otherwise
-             */
-            bool empty() const {
-                return store_.empty();
-            }
-
-        private:
-
-            /**
-             * \brief The parameters and local
-             *  variables stored in a stack frame.
-             */
-            struct Frame {
-                // Parameters
-                index_t t1;
-                index_t new_t;
-                uint8_t t1fbord ;
-
-                // Local variables
-                uint8_t t1fprev ;
-                uint8_t t1ft2   ;
-                uint8_t t2ft1   ;
-            };
-
-            /**
-             * \brief Gets the top of the stack.
-             * \return a modifiable reference to the Frame on
-             *  the top of the stack
-             * \pre !empty()
-             */
-            Frame& top() {
-                geo_debug_assert(!empty());
-                return *store_.rbegin();
-            }
-
-            /**
-             * \brief Gets the top of the stack.
-             * \return a const reference to the Frame on
-             *  the top of the stack
-             * \pre !empty()
-             */
-            const Frame& top() const {
-                geo_debug_assert(!empty());
-                return *store_.rbegin();
-            }
-
-            std::vector<Frame> store_;
+            // Local variables
+            index_t new_t;
+            uint8_t t1ft2;
+            uint8_t t2ft1;
         };
 
-        /**
-         * \brief Used by the (de-recursified)
-         *   stellate_conflict_zone_iterative() function.
-         */
-        StellateConflictStack S2_;
+        std::vector<StellateFrame> S2_;
 
         Cavity cavity_;
     };

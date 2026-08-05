@@ -1,505 +1,210 @@
 // Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
 // Source: geogram/mesh/mesh_reorder.cpp
-// Copied rather than reimplemented: spatial sort; nth_element is not stable so the incoming arrangement decides ties
+// Copied rather than reimplemented: spatial sort; nth_element is not stable so the incoming
+// arrangement decides ties.
+//
+// geogram parameterizes the sort over a comparator template, which is itself parameterized over
+// the coordinate, the direction and a mesh class. Two things vary between the three sorts here:
+// what coordinate an element compares by, and whether the order reverses along an axis, which is
+// what separates a Hilbert curve from a Morton one. So those are the two parameters.
 
 #include "geo_mesh_reorder.h"
-#include "geo_algorithm.h"
 #include "geo_parallel.h"
+
+#include <algorithm>
+#include <random>
 
 namespace {
 
     using namespace floatTetWild::geo;
 
+    using Iterator = vector<index_t>::iterator;
+
     /**
      * \brief Splits a sequence into two ordered halves.
-     * \details The algorithm shuffles the sequence and
-     *  partitions its into two halves with the same number of elements
-     *  and such that the elements of the first half are smaller
-     *  than the elements of the second half.
-     * \param[in] begin an iterator to the first element
-     * \param[in] end an iterator one position past the last element
-     * \param[in] cmp the comparator object
-     * \return an iterator to the middle of the sequence that separates
-     *  the two halves
+     * \details Partitions the sequence into two halves with the same number of elements, such
+     *  that the elements of the first half are smaller than those of the second.
+     * \return an iterator to the middle of the sequence that separates the two halves
      */
-    template <class IT, class CMP>
-    inline IT reorder_split(
-        IT begin, IT end, CMP cmp
-    ) {
+    template <class CMP>
+    inline Iterator reorder_split(Iterator begin, Iterator end, CMP cmp) {
         if(begin >= end) {
             return begin;
         }
-        IT middle = begin + (end - begin) / 2;
+        Iterator middle = begin + (end - begin) / 2;
         std::nth_element(begin, middle, end, cmp);
         return middle;
     }
 
     /************************************************************************/
 
-    /**
-     * \brief Exposes an interface compatible with the requirement
-     * of Hilbert sort templates for a raw array of vertices.
-     */
-    class VertexArray {
-    public:
+    /** \brief The coordinate a vertex sorts by: its own. */
+    struct VertexCoord {
+        const double* points;
 
-        /**
-         * \brief Constructs a new VertexArray.
-         * \param[in] base address of the points
-         * \param[in] stride number of doubles between
-         *  two consecutive points
-         */
-        VertexArray(
-            index_t nb_vertices,
-            const double* base, index_t stride
-        ) :
-            base_(base),
-            stride_(stride) {
-            nb_vertices_ = nb_vertices;
+        double operator() (index_t v, int coord) const {
+            return points[3 * v + coord];
         }
-
-        /**
-         * \brief Gets a vertex by its index.
-         * \param[in] i the index of the point
-         * \return a const pointer to the coordinates of the vertex
-         */
-        const double* point_ptr(index_t i) const {
-            geo_debug_assert(i < nb_vertices_);
-            return base_ + i * stride_;
-        }
-
-    private:
-        const double* base_;
-        index_t stride_;
-        index_t nb_vertices_;
     };
 
-    /************************************************************************/
+    /** \brief The coordinate a facet sorts by: the centre of its three vertices. */
+    struct FacetCoord {
+        const Mesh& mesh;
 
-    /**
-     * \brief The generic comparator class for Hilbert vertex
-     *  ordering.
-     * \tparam COORD the coordinate to compare
-     * \tparam UP    if true, use direct order, else use reverse order
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, bool UP, class MESH>
-    struct Hilbert_vcmp {
-    };
-
-    /**
-     * \brief Specialization (UP=true) of the generic comparator class
-     *  for Hilbert vertex ordering.
-     * \see Hilbert_vcmp
-     * \tparam COORD the coordinate to compare
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, class MESH>
-    struct Hilbert_vcmp<COORD, true, MESH> {
-
-        /**
-         * \brief Constructs a new Hilbert_vcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  points reside.
-         */
-        Hilbert_vcmp(const MESH& mesh) :
-            mesh_(mesh) {
-        }
-
-        /**
-         * \brief Compares two points.
-         * \param[in] i1 index of the first point to compare
-         * \param[in] i2 index of the second point to compare
-         * \return true if point \p i1 is before point \p i2,
-         *  false otherwise.
-         */
-        bool operator() (index_t i1, index_t i2) {
-            return
-                mesh_.point_ptr(i1)[COORD] <
-                mesh_.point_ptr(i2)[COORD];
-        }
-
-        const MESH& mesh_;
-    };
-
-    /**
-     * \brief Specialization (UP=false) of the generic comparator class
-     *  for Hilbert vertex ordering.
-     * \see Hilbert_vcmp
-     * \tparam COORD the coordinate to compare
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, class MESH>
-    struct Hilbert_vcmp<COORD, false, MESH> {
-
-        /**
-         * \brief Constructs a new Hilbert_vcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  points reside.
-         */
-        Hilbert_vcmp(const MESH& mesh) :
-            mesh_(mesh) {
-        }
-
-        /**
-         * \brief Compares two points.
-         * \param[in] i1 index of the first point to compare
-         * \param[in] i2 index of the second point to compare
-         * \return true if point \p i1 is before point \p i2,
-         *  false otherwise.
-         */
-        bool operator() (index_t i1, index_t i2) {
-            return
-                mesh_.point_ptr(i1)[COORD] >
-                mesh_.point_ptr(i2)[COORD];
-        }
-
-        const MESH& mesh_;
-    };
-
-    /************************************************************************/
-
-    /**
-     * \brief Comparator class for Morton vertex
-     *  ordering.
-     * \tparam COORD the coordinate to compare
-     * \tparam UP ignored in Morton order
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, bool UP, class MESH>
-    struct Morton_vcmp {
-
-        /**
-         * \brief Constructs a new Morton_vcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  points reside.
-         */
-        Morton_vcmp(const MESH& mesh) :
-            mesh_(mesh) {
-        }
-
-        /**
-         * \brief Compares two points.
-         * \param[in] i1 index of the first point to compare
-         * \param[in] i2 index of the second point to compare
-         * \return true if point \p i1 is before point \p i2,
-         *  false otherwise.
-         */
-        bool operator() (index_t i1, index_t i2) {
-            return
-                mesh_.point_ptr(i1)[COORD] <
-                mesh_.point_ptr(i2)[COORD];
-        }
-
-        const MESH& mesh_;
-    };
-
-    /************************************************************************/
-
-
-    /**
-     * \brief Base class for facets ordering.
-     * \tparam COORD the coordinate to compare
-     * \tparam MESH  the class that represents meshes
-     */
-    template <int COORD, class MESH>
-    class Base_fcmp {
-    public:
-        /**
-         * \brief Constructs a new Base_vcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  facets reside.
-         */
-        Base_fcmp(const MESH& mesh) :
-            mesh_(mesh) {
-        }
-
-        /**
-         * \brief Computes the compared coordinate from a facet index.
-         * \param[in] f the index of the facet
-         * \return the coordinate at the center of facet \p f
-         */
-        double center(index_t f) const {
+        double operator() (index_t f, int coord) const {
             double result = 0.0;
             double s = 1.0 / 3.0;
             for(index_t lv = 0; lv < 3; ++lv) {
-                result += s*mesh_.point_ptr(
-                    mesh_.facet_vertex(f, lv)
-                )[COORD];
+                result += s * mesh.point_ptr(mesh.facet_vertex(f, lv))[coord];
             }
             return result;
         }
-
-    private:
-        const MESH& mesh_;
     };
 
     /**
-     * \brief Comparator class for Morton facet
-     *  ordering.
+     * \brief Compares two elements along one coordinate.
      * \tparam COORD the coordinate to compare
-     * \tparam UP ignored in Morton order
-     * \tparam MESH  the class that represents meshes
+     * \tparam UP whether to use direct or reverse order, ignored unless DIRECTED
+     * \tparam DIRECTED true for the Hilbert order, which reverses along some axes, false for the
+     *  Morton order, which does not
      */
-    template <int COORD, bool UP, class MESH>
-    class Morton_fcmp : public Base_fcmp<COORD, MESH> {
-    public:
-        /**
-         * \brief Constructs a new Morton_fcmp.
-         * \param[in] mesh the mesh in which the compared
-         *  facets reside.
-         */
-        Morton_fcmp(const MESH& mesh) :
-            Base_fcmp<COORD, MESH>(mesh) {
-        }
+    template <class COORD_OF, int COORD, bool UP, bool DIRECTED>
+    struct Compare {
+        const COORD_OF& coord_of;
 
-        /**
-         * \brief Compares two facets.
-         * \param[in] f1 index of the first facet to compare
-         * \param[in] f2 index of the second facet to compare
-         * \return true if facet \p f1 is before facet \p f2,
-         *  false otherwise.
-         */
-        bool operator() (index_t f1, index_t f2) {
-            return this->center(f1) < this->center(f2);
+        bool operator() (index_t i1, index_t i2) const {
+            return (UP || !DIRECTED)
+                ? coord_of(i1, COORD) < coord_of(i2, COORD)
+                : coord_of(i1, COORD) > coord_of(i2, COORD);
         }
     };
 
     /************************************************************************/
 
     /**
-     * \brief Generic class for sorting arbitrary elements in
-     *  Hilbert and Morton orders in 3d.
+     * \brief Sorts elements in Hilbert or Morton order in 3d.
      * \details The implementation is inspired by:
      *  - Christophe Delage and Olivier Devillers. Spatial Sorting.
-     *   In CGAL User and Reference Manual. CGAL Editorial Board,
-     *   3.9 edition, 2011
-     * \tparam CMP the comparator class for ordering the elements. CMP
-     *  is itself a template parameterized by~:
-     *    - COORD the coordinate along which elements should be
-     *      sorted
-     *    - UP a boolean that indicates whether direct or reverse
-     *      order should be used
-     *    - MESH the class that represents meshes
-     * \tparam MESH  the class that represents meshes
+     *   In CGAL User and Reference Manual. CGAL Editorial Board, 3.9 edition, 2011
      */
-    template <template <int COORD, bool UP, class MESH> class CMP, class MESH>
-    struct HilbertSort3d {
+    template <class COORD_OF, bool DIRECTED>
+    struct SpatialSort {
 
-        /**
-         * \brief Low-level recursive spatial sorting function
-         * \details This function is recursive
-         * \param[in] M the mesh in which the elements reside
-         * \param[in] begin an iterator that points to the
-         *  first element of the sequence
-         * \param[in] end an iterator that points one position past the
-         *  last element of the sequence
-         * \param[in] limit subsequences smaller than limit are left unsorted
-         * \tparam COORDX the first coordinate, can be 0,1 or 2. The second
-         *  and third coordinates are COORDX+1 modulo 3 and COORDX+2 modulo 3
-         *  respectively
-         * \tparam UPX whether ordering along the first coordinate
-         *  is direct or inverse
-         * \tparam UPY whether ordering along the second coordinate
-         *  is direct or inverse
-         * \tparam UPZ whether ordering along the third coordinate
-         *  is direct or inverse
-         */
-        template <int COORDX, bool UPX, bool UPY, bool UPZ, class IT>
-        static void sort(
-            const MESH& M, IT begin, IT end, index_t limit = 1
-        ) {
-            const int COORDY = (COORDX + 1) % 3, COORDZ = (COORDY + 1) % 3;
-            if(end - begin <= int32_t(limit)) {
-                return;
-            }
-            IT m0 = begin, m8 = end;
-            IT m4 = reorder_split(m0, m8, CMP<COORDX, UPX, MESH>(M));
-            IT m2 = reorder_split(m0, m4, CMP<COORDY, UPY, MESH>(M));
-            IT m1 = reorder_split(m0, m2, CMP<COORDZ, UPZ, MESH>(M));
-            IT m3 = reorder_split(m2, m4, CMP<COORDZ, !UPZ, MESH>(M));
-            IT m6 = reorder_split(m4, m8, CMP<COORDY, !UPY, MESH>(M));
-            IT m5 = reorder_split(m4, m6, CMP<COORDZ, UPZ, MESH>(M));
-            IT m7 = reorder_split(m6, m8, CMP<COORDZ, !UPZ, MESH>(M));
-            sort<COORDZ, UPZ, UPX, UPY>(M, m0, m1);
-            sort<COORDY, UPY, UPZ, UPX>(M, m1, m2);
-            sort<COORDY, UPY, UPZ, UPX>(M, m2, m3);
-            sort<COORDX, UPX, !UPY, !UPZ>(M, m3, m4);
-            sort<COORDX, UPX, !UPY, !UPZ>(M, m4, m5);
-            sort<COORDY, !UPY, UPZ, !UPX>(M, m5, m6);
-            sort<COORDY, !UPY, UPZ, !UPX>(M, m6, m7);
-            sort<COORDZ, !UPZ, !UPX, UPY>(M, m7, m8);
+        template <int COORD, bool UP>
+        static Compare<COORD_OF, COORD, UP, DIRECTED> cmp(const COORD_OF& coord_of) {
+            return {coord_of};
         }
 
         /**
-         * \brief Sorts a sequence of elements spatially.
-         * \details This function does an indirect sort,
-         *  in the sense that a sequence
-         *  of indices that refer to the elements is sorted.
-         *  This function uses a multithreaded implementation.
-         * \param[in] M the mesh in which the elements to sort reside
-         * \param[in] b an iterator to the first index to be sorted
-         * \param[in] e an iterator one position past the last index
-         *  to be sorted
-         * \param[in] limit subsequences smaller than limit are left unsorted
+         * \brief Low-level recursive spatial sorting function.
+         * \tparam COORDX the first coordinate, can be 0, 1 or 2. The second and third are
+         *  COORDX+1 and COORDX+2 modulo 3.
+         * \tparam UPX , UPY , UPZ whether ordering along each coordinate is direct or inverse
          */
-        HilbertSort3d(
-            const MESH& M,
-            vector<index_t>::iterator b,
-            vector<index_t>::iterator e,
-            index_t limit = 1
-        ) :
-            M_(M)
-            {
-                geo_debug_assert(e >= b);
+        template <int COORDX, bool UPX, bool UPY, bool UPZ>
+        static void sort(const COORD_OF& c, Iterator begin, Iterator end) {
+            const int COORDY = (COORDX + 1) % 3, COORDZ = (COORDY + 1) % 3;
+            if(end - begin <= 1) {
+                return;
+            }
+            Iterator m0 = begin, m8 = end;
+            Iterator m4 = reorder_split(m0, m8, cmp<COORDX,  UPX>(c));
+            Iterator m2 = reorder_split(m0, m4, cmp<COORDY,  UPY>(c));
+            Iterator m1 = reorder_split(m0, m2, cmp<COORDZ,  UPZ>(c));
+            Iterator m3 = reorder_split(m2, m4, cmp<COORDZ, !UPZ>(c));
+            Iterator m6 = reorder_split(m4, m8, cmp<COORDY, !UPY>(c));
+            Iterator m5 = reorder_split(m4, m6, cmp<COORDZ,  UPZ>(c));
+            Iterator m7 = reorder_split(m6, m8, cmp<COORDZ, !UPZ>(c));
+            sort<COORDZ,  UPZ,  UPX,  UPY>(c, m0, m1);
+            sort<COORDY,  UPY,  UPZ,  UPX>(c, m1, m2);
+            sort<COORDY,  UPY,  UPZ,  UPX>(c, m2, m3);
+            sort<COORDX,  UPX, !UPY, !UPZ>(c, m3, m4);
+            sort<COORDX,  UPX, !UPY, !UPZ>(c, m4, m5);
+            sort<COORDY, !UPY,  UPZ, !UPX>(c, m5, m6);
+            sort<COORDY, !UPY,  UPZ, !UPX>(c, m6, m7);
+            sort<COORDZ, !UPZ, !UPX,  UPY>(c, m7, m8);
+        }
 
-                // If the sequence is smaller than the limit, skip it
-                if(index_t(e - b) <= limit) {
-                    return;
-                }
+        /**
+         * \brief Sorts a sequence of element indices spatially, in place.
+         * \details The top of the recursion, spread over threads. It is the body of sort() with
+         *  COORDX 0 and every direction direct, written out because a lambda cannot take a
+         *  template parameter of the enclosing function as a template argument on every compiler.
+         */
+        static void run(const COORD_OF& c, Iterator b, Iterator e) {
+            geo_debug_assert(e >= b);
 
-                // If the sequence is smaller than 1024, use sequential sorting
-                if(index_t(e - b) < 1024) {
-                    sort<0, false, false, false>(M_, b, e);
-                    return;
-                }
-
-                // Parallel sorting (2 then 4 then 8 sorts in parallel)
-
-                // Unfortunately we cannot access consts/constexprs for template
-                // arguments in lambdas in all compilers (gcc/clang OK but not
-                // MSVC) so I'm using macros here (it is ugly, but it is not a
-                // big drama), and I prefer that instead of hardwired constants
-		// that would make the code more difficult to read.
-
-#          define COORDX 0
-#          define COORDY 1
-#          define COORDZ 2
-#          define UPX false
-#          define UPY false
-#          define UPZ false
-
-                m0_ = b;
-                m8_ = e;
-                m4_ = reorder_split(m0_, m8_, CMP<COORDX, UPX, MESH>(M));
-
-                parallel(
-                    [this]() { m2_ = reorder_split(m0_, m4_, CMP<COORDY,  UPY, MESH>(M_)); },
-                    [this]() { m6_ = reorder_split(m4_, m8_, CMP<COORDY, !UPY, MESH>(M_)); }
-                );
-
-                parallel(
-                    [this]() { m1_ = reorder_split(m0_, m2_, CMP<COORDZ,  UPZ, MESH>(M_)); },
-                    [this]() { m3_ = reorder_split(m2_, m4_, CMP<COORDZ, !UPZ, MESH>(M_)); },
-                    [this]() { m5_ = reorder_split(m4_, m6_, CMP<COORDZ,  UPZ, MESH>(M_)); },
-                    [this]() { m7_ = reorder_split(m6_, m8_, CMP<COORDZ, !UPZ, MESH>(M_)); }
-                );
-
-                parallel(
-                    [this]() { sort<COORDZ,  UPZ,  UPX,  UPY>(M_, m0_, m1_); },
-                    [this]() { sort<COORDY,  UPY,  UPZ,  UPX>(M_, m1_, m2_); },
-                    [this]() { sort<COORDY,  UPY,  UPZ,  UPX>(M_, m2_, m3_); },
-                    [this]() { sort<COORDX,  UPX, !UPY, !UPZ>(M_, m3_, m4_); },
-                    [this]() { sort<COORDX,  UPX, !UPY, !UPZ>(M_, m4_, m5_); },
-                    [this]() { sort<COORDY, !UPY,  UPZ, !UPX>(M_, m5_, m6_); },
-                    [this]() { sort<COORDY, !UPY,  UPZ, !UPX>(M_, m6_, m7_); },
-                    [this]() { sort<COORDZ, !UPZ, !UPX,  UPY>(M_, m7_, m8_); }
-                );
-
-#          undef COORDX
-#          undef COORDY
-#          undef COORDZ
-#          undef UPX
-#          undef UPY
-#          undef UPZ
-
+            // If the sequence is small enough, sort it sequentially.
+            if(e - b < 1024) {
+                sort<0, false, false, false>(c, b, e);
+                return;
             }
 
-    private:
-        const MESH& M_;
-        vector<index_t>::iterator
-        m0_, m1_, m2_, m3_, m4_, m5_, m6_, m7_, m8_;
+            // Parallel sorting (2 then 4 then 8 sorts in parallel)
+            Iterator m0 = b, m8 = e;
+            Iterator m1, m2, m3, m5, m6, m7;
+            Iterator m4 = reorder_split(m0, m8, cmp<0, false>(c));
+
+            parallel(
+                [&]() { m2 = reorder_split(m0, m4, cmp<1, false>(c)); },
+                [&]() { m6 = reorder_split(m4, m8, cmp<1, true >(c)); }
+            );
+
+            parallel(
+                [&]() { m1 = reorder_split(m0, m2, cmp<2, false>(c)); },
+                [&]() { m3 = reorder_split(m2, m4, cmp<2, true >(c)); },
+                [&]() { m5 = reorder_split(m4, m6, cmp<2, false>(c)); },
+                [&]() { m7 = reorder_split(m6, m8, cmp<2, true >(c)); }
+            );
+
+            parallel(
+                [&]() { sort<2, false, false, false>(c, m0, m1); },
+                [&]() { sort<1, false, false, false>(c, m1, m2); },
+                [&]() { sort<1, false, false, false>(c, m2, m3); },
+                [&]() { sort<0, false, true,  true >(c, m3, m4); },
+                [&]() { sort<0, false, true,  true >(c, m4, m5); },
+                [&]() { sort<1, true,  false, true >(c, m5, m6); },
+                [&]() { sort<1, true,  false, true >(c, m6, m7); },
+                [&]() { sort<2, true,  true,  false>(c, m7, m8); }
+            );
+        }
     };
 
     /************************************************************************/
 
     /**
-     * \brief Sorts the vertices of a mesh according to the Morton ordering.
-     * \details The function does not change the mesh, it computes instead
-     *  the permutation. The permutation can then be reused to order other
-     *  arrays that may depend on the order of the vertices in the mesh (i.e.
-     *  attributes).
-     * \param[in] M the mesh where the vertices to be sorted reside
-     * \param[out] sorted_indices the permutation to be applied to the vertices
+     * \brief The identity permutation over \p n elements, for a sort to rearrange.
      */
-    void morton_vsort_3d(
-        const Mesh& M, vector<index_t>& sorted_indices
-    ) {
-        sorted_indices.resize(M.nb_vertices());
-        for(index_t i = 0; i < M.nb_vertices(); ++i) {
+    void trivial_indices(index_t n, vector<index_t>& sorted_indices) {
+        sorted_indices.resize(n);
+        for(index_t i = 0; i < n; ++i) {
             sorted_indices[i] = i;
         }
-        HilbertSort3d<Morton_vcmp, Mesh>(
-            M, sorted_indices.begin(), sorted_indices.end()
-        );
     }
 
     /**
-     * \brief Sorts the facets of a mesh according to the Morton ordering.
-     * \details The function does not change the mesh, it computes instead
-     *  the permutation. The permutation can then be reused to order other
-     *  arrays that may depend on the order of the facets in the mesh (i.e.
-     *  attributes).
-     * \param[in] M the mesh where the facets to be sorted reside
-     * \param[out] sorted_indices the permutation to be applied to the facets
-     */
-    void morton_fsort_3d(
-        const Mesh& M, vector<index_t>& sorted_indices
-    ) {
-        sorted_indices.resize(M.nb_facets());
-        for(index_t i = 0; i < M.nb_facets(); ++i) {
-            sorted_indices[i] = i;
-        }
-        HilbertSort3d<Morton_fcmp, Mesh>(
-            M, sorted_indices.begin(), sorted_indices.end()
-        );
-    }
-
-
-    /**
-     * \brief Computes the BRIO order for a set of 3D points.
-     * \details Implementation of compute_BRIO_order().
-     *  It is used to accelerate incremental insertion in Delaunay triangulation
-     * \param[in] nb_vertices number of vertices to sort
-     * \param[in] vertices pointer to the coordinates of the vertices
-     * \param[in] stride number of doubles between two consecutive vertices
-     * \param[in] b iterator to the first index to sort
-     * \param[in] e iterator one position past the last index to sort
-     * \param[in] threshold minimum size of interval to be sorted
-     * \param[in] ratio splitting ratio between current interval and
-     *  the rest to be sorted
+     * \brief Implementation of compute_BRIO_order().
+     * \param[in] vertices pointer to the coordinates of the vertices, three per vertex
+     * \param[in] b , e the range of indices to sort
      */
     void compute_BRIO_order_recursive(
-        index_t nb_vertices, const double* vertices,
-        index_t stride,
-        vector<index_t>::iterator b,
-        vector<index_t>::iterator e,
-        index_t threshold,
-        double ratio
+        const double* vertices, Iterator b, Iterator e
     ) {
         geo_debug_assert(e > b);
 
-        vector<index_t>::iterator m = b;
+        /** \brief Minimum size of interval to be sorted. */
+        static const index_t threshold = 64;
+        /** \brief Splitting ratio between the current interval and the rest to be sorted. */
+        static const double ratio = 0.125;
+
+        Iterator m = b;
         if(index_t(e - b) > threshold) {
             m = b + int32_t(double(e - b) * ratio);
-            compute_BRIO_order_recursive(
-                nb_vertices, vertices, stride, b, m, threshold, ratio
-            );
+            compute_BRIO_order_recursive(vertices, b, m);
         }
 
-        VertexArray M(nb_vertices, vertices, stride);
-        HilbertSort3d<Hilbert_vcmp, VertexArray>(M, m, e);
+        SpatialSort<VertexCoord, true>::run(VertexCoord{vertices}, m, e);
     }
 }
 
@@ -514,14 +219,22 @@ namespace geo {
         // Step 1: reorder vertices
         {
             vector<index_t> sorted_indices;
-            morton_vsort_3d(M, sorted_indices);
+            trivial_indices(M.nb_vertices(), sorted_indices);
+            SpatialSort<VertexCoord, false>::run(
+                VertexCoord{M.points.data()},
+                sorted_indices.begin(), sorted_indices.end()
+            );
             M.permute_vertices(sorted_indices);
         }
 
         // Step 2: reorder facets
         if(M.nb_facets() != 0) {
             vector<index_t> sorted_indices;
-            morton_fsort_3d(M, sorted_indices);
+            trivial_indices(M.nb_facets(), sorted_indices);
+            SpatialSort<FacetCoord, false>::run(
+                FacetCoord{M},
+                sorted_indices.begin(), sorted_indices.end()
+            );
             if(facet_permutation != nullptr) {
                 *facet_permutation = sorted_indices;
             }
@@ -532,23 +245,20 @@ namespace geo {
 
 
     void compute_BRIO_order(
-        index_t nb_vertices, const double* vertices,
-        vector<index_t>& sorted_indices,
-        index_t stride,
-        index_t threshold,
-        double ratio
+        index_t nb_vertices, const double* vertices, vector<index_t>& sorted_indices
     ) {
-        sorted_indices.resize(nb_vertices);
-        for(index_t i = 0; i < nb_vertices; ++i) {
-            sorted_indices[i] = i;
-        }
+        trivial_indices(nb_vertices, sorted_indices);
 
-	geo::random_shuffle(sorted_indices.begin(), sorted_indices.end());
-
+        // The fixed seed used to be applied to geogram's own copy by
+        // cmake/patches/geogram_deterministic_shuffle.cmake. It is baked in here instead: geogram
+        // seeds a fresh std::mt19937 from std::random_device on every call, so the insertion order
+        // this picks would differ every run and every stage downstream of
+        // FloatTetDelaunay::tetrahedralize would diverge with it. The order is still drawn from the
+        // same distribution, just pinned to one draw.
+        std::mt19937 urng(42);
+        std::shuffle(sorted_indices.begin(), sorted_indices.end(), urng);
         compute_BRIO_order_recursive(
-            nb_vertices, vertices, stride,
-            sorted_indices.begin(), sorted_indices.end(),
-            threshold, ratio
+            vertices, sorted_indices.begin(), sorted_indices.end()
         );
     }
 } }

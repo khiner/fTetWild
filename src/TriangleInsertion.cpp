@@ -380,7 +380,7 @@ bool subdivide_tets(
                               : le_ids[1];
             my_diags.emplace_back();
             auto& diag = my_diags.back();
-            diag << on_edge_p_ids[t_f_es[j][cut]].first, t_f_vs[j][cut];
+            diag = Vector2i(on_edge_p_ids[t_f_es[j][cut]].first, t_f_vs[j][cut]);
             if (diag[0] > diag[1])
                 std::swap(diag[0], diag[1]);
         }
@@ -421,7 +421,7 @@ bool subdivide_tets(
                 n_ids.insert(n_ids.end(), tmp.begin(), tmp.end());
             }
             vector_unique(n_ids);
-            c << 0, 0, 0;
+            c.setZero();
             for (int n_id : n_ids)
                 c += pos_of(n_id);
             c /= n_ids.size();

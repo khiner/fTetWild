@@ -1,6 +1,6 @@
-// The slice of geogram/basic/process.h that the vendored spatial sort uses.
+// The slice of geogram/basic/process.h that the vendored spatial sort and kd tree use.
 //
-// geogram runs these lambdas on its own ThreadGroup. Each one writes a distinct member and the
+// geogram runs these lambdas on its own ThreadGroup. Each one writes a distinct variable and the
 // ranges they sort are disjoint, so the result does not depend on how the work is spread; only
 // the wall clock does.
 

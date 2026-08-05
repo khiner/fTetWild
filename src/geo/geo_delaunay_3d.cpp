@@ -68,7 +68,7 @@ namespace geo {
         //   Sort the vertices spatially. This makes localisation
         // faster. geogram could be asked to skip this, which changes the insertion order and with
         // it the triangulation of cospherical input.
-        compute_BRIO_order(nb_vertices, vertex_ptr(0), reorder_, 3);
+        compute_BRIO_order(nb_vertices, vertex_ptr(0), reorder_);
 
         // The indices of the vertices of the first tetrahedron.
         index_t v0, v1, v2, v3;
@@ -139,8 +139,6 @@ namespace geo {
                 cell_to_cell_store_[i] = t;
             }
         }
-
-        set_arrays(nb_tets, cell_to_v_store_.data());
     }
 
     index_t Delaunay3d::locate_inexact(
@@ -509,7 +507,7 @@ namespace geo {
         // parameters and local variables in all the nested stack
         // frames.
 
-        S2_.push(t1, t1fbord, t1fprev);
+        S2_.push_back({t1, uint8_t(t1fbord), uint8_t(t1fprev), 0, 0, 0});
 
         index_t new_t;   // the newly created tetrahedron.
 
@@ -525,7 +523,9 @@ namespace geo {
         index_t t2ft1;   // the facet of t2 that is incident to t1.
 
     entry_point:
-        S2_.get_parameters(t1, t1fbord, t1fprev);
+        t1 = S2_.back().t1;
+        t1fbord = S2_.back().t1fbord;
+        t1fprev = S2_.back().t1fprev;
 
         geo_debug_assert(tet_is_in_list(t1));
         geo_debug_assert(tet_adjacent(t1,t1fbord) != NO_INDEX);
@@ -563,14 +563,16 @@ namespace geo {
                )) {
                 //   If t1's neighbor is not a new tetrahedron,
                 // create a new tetrahedron through a recursive call.
-                S2_.save_locals(new_t, t1ft2, t2ft1);
-                S2_.push(t2, t2fbord, t2ft1);
+                S2_.back().new_t = new_t;
+                S2_.back().t1ft2 = uint8_t(t1ft2);
+                S2_.back().t2ft1 = uint8_t(t2ft1);
+                S2_.push_back({t2, uint8_t(t2fbord), uint8_t(t2ft1), 0, 0, 0});
                 goto entry_point;
 
             return_point:
                 // This is the return value of the called function.
                 index_t result = new_t;
-                S2_.pop();
+                S2_.pop_back();
 
                 // Special case: we were in the outermost frame,
                 // then we (truly) return from the function.
@@ -578,8 +580,12 @@ namespace geo {
                     return result;
                 }
 
-                S2_.get_parameters(t1, t1fbord, t1fprev);
-                S2_.get_locals(new_t, t1ft2, t2ft1);
+                t1 = S2_.back().t1;
+                t1fbord = S2_.back().t1fbord;
+                t1fprev = S2_.back().t1fprev;
+                new_t = S2_.back().new_t;
+                t1ft2 = S2_.back().t1ft2;
+                t2ft1 = S2_.back().t2ft1;
                 t2 = result;
             }
 

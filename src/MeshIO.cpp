@@ -157,13 +157,12 @@ void reorder_and_read_back(geo::Mesh&             mesh,
 
     points.resize(mesh.nb_vertices());
     for (size_t i = 0; i < points.size(); i++)
-        points[i] << mesh.point(i)[0], mesh.point(i)[1],
-          mesh.point(i)[2];
+        points[i] = Vector3(mesh.point(i)[0], mesh.point(i)[1], mesh.point(i)[2]);
 
     faces.resize(mesh.nb_facets());
     for (size_t i = 0; i < faces.size(); i++)
-        faces[i] << int(mesh.facet_vertex(i, 0)), int(mesh.facet_vertex(i, 1)),
-          int(mesh.facet_vertex(i, 2));
+        faces[i] = Vector3i(int(mesh.facet_vertex(i, 0)), int(mesh.facet_vertex(i, 1)),
+                            int(mesh.facet_vertex(i, 2)));
 }
 
 bool load_mesh(const std::string&     path,
