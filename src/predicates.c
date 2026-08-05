@@ -41,24 +41,14 @@
 /*    optimizer when compiling this file.                                    */
 /*                                                                           */
 /*                                                                           */
-/*  Several geometric predicates are defined.  Their parameters are all      */
-/*    points.  Each point is an array of two or three floating-point         */
-/*    numbers.  The geometric predicates, described in the papers, are       */
-/*                                                                           */
-/*    orient2d(pa, pb, pc)                                                   */
-/*    orient2dfast(pa, pb, pc)                                               */
-/*    orient3d(pa, pb, pc, pd)                                               */
-/*    orient3dfast(pa, pb, pc, pd)                                           */
-/*    incircle(pa, pb, pc, pd)                                               */
-/*    incirclefast(pa, pb, pc, pd)                                           */
-/*    insphere(pa, pb, pc, pd, pe)                                           */
-/*    inspherefast(pa, pb, pc, pd, pe)                                       */
-/*                                                                           */
-/*  Those with suffix "fast" are approximate, non-robust versions.  Those    */
-/*    without the suffix are adaptive precision, robust versions.  There     */
-/*    are also versions with the suffices "exact" and "slow", which are      */
-/*    non-adaptive, exact arithmetic versions, which I use only for timings  */
-/*    in my arithmetic papers.                                               */
+/*  Trimmed to the two predicates fTetWild reaches, orient2d() and           */
+/*    orient3d(), plus the adaptive cascade and the expansion arithmetic     */
+/*    they bottom out in.  Upstream also had incircle() and insphere(), a    */
+/*    non-robust "fast" version of each predicate, non-adaptive "exact" and  */
+/*    "slow" versions used only for the timings in the paper, the rest of    */
+/*    the expansion operations, routines for printing an expansion's bit     */
+/*    representation, and random number generators for the test harness.     */
+/*    The bodies of what is left are unchanged.                              */
 /*                                                                           */
 /*                                                                           */
 /*  An expansion is represented by an array of floating-point numbers,       */
@@ -67,54 +57,21 @@
 /*    and each arithmetic function returns an integer which is the length    */
 /*    of the expansion it created.                                           */
 /*                                                                           */
-/*  Several arithmetic functions are defined.  Their parameters are          */
+/*  The arithmetic functions take e and f as input expansions with lengths   */
+/*    elen and flen (both >= 1), b as an input scalar and h as the output    */
+/*    expansion, and return the length of h.  The suffix _zeroelim means     */
+/*    zero elimination is performed.  Each has a little note next to it (in  */
+/*    the code below) that tells you whether or not the output expansion     */
+/*    may be the same array as one of the input expansions.                  */
 /*                                                                           */
-/*    e, f           Input expansions                                        */
-/*    elen, flen     Lengths of input expansions (must be >= 1)              */
-/*    h              Output expansion                                        */
-/*    b              Input scalar                                            */
-/*                                                                           */
-/*  The arithmetic functions are                                             */
-/*                                                                           */
-/*    grow_expansion(elen, e, b, h)                                          */
-/*    grow_expansion_zeroelim(elen, e, b, h)                                 */
-/*    expansion_sum(elen, e, flen, f, h)                                     */
-/*    expansion_sum_zeroelim1(elen, e, flen, f, h)                           */
-/*    expansion_sum_zeroelim2(elen, e, flen, f, h)                           */
-/*    fast_expansion_sum(elen, e, flen, f, h)                                */
-/*    fast_expansion_sum_zeroelim(elen, e, flen, f, h)                       */
-/*    linear_expansion_sum(elen, e, flen, f, h)                              */
-/*    linear_expansion_sum_zeroelim(elen, e, flen, f, h)                     */
-/*    scale_expansion(elen, e, b, h)                                         */
-/*    scale_expansion_zeroelim(elen, e, b, h)                                */
-/*    compress(elen, e, h)                                                   */
-/*                                                                           */
-/*  All of these are described in the long version of the paper; some are    */
-/*    described in the short version.  All return an integer that is the     */
-/*    length of h.  Those with suffix _zeroelim perform zero elimination,    */
-/*    and are recommended over their counterparts.  The procedure            */
-/*    fast_expansion_sum_zeroelim() (or linear_expansion_sum_zeroelim() on   */
-/*    processors that do not use the round-to-even tiebreaking rule) is      */
-/*    recommended over expansion_sum_zeroelim().  Each procedure has a       */
-/*    little note next to it (in the code below) that tells you whether or   */
-/*    not the output expansion may be the same array as one of the input     */
-/*    expansions.                                                            */
-/*                                                                           */
-/*                                                                           */
-/*  If you look around below, you'll also find macros for a bunch of         */
-/*    simple unrolled arithmetic operations, and procedures for printing     */
-/*    expansions (commented out because they don't work with all C           */
-/*    compilers) and for generating random floating-point numbers whose      */
-/*    significand bits are all random.  Most of the macros have undocumented */
+/*  Below you'll also find macros for a bunch of simple unrolled arithmetic  */
+/*    operations.  Most of the macros have undocumented                      */
 /*    requirements that certain of their parameters should not be the same   */
 /*    variable; for safety, better to make sure all the parameters are       */
 /*    distinct variables.  Feel free to send email to jrs@cs.cmu.edu if you  */
 /*    have questions.                                                        */
 /*                                                                           */
 /*****************************************************************************/
-
-#include <stdlib.h>
-//#include <sys/time.h>
 
 /* On some machines, the exact arithmetic routines might be defeated by the  */
 /*   use of internal extended precision floating-point registers.  Sometimes */
@@ -130,19 +87,9 @@
 
 #ifdef FLOAT_TETWILD_USE_FLOAT
 #define REAL float                      // float
-#define REALPRINT floatprint
-#define REALRAND floatrand
-#define NARROWRAND narrowfloatrand
-#define UNIFORMRAND uniformfloatrand
 #else
 #define REAL double                      // double
-#define REALPRINT doubleprint
-#define REALRAND doublerand
-#define NARROWRAND narrowdoublerand
-#define UNIFORMRAND uniformdoublerand
 #endif
-
-
 
 
 /* Which of the following two methods of finding the absolute values is      */
@@ -158,8 +105,8 @@
 /*   performs an approximate operation, and a "tail" that computes the       */
 /*   roundoff error of that operation.                                       */
 /*                                                                           */
-/* The operations Fast_Two_Sum(), Fast_Two_Diff(), Two_Sum(), Two_Diff(),    */
-/*   Split(), and Two_Product() are all implemented as described in the      */
+/* The operations Fast_Two_Sum(), Two_Sum(), Two_Diff(), Split() and         */
+/*   Two_Product() are all implemented as described in the                   */
 /*   reference.  Each of these macros requires certain variables to be       */
 /*   defined in the calling routine.  The variables `bvirt', `c', `abig',    */
 /*   `_i', `_j', `_k', `_l', `_m', and `_n' are declared `INEXACT' because   */
@@ -174,14 +121,6 @@
 #define Fast_Two_Sum(a, b, x, y) \
   x = (REAL) (a + b); \
   Fast_Two_Sum_Tail(a, b, x, y)
-
-#define Fast_Two_Diff_Tail(a, b, x, y) \
-  bvirt = a - x; \
-  y = bvirt - b
-
-#define Fast_Two_Diff(a, b, x, y) \
-  x = (REAL) (a - b); \
-  Fast_Two_Diff_Tail(a, b, x, y)
 
 #define Two_Sum_Tail(a, b, x, y) \
   bvirt = (REAL) (x - a); \
@@ -234,80 +173,18 @@
   err3 = err2 - (ahi * blo); \
   y = (alo * blo) - err3
 
-/* Two_Product_2Presplit() is Two_Product() where both of the inputs have    */
-/*   already been split.  Avoids redundant splitting.                        */
-
-#define Two_Product_2Presplit(a, ahi, alo, b, bhi, blo, x, y) \
-  x = (REAL) (a * b); \
-  err1 = x - (ahi * bhi); \
-  err2 = err1 - (alo * bhi); \
-  err3 = err2 - (ahi * blo); \
-  y = (alo * blo) - err3
-
-/* Square() can be done more quickly than Two_Product().                     */
-
-#define Square_Tail(a, x, y) \
-  Split(a, ahi, alo); \
-  err1 = x - (ahi * ahi); \
-  err3 = err1 - ((ahi + ahi) * alo); \
-  y = (alo * alo) - err3
-
-#define Square(a, x, y) \
-  x = (REAL) (a * a); \
-  Square_Tail(a, x, y)
-
-/* Macros for summing expansions of various fixed lengths.  These are all    */
-/*   unrolled versions of Expansion_Sum().                                   */
-
-#define Two_One_Sum(a1, a0, b, x2, x1, x0) \
-  Two_Sum(a0, b , _i, x0); \
-  Two_Sum(a1, _i, x2, x1)
+/* Macros for differencing expansions of fixed lengths.  These are unrolled  */
+/*   versions of Expansion_Sum().                                            */
 
 #define Two_One_Diff(a1, a0, b, x2, x1, x0) \
   Two_Diff(a0, b , _i, x0); \
   Two_Sum( a1, _i, x2, x1)
 
-#define Two_Two_Sum(a1, a0, b1, b0, x3, x2, x1, x0) \
-  Two_One_Sum(a1, a0, b0, _j, _0, x0); \
-  Two_One_Sum(_j, _0, b1, x3, x2, x1)
-
 #define Two_Two_Diff(a1, a0, b1, b0, x3, x2, x1, x0) \
   Two_One_Diff(a1, a0, b0, _j, _0, x0); \
   Two_One_Diff(_j, _0, b1, x3, x2, x1)
 
-#define Four_One_Sum(a3, a2, a1, a0, b, x4, x3, x2, x1, x0) \
-  Two_One_Sum(a1, a0, b , _j, x1, x0); \
-  Two_One_Sum(a3, a2, _j, x4, x3, x2)
-
-#define Four_Two_Sum(a3, a2, a1, a0, b1, b0, x5, x4, x3, x2, x1, x0) \
-  Four_One_Sum(a3, a2, a1, a0, b0, _k, _2, _1, _0, x0); \
-  Four_One_Sum(_k, _2, _1, _0, b1, x5, x4, x3, x2, x1)
-
-#define Four_Four_Sum(a3, a2, a1, a0, b4, b3, b1, b0, x7, x6, x5, x4, x3, x2, \
-                      x1, x0) \
-  Four_Two_Sum(a3, a2, a1, a0, b1, b0, _l, _2, _1, _0, x1, x0); \
-  Four_Two_Sum(_l, _2, _1, _0, b4, b3, x7, x6, x5, x4, x3, x2)
-
-#define Eight_One_Sum(a7, a6, a5, a4, a3, a2, a1, a0, b, x8, x7, x6, x5, x4, \
-                      x3, x2, x1, x0) \
-  Four_One_Sum(a3, a2, a1, a0, b , _j, x3, x2, x1, x0); \
-  Four_One_Sum(a7, a6, a5, a4, _j, x8, x7, x6, x5, x4)
-
-#define Eight_Two_Sum(a7, a6, a5, a4, a3, a2, a1, a0, b1, b0, x9, x8, x7, \
-                      x6, x5, x4, x3, x2, x1, x0) \
-  Eight_One_Sum(a7, a6, a5, a4, a3, a2, a1, a0, b0, _k, _6, _5, _4, _3, _2, \
-                _1, _0, x0); \
-  Eight_One_Sum(_k, _6, _5, _4, _3, _2, _1, _0, b1, x9, x8, x7, x6, x5, x4, \
-                x3, x2, x1)
-
-#define Eight_Four_Sum(a7, a6, a5, a4, a3, a2, a1, a0, b4, b3, b1, b0, x11, \
-                       x10, x9, x8, x7, x6, x5, x4, x3, x2, x1, x0) \
-  Eight_Two_Sum(a7, a6, a5, a4, a3, a2, a1, a0, b1, b0, _l, _6, _5, _4, _3, \
-                _2, _1, _0, x1, x0); \
-  Eight_Two_Sum(_l, _6, _5, _4, _3, _2, _1, _0, b4, b3, x11, x10, x9, x8, \
-                x7, x6, x5, x4, x3, x2)
-
-/* Macros for multiplying expansions of various fixed lengths.               */
+/* Macro for multiplying an expansion of length two by a scalar.             */
 
 #define Two_One_Product(a1, a0, b, x3, x2, x1, x0) \
   Split(b, bhi, blo); \
@@ -316,189 +193,12 @@
   Two_Sum(_i, _0, _k, x1); \
   Fast_Two_Sum(_j, _k, x3, x2)
 
-#define Four_One_Product(a3, a2, a1, a0, b, x7, x6, x5, x4, x3, x2, x1, x0) \
-  Split(b, bhi, blo); \
-  Two_Product_Presplit(a0, b, bhi, blo, _i, x0); \
-  Two_Product_Presplit(a1, b, bhi, blo, _j, _0); \
-  Two_Sum(_i, _0, _k, x1); \
-  Fast_Two_Sum(_j, _k, _i, x2); \
-  Two_Product_Presplit(a2, b, bhi, blo, _j, _0); \
-  Two_Sum(_i, _0, _k, x3); \
-  Fast_Two_Sum(_j, _k, _i, x4); \
-  Two_Product_Presplit(a3, b, bhi, blo, _j, _0); \
-  Two_Sum(_i, _0, _k, x5); \
-  Fast_Two_Sum(_j, _k, x7, x6)
-
-#define Two_Two_Product(a1, a0, b1, b0, x7, x6, x5, x4, x3, x2, x1, x0) \
-  Split(a0, a0hi, a0lo); \
-  Split(b0, bhi, blo); \
-  Two_Product_2Presplit(a0, a0hi, a0lo, b0, bhi, blo, _i, x0); \
-  Split(a1, a1hi, a1lo); \
-  Two_Product_2Presplit(a1, a1hi, a1lo, b0, bhi, blo, _j, _0); \
-  Two_Sum(_i, _0, _k, _1); \
-  Fast_Two_Sum(_j, _k, _l, _2); \
-  Split(b1, bhi, blo); \
-  Two_Product_2Presplit(a0, a0hi, a0lo, b1, bhi, blo, _i, _0); \
-  Two_Sum(_1, _0, _k, x1); \
-  Two_Sum(_2, _k, _j, _1); \
-  Two_Sum(_l, _j, _m, _2); \
-  Two_Product_2Presplit(a1, a1hi, a1lo, b1, bhi, blo, _j, _0); \
-  Two_Sum(_i, _0, _n, _0); \
-  Two_Sum(_1, _0, _i, x2); \
-  Two_Sum(_2, _i, _k, _1); \
-  Two_Sum(_m, _k, _l, _2); \
-  Two_Sum(_j, _n, _k, _0); \
-  Two_Sum(_1, _0, _j, x3); \
-  Two_Sum(_2, _j, _i, _1); \
-  Two_Sum(_l, _i, _m, _2); \
-  Two_Sum(_1, _k, _i, x4); \
-  Two_Sum(_2, _i, _k, x5); \
-  Two_Sum(_m, _k, x7, x6)
-
-/* An expansion of length two can be squared more quickly than finding the   */
-/*   product of two different expansions of length two, and the result is    */
-/*   guaranteed to have no more than six (rather than eight) components.     */
-
-#define Two_Square(a1, a0, x5, x4, x3, x2, x1, x0) \
-  Square(a0, _j, x0); \
-  _0 = a0 + a0; \
-  Two_Product(a1, _0, _k, _1); \
-  Two_One_Sum(_k, _1, _j, _l, _2, x1); \
-  Square(a1, _j, _1); \
-  Two_Two_Sum(_j, _1, _l, _2, x5, x4, x3, x2)
-
 REAL splitter;     /* = 2^ceiling(p / 2) + 1.  Used to split floats in half. */
 REAL epsilon;                /* = 2^(-p).  Used to estimate roundoff errors. */
 /* A set of coefficients used to calculate maximum roundoff errors.          */
 REAL resulterrbound;
 REAL ccwerrboundA, ccwerrboundB, ccwerrboundC;
 REAL o3derrboundA, o3derrboundB, o3derrboundC;
-REAL iccerrboundA, iccerrboundB, iccerrboundC;
-REAL isperrboundA, isperrboundB, isperrboundC;
-
-/*****************************************************************************/
-/*                                                                           */
-/*  doubleprint()   Print the bit representation of a double.                */
-/*                                                                           */
-/*  Useful for debugging exact arithmetic routines.                          */
-/*                                                                           */
-/*****************************************************************************/
-
-/*
-void doubleprint(number)
-double number;
-{
-  unsigned long long no;
-  unsigned long long sign, expo;
-  int exponent;
-  int i, bottomi;
-
-  no = *(unsigned long long *) &number;
-  sign = no & 0x8000000000000000ll;
-  expo = (no >> 52) & 0x7ffll;
-  exponent = (int) expo;
-  exponent = exponent - 1023;
-  if (sign) {
-    printf("-");
-  } else {
-    printf(" ");
-  }
-  if (exponent == -1023) {
-    printf(
-      "0.0000000000000000000000000000000000000000000000000000_     (   )");
-  } else {
-    printf("1.");
-    bottomi = -1;
-    for (i = 0; i < 52; i++) {
-      if (no & 0x0008000000000000ll) {
-        printf("1");
-        bottomi = i;
-      } else {
-        printf("0");
-      }
-      no <<= 1;
-    }
-    printf("_%d  (%d)", exponent, exponent - 1 - bottomi);
-  }
-}
-*/
-
-/*****************************************************************************/
-/*                                                                           */
-/*  floatprint()   Print the bit representation of a float.                  */
-/*                                                                           */
-/*  Useful for debugging exact arithmetic routines.                          */
-/*                                                                           */
-/*****************************************************************************/
-
-/*
-void floatprint(number)
-float number;
-{
-  unsigned no;
-  unsigned sign, expo;
-  int exponent;
-  int i, bottomi;
-
-  no = *(unsigned *) &number;
-  sign = no & 0x80000000;
-  expo = (no >> 23) & 0xff;
-  exponent = (int) expo;
-  exponent = exponent - 127;
-  if (sign) {
-    printf("-");
-  } else {
-    printf(" ");
-  }
-  if (exponent == -127) {
-    printf("0.00000000000000000000000_     (   )");
-  } else {
-    printf("1.");
-    bottomi = -1;
-    for (i = 0; i < 23; i++) {
-      if (no & 0x00400000) {
-        printf("1");
-        bottomi = i;
-      } else {
-        printf("0");
-      }
-      no <<= 1;
-    }
-    printf("_%3d  (%3d)", exponent, exponent - 1 - bottomi);
-  }
-}
-*/
-
-/*****************************************************************************/
-/*                                                                           */
-/*  expansion_print()   Print the bit representation of an expansion.        */
-/*                                                                           */
-/*  Useful for debugging exact arithmetic routines.                          */
-/*                                                                           */
-/*****************************************************************************/
-
-/*
-void expansion_print(elen, e)
-int elen;
-REAL *e;
-{
-  int i;
-
-  for (i = elen - 1; i >= 0; i--) {
-    REALPRINT(e[i]);
-    if (i > 0) {
-      printf(" +\n");
-    } else {
-      printf("\n");
-    }
-  }
-}
-*/
-
-
-
-
-
 
 /*****************************************************************************/
 /*                                                                           */
@@ -553,18 +253,7 @@ void exactinit()
   o3derrboundA = (7.0 + 56.0 * epsilon) * epsilon;
   o3derrboundB = (3.0 + 28.0 * epsilon) * epsilon;
   o3derrboundC = (26.0 + 288.0 * epsilon) * epsilon * epsilon;
-  iccerrboundA = (10.0 + 96.0 * epsilon) * epsilon;
-  iccerrboundB = (4.0 + 48.0 * epsilon) * epsilon;
-  iccerrboundC = (44.0 + 576.0 * epsilon) * epsilon * epsilon;
-  isperrboundA = (16.0 + 224.0 * epsilon) * epsilon;
-  isperrboundB = (5.0 + 72.0 * epsilon) * epsilon;
-  isperrboundC = (71.0 + 1408.0 * epsilon) * epsilon * epsilon;
 }
-
-
-
-
-
 
 
 /*****************************************************************************/
@@ -656,8 +345,6 @@ REAL *h;
 }
 
 
-
-
 /*****************************************************************************/
 /*                                                                           */
 /*  scale_expansion_zeroelim()   Multiply an expansion by a scalar,          */
@@ -738,8 +425,6 @@ REAL *e;
   }
   return Q;
 }
-
-
 
 
 REAL orient2dadapt(pa, pb, pc, detsum)
@@ -861,8 +546,6 @@ REAL *pc;
 
   return orient2dadapt(pa, pb, pc, detsum);
 }
-
-
 
 
 REAL orient3dadapt(pa, pb, pc, pd, permanent)
@@ -1314,12 +997,3 @@ REAL *pd;
 
   return orient3dadapt(pa, pb, pc, pd, permanent);
 }
-
-
-
-
-
-
-
-
-

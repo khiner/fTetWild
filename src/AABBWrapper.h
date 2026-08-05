@@ -46,12 +46,12 @@ namespace floatTetWild {
         // A set of sample points is outside when any one of them is.
         inline bool is_out_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
                                       geo::index_t prev_facet = geo::NO_FACET) const {
-            return is_out(b_mesh, *b_tree, ps, eps_2, prev_facet);
+            return is_out(*b_tree, ps, eps_2, prev_facet);
         }
 
         inline bool is_out_tmp_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
                                           geo::index_t prev_facet = geo::NO_FACET) const {
-            return is_out(tmp_b_mesh, *tmp_b_tree, ps, eps_2, prev_facet);
+            return is_out(*tmp_b_tree, ps, eps_2, prev_facet);
         }
 
         inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2) const {
@@ -73,7 +73,7 @@ namespace floatTetWild {
         // triangle's samples in order means the next one usually lands on the same facet.
         inline bool is_out_sf_envelope(const geo::vec3& geo_p, const Scalar eps_2,
                                        geo::index_t& prev_facet, double& sq_dist, geo::vec3& nearest_p) const {
-            return is_out_hinted(sf_mesh, sf_tree, geo_p, eps_2, prev_facet, sq_dist, nearest_p);
+            return is_out(sf_tree, geo_p, eps_2, prev_facet, sq_dist, nearest_p);
         }
 
     private:
@@ -87,31 +87,29 @@ namespace floatTetWild {
             return sq_dist;
         }
 
+        // nearest_p and sq_dist are scratch the query overwrites; the batch overload below hands
+        // the same pair back in so that a run of samples reuses one facet.
+        static bool is_out(const MeshFacetsAABBWithEps &tree, const geo::vec3 &p,
+                           const Scalar eps_2, geo::index_t &prev_facet,
+                           double &sq_dist, geo::vec3 &nearest_p) {
+            tree.facet_in_envelope_with_hint(p, eps_2, prev_facet, nearest_p, sq_dist);
+            return Scalar(sq_dist) > eps_2;
+        }
+
         static bool is_out(const MeshFacetsAABBWithEps &tree, const Vector3 &p, const Scalar eps_2,
                            geo::index_t &prev_facet) {
             geo::vec3 nearest_p;
             double sq_dist;
-            prev_facet = tree.facet_in_envelope(to_geo_p(p), eps_2, nearest_p, sq_dist);
-            return Scalar(sq_dist) > eps_2;
+            prev_facet = geo::NO_FACET;
+            return is_out(tree, to_geo_p(p), eps_2, prev_facet, sq_dist, nearest_p);
         }
 
-        static bool is_out_hinted(const geo::Mesh &mesh, const MeshFacetsAABBWithEps &tree,
-                                  const geo::vec3 &p, const Scalar eps_2, geo::index_t &prev_facet,
-                                  double &sq_dist, geo::vec3 &nearest_p) {
-            if (prev_facet != geo::NO_FACET)
-                get_point_facet_nearest_point(mesh, p, prev_facet, nearest_p, sq_dist);
-            if (Scalar(sq_dist) > eps_2)
-                tree.facet_in_envelope_with_hint(p, eps_2, prev_facet, nearest_p, sq_dist);
-            return Scalar(sq_dist) > eps_2;
-        }
-
-        static bool is_out(const geo::Mesh &mesh, const MeshFacetsAABBWithEps &tree,
-                           const std::vector<geo::vec3> &ps, const Scalar eps_2,
-                           geo::index_t prev_facet) {
+        static bool is_out(const MeshFacetsAABBWithEps &tree, const std::vector<geo::vec3> &ps,
+                           const Scalar eps_2, geo::index_t prev_facet) {
             geo::vec3 nearest_p;
             double sq_dist = std::numeric_limits<double>::max();
             for (const geo::vec3 &p : ps) {
-                if (is_out_hinted(mesh, tree, p, eps_2, prev_facet, sq_dist, nearest_p))
+                if (is_out(tree, p, eps_2, prev_facet, sq_dist, nearest_p))
                     return true;
             }
             return false;

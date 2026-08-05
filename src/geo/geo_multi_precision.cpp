@@ -134,7 +134,11 @@ namespace geo {
         h.set_length(hindex);
     }
 
-    void fast_expansion_sum_zeroelim(
+    // h = e +/- f. The two are the same walk over the two expansions, merging by magnitude, and
+    // differ only in that the difference negates every component of f as it reads it. Negation is
+    // exact, so both are Shewchuk's fast_expansion_sum_zeroelim() with his arithmetic unchanged.
+    template <bool Negate>
+    void fast_expansion_combine_zeroelim(
         const expansion& e, const expansion& f, expansion& h
     ) {
         double Q;
@@ -149,15 +153,18 @@ namespace geo {
         geo_debug_assert(&h != &e);
         geo_debug_assert(&h != &f);
 
+        // Reading f through here is the whole of the difference between the two operations.
+        const auto f_at = [&f](index_t i) { return Negate ? -f[i] : f[i]; };
+
         enow = e[0];
-        fnow = f[0];
+        fnow = f_at(0);
         eindex = findex = 0;
         if((fnow > enow) == (fnow > -enow)) {
             Q = enow;
             enow = e[++eindex];
         } else {
             Q = fnow;
-            fnow = f[++findex];
+            fnow = f_at(++findex);
         }
         hindex = 0;
         if((eindex < elen) && (findex < flen)) {
@@ -166,7 +173,7 @@ namespace geo {
                 enow = e[++eindex];
             } else {
                 fast_two_sum(fnow, Q, Qnew, hh);
-                fnow = f[++findex];
+                fnow = f_at(++findex);
             }
             Q = Qnew;
             if(hh != 0.0) {
@@ -178,7 +185,7 @@ namespace geo {
                     enow = e[++eindex];
                 } else {
                     two_sum(Q, fnow, Qnew, hh);
-                    fnow = f[++findex];
+                    fnow = f_at(++findex);
                 }
                 Q = Qnew;
                 if(hh != 0.0) {
@@ -196,7 +203,7 @@ namespace geo {
         }
         while(findex < flen) {
             two_sum(Q, fnow, Qnew, hh);
-            fnow = f[++findex];
+            fnow = f_at(++findex);
             Q = Qnew;
             if(hh != 0.0) {
                 h[hindex++] = hh;
@@ -208,78 +215,16 @@ namespace geo {
         h.set_length(hindex);
     }
 
+    void fast_expansion_sum_zeroelim(
+        const expansion& e, const expansion& f, expansion& h
+    ) {
+        fast_expansion_combine_zeroelim<false>(e, f, h);
+    }
+
     void fast_expansion_diff_zeroelim(
         const expansion& e, const expansion& f, expansion& h
     ) {
-        double Q;
-        double Qnew;
-        double hh;
-        index_t eindex, findex, hindex;
-        double enow, fnow;
-        index_t elen = e.length();
-        index_t flen = f.length();
-
-        // sanity check: h cannot be e or f
-        geo_debug_assert(&h != &e);
-        geo_debug_assert(&h != &f);
-
-        enow = e[0];
-        fnow = -f[0];
-        eindex = findex = 0;
-        if((fnow > enow) == (fnow > -enow)) {
-            Q = enow;
-            enow = e[++eindex];
-        } else {
-            Q = fnow;
-            fnow = -f[++findex];
-        }
-        hindex = 0;
-        if((eindex < elen) && (findex < flen)) {
-            if((fnow > enow) == (fnow > -enow)) {
-                fast_two_sum(enow, Q, Qnew, hh);
-                enow = e[++eindex];
-            } else {
-                fast_two_sum(fnow, Q, Qnew, hh);
-                fnow = -f[++findex];
-            }
-            Q = Qnew;
-            if(hh != 0.0) {
-                h[hindex++] = hh;
-            }
-            while((eindex < elen) && (findex < flen)) {
-                if((fnow > enow) == (fnow > -enow)) {
-                    two_sum(Q, enow, Qnew, hh);
-                    enow = e[++eindex];
-                } else {
-                    two_sum(Q, fnow, Qnew, hh);
-                    fnow = -f[++findex];
-                }
-                Q = Qnew;
-                if(hh != 0.0) {
-                    h[hindex++] = hh;
-                }
-            }
-        }
-        while(eindex < elen) {
-            two_sum(Q, enow, Qnew, hh);
-            enow = e[++eindex];
-            Q = Qnew;
-            if(hh != 0.0) {
-                h[hindex++] = hh;
-            }
-        }
-        while(findex < flen) {
-            two_sum(Q, fnow, Qnew, hh);
-            fnow = -f[++findex];
-            Q = Qnew;
-            if(hh != 0.0) {
-                h[hindex++] = hh;
-            }
-        }
-        if((Q != 0.0) || (hindex == 0)) {
-            h[hindex++] = Q;
-        }
-        h.set_length(hindex);
+        fast_expansion_combine_zeroelim<true>(e, f, h);
     }
 
     /************************************************************************/

@@ -103,6 +103,20 @@ namespace {
         return result;
     }
 
+    void get_point_facet_nearest_point(
+        const Mesh& M,
+        const vec3& p,
+        index_t f,
+        vec3& nearest_p,
+        double& squared_dist
+    ) {
+        double lambda1, lambda2, lambda3;  // barycentric coords, not used.
+        squared_dist = Geom::point_triangle_squared_distance(
+            p, M.facet_point(f, 0), M.facet_point(f, 1), M.facet_point(f, 2),
+            nearest_p, lambda1, lambda2, lambda3
+        );
+    }
+
     double point_box_center_squared_distance(
         const vec3& p, const Box& B
     ) {
@@ -136,9 +150,7 @@ namespace {
         if(b + 1 == e) {
             vec3 cur_nearest_point;
             double cur_sq_dist;
-            floatTetWild::get_point_facet_nearest_point(
-                M, p, b, cur_nearest_point, cur_sq_dist
-            );
+            get_point_facet_nearest_point(M, p, b, cur_nearest_point, cur_sq_dist);
             if(cur_sq_dist < sq_dist) {
                 nearest_f = b;
                 nearest_point = cur_nearest_point;
@@ -234,8 +246,17 @@ namespace floatTetWild {
         const vec3& p, double sq_epsilon,
         index_t& nearest_f, vec3& nearest_point, double& sq_dist
     ) const {
+        //  Measuring against the facet the caller already has is what makes the hint worth
+        // carrying: for the samples along one triangle it usually still answers the query, and
+        // then there is no descent at all. Returning here rather than letting the walk below
+        // return at once is what keeps that case free of calls.
         if(nearest_f == NO_FACET) {
             get_nearest_facet_hint(p, nearest_f, nearest_point, sq_dist);
+        } else {
+            get_point_facet_nearest_point(mesh_, p, nearest_f, nearest_point, sq_dist);
+            if(sq_dist <= sq_epsilon) {
+                return;
+            }
         }
         nearest_recursive<true>(
             mesh_, bboxes_, p, sq_epsilon,

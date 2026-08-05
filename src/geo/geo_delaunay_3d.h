@@ -71,6 +71,10 @@ namespace geo {
             index_t& iv0, index_t& iv1, index_t& iv2, index_t& iv3
         );
 
+        // A tetrahedron the walks below can start from: \p hint if it is usable, else a random
+        // one, and in either case stepping off a virtual tetrahedron onto its real neighbour.
+        index_t walkable_hint(index_t hint) const;
+
         // The tetrahedron that contains \p p, or one incident to it when \p p is on a face, edge
         // or vertex. If \p orient is non-null it receives the orientation of \p p with respect to
         // the four facets. Outside the convex hull of the points inserted so far, the answer is a
@@ -101,6 +105,10 @@ namespace geo {
             index_t& t_bndry, index_t& f_bndry,
             index_t& first, index_t& last
         );
+
+        // Hands facet \p lf of \p t, which is on the boundary of the conflict zone, to the cavity
+        // along with the three vertices it is spanned by.
+        void record_cavity_facet(index_t t, index_t lf);
 
         // Propagates find_conflict_zone() outwards from \p t, which must already be marked as in
         // conflict.

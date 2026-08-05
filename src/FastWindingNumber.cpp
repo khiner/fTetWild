@@ -1130,6 +1130,7 @@ struct Precompute
     const Vec3f* positions;
 
     void triangle(uint32_t itemi, LocalData& out) const;
+    bool child_data(const Node& n, uint32_t s, LocalData* child) const;
     void combine(uint32_t nodei, LocalData* out, uint32_t nchildren, const LocalData* child) const;
     void node(uint32_t nodei, LocalData* out) const;
     void node_parallel(uint32_t nodei, uint32_t next_node_id, LocalData* out) const;
@@ -1523,22 +1524,30 @@ void Precompute::combine(uint32_t         nodei,
     }
 }
 
+// Fills child[s] from the s-th child of n: recursing for an internal node, or the one triangle
+// for a leaf entry. False at an empty slot, and anything after one is empty too, so the callers
+// below all stop there.
+bool Precompute::child_data(const Node& n, uint32_t s, LocalData* child) const
+{
+    const uint32_t c = n.child[s];
+    if (!Node::is_internal(c)) {
+        triangle(c, child[s]);
+        return true;
+    }
+    if (c == Node::Empty)
+        return false;
+    node(Node::internal_num(c), &child[s]);
+    return true;
+}
+
 void Precompute::node(uint32_t nodei, LocalData* out) const
 {
     const Node& n = nodes[nodei];
     LocalData   child[BvhN];
     uint32_t    s;
     for (s = 0; s < BvhN; ++s) {
-        const uint32_t c = n.child[s];
-        if (Node::is_internal(c)) {
-            // NOTE: anything after an empty child is empty too, so we can break.
-            if (c == Node::Empty)
-                break;
-            node(Node::internal_num(c), &child[s]);
-        }
-        else {
-            triangle(c, child[s]);
-        }
+        if (!child_data(n, s, child))
+            break;
     }
     // NOTE: s is now the number of non-empty entries in this node.
     combine(nodei, out, s, child);
@@ -1578,15 +1587,8 @@ void Precompute::node_parallel(uint32_t nodei, uint32_t next_node_id, LocalData*
             for (uint32_t s = 0; s < BvhN; ++s) {
                 if (nnodes[s] >= PrecomputeParallelThreshold)
                     continue;
-                const uint32_t c = n.child[s];
-                if (Node::is_internal(c)) {
-                    if (c == Node::Empty)
-                        break;
-                    node(Node::internal_num(c), &child[s]);
-                }
-                else {
-                    triangle(c, child[s]);
-                }
+                if (!child_data(n, s, child))
+                    break;
             }
         }
         parallel_for(0, nparallel, [&](size_t taski) {
@@ -1609,15 +1611,8 @@ void Precompute::node_parallel(uint32_t nodei, uint32_t next_node_id, LocalData*
     }
     else {
         for (uint32_t s = 0; s < BvhN; ++s) {
-            const uint32_t c = n.child[s];
-            if (Node::is_internal(c)) {
-                if (c == Node::Empty)
-                    break;
-                node(Node::internal_num(c), &child[s]);
-            }
-            else {
-                triangle(c, child[s]);
-            }
+            if (!child_data(n, s, child))
+                break;
         }
     }
     combine(nodei, out, nchildren, child);

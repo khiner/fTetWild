@@ -2,7 +2,9 @@
 // Original licence: BSD 3-clause, see LICENSE.geogram next to this file.
 // Source: geogram/basic/determinant.h, geogram/basic/vecg.h, geogram/basic/geometry.h and
 // geogram/basic/geometry_nd.h, which were four headers each including the next.
-// Copied rather than reimplemented: point_triangle_squared_distance and friends, unchanged.
+// Copied rather than reimplemented: point_triangle_squared_distance and friends. Its arithmetic is
+// unchanged, but the edge clamp its regions 3, 4 and 5 each wrote out, and the interior quadratic
+// four of them end at, are now one lambda each.
 //
 // geogram writes all of this generically: determinants over any T, vectors over a dimension and a
 // coordinate type, and the Geom distances over any class with data() and dimension(). Every one of
@@ -265,119 +267,102 @@ namespace geo {
             double t = a01 * b0 - a00 * b1;
             double sqrDistance;
 
-            // If the triangle is degenerate
+            // The two shapes the regions below reduce to, spelled once. The arithmetic in each is
+            // exactly what those regions wrote out longhand.
+
+            // The nearest point on one of the two edges leaving V0: \p u runs along the edge with
+            // squared length \p a and projection \p b, clamped to it, and \p other goes to 0.
+            const auto on_edge = [&c](double b, double a, double& u, double& other) {
+                other = 0.0;
+                if(b >= 0.0) {
+                    u = 0.0;
+                    return c;
+                }
+                if(-b >= a) {
+                    u = 1.0;
+                    return a + 2.0 * b + c;
+                }
+                u = -b / a;
+                return b * u + c;
+            };
+
+            // The squared distance at barycentric coordinates (\p su, \p tv).
+            const auto sq_dist_at = [&](double su, double tv) {
+                return su * (a00 * su + a01 * tv + 2.0 * b0) +
+                    tv * (a01 * su + a11 * tv + 2.0 * b1) + c;
+            };
+
+            // The nearest point on the edge from V1 to V2, at \p numer along it, clamped to the
+            // end where \p u is 1 and \p other is 0. \p a_end and \p b_end are the coefficients
+            // at that end. Regions 1, 2 and 6 all finish here.
+            const auto on_diagonal = [&](
+                double numer, double& u, double& other, double a_end, double b_end
+            ) {
+                const double denom = a00 - 2.0 * a01 + a11;
+                if(numer >= denom) {
+                    u = 1.0;
+                    other = 0.0;
+                    return a_end + 2.0 * b_end + c;
+                }
+                u = numer / denom;
+                other = 1.0 - u;
+                return sq_dist_at(s, t);
+            };
+
+            // If the triangle is degenerate, the answer is the nearest of its three edges. The
+            // first one always takes, so that the winner is one of the three even under a NaN.
             if(det < 1e-30) {
-                double cur_l1, cur_l2;
-                vec3 cur_closest;
-                double result;
-                double cur_dist = point_segment_squared_distance(
-		    point, V0, V1, cur_closest, cur_l1, cur_l2
-		);
-                result = cur_dist;
-                closest_point = cur_closest;
-                lambda0 = cur_l1;
-                lambda1 = cur_l2;
-                lambda2 = 0.0;
-                cur_dist = point_segment_squared_distance(
-		    point, V0, V2, cur_closest, cur_l1, cur_l2
-		);
-                if(cur_dist < result) {
-                    result = cur_dist;
-                    closest_point = cur_closest;
-                    lambda0 = cur_l1;
-                    lambda2 = cur_l2;
-                    lambda1 = 0.0;
-                }
-                cur_dist = point_segment_squared_distance(
-		    point, V1, V2, cur_closest, cur_l1, cur_l2
-		);
-                if(cur_dist < result) {
-                    result = cur_dist;
-                    closest_point = cur_closest;
-                    lambda1 = cur_l1;
-                    lambda2 = cur_l2;
-                    lambda0 = 0.0;
-                }
+                double result = 0.0;
+                bool first = true;
+                const auto try_edge = [&](
+                    const vec3& A, const vec3& B, double& la, double& lb, double& lz
+                ) {
+                    double cur_l1, cur_l2;
+                    vec3 cur_closest;
+                    double cur_dist = point_segment_squared_distance(
+                        point, A, B, cur_closest, cur_l1, cur_l2
+                    );
+                    if(first || cur_dist < result) {
+                        result = cur_dist;
+                        closest_point = cur_closest;
+                        la = cur_l1;
+                        lb = cur_l2;
+                        lz = 0.0;
+                    }
+                    first = false;
+                };
+                try_edge(V0, V1, lambda0, lambda1, lambda2);
+                try_edge(V0, V2, lambda0, lambda2, lambda1);
+                try_edge(V1, V2, lambda1, lambda2, lambda0);
                 return result;
             }
 
             if(s + t <= det) {
                 if(s < 0.0) {
                     if(t < 0.0) {   // region 4
-                        if(b0 < 0.0) {
-                            t = 0.0;
-                            if(-b0 >= a00) {
-                                s = 1.0;
-                                sqrDistance = a00 + 2.0 * b0 + c;
-                            } else {
-                                s = -b0 / a00;
-                                sqrDistance = b0 * s + c;
-                            }
-                        } else {
-                            s = 0.0;
-                            if(b1 >= 0.0) {
-                                t = 0.0;
-                                sqrDistance = c;
-                            } else if(-b1 >= a11) {
-                                t = 1.0;
-                                sqrDistance = a11 + 2.0 * b1 + c;
-                            } else {
-                                t = -b1 / a11;
-                                sqrDistance = b1 * t + c;
-                            }
-                        }
+                        // b0 < 0.0 already rules out on_edge()'s first case.
+                        sqrDistance = b0 < 0.0 ? on_edge(b0, a00, s, t)
+                                               : on_edge(b1, a11, t, s);
                     } else {  // region 3
-                        s = 0.0;
-                        if(b1 >= 0.0) {
-                            t = 0.0;
-                            sqrDistance = c;
-                        } else if(-b1 >= a11) {
-                            t = 1.0;
-                            sqrDistance = a11 + 2.0 * b1 + c;
-                        } else {
-                            t = -b1 / a11;
-                            sqrDistance = b1 * t + c;
-                        }
+                        sqrDistance = on_edge(b1, a11, t, s);
                     }
                 } else if(t < 0.0) {  // region 5
-                    t = 0.0;
-                    if(b0 >= 0.0) {
-                        s = 0.0;
-                        sqrDistance = c;
-                    } else if(-b0 >= a00) {
-                        s = 1.0;
-                        sqrDistance = a00 + 2.0 * b0 + c;
-                    } else {
-                        s = -b0 / a00;
-                        sqrDistance = b0 * s + c;
-                    }
+                    sqrDistance = on_edge(b0, a00, s, t);
                 } else {  // region 0
                     // minimum at interior point
                     double invDet = double(1.0) / det;
                     s *= invDet;
                     t *= invDet;
-                    sqrDistance = s * (a00 * s + a01 * t + 2.0 * b0) +
-                        t * (a01 * s + a11 * t + 2.0 * b1) + c;
+                    sqrDistance = sq_dist_at(s, t);
                 }
             } else {
-                double tmp0, tmp1, numer, denom;
+                double tmp0, tmp1, numer;
 
                 if(s < 0.0) {   // region 2
                     tmp0 = a01 + b0;
                     tmp1 = a11 + b1;
                     if(tmp1 > tmp0) {
-                        numer = tmp1 - tmp0;
-                        denom = a00 - 2.0 * a01 + a11;
-                        if(numer >= denom) {
-                            s = 1.0;
-                            t = 0.0;
-                            sqrDistance = a00 + 2.0 * b0 + c;
-                        } else {
-                            s = numer / denom;
-                            t = 1.0 - s;
-                            sqrDistance = s * (a00 * s + a01 * t + 2.0 * b0) +
-                                t * (a01 * s + a11 * t + 2.0 * b1) + c;
-                        }
+                        sqrDistance = on_diagonal(tmp1 - tmp0, s, t, a00, b0);
                     } else {
                         s = 0.0;
                         if(tmp1 <= 0.0) {
@@ -396,18 +381,7 @@ namespace geo {
                     tmp0 = a01 + b1;
                     tmp1 = a00 + b0;
                     if(tmp1 > tmp0) {
-                        numer = tmp1 - tmp0;
-                        denom = a00 - 2.0 * a01 + a11;
-                        if(numer >= denom) {
-                            t = 1.0;
-                            s = 0.0;
-                            sqrDistance = a11 + 2.0 * b1 + c;
-                        } else {
-                            t = numer / denom;
-                            s = 1.0 - t;
-                            sqrDistance = s * (a00 * s + a01 * t + 2.0 * b0) +
-                                t * (a01 * s + a11 * t + 2.0 * b1) + c;
-                        }
+                        sqrDistance = on_diagonal(tmp1 - tmp0, t, s, a11, b1);
                     } else {
                         t = 0.0;
                         if(tmp1 <= 0.0) {
@@ -428,17 +402,7 @@ namespace geo {
                         t = 1.0;
                         sqrDistance = a11 + 2.0 * b1 + c;
                     } else {
-                        denom = a00 - 2.0 * a01 + a11;
-                        if(numer >= denom) {
-                            s = 1.0;
-                            t = 0.0;
-                            sqrDistance = a00 + 2.0 * b0 + c;
-                        } else {
-                            s = numer / denom;
-                            t = 1.0 - s;
-                            sqrDistance = s * (a00 * s + a01 * t + 2.0 * b0) +
-                                t * (a01 * s + a11 * t + 2.0 * b1) + c;
-                        }
+                        sqrDistance = on_diagonal(numer, s, t, a00, b0);
                     }
                 }
             }

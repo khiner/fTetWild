@@ -129,11 +129,10 @@ namespace geo {
         }
     }
 
-    index_t Delaunay3d::locate_inexact(
-        const double* p, index_t hint, index_t max_iter
-    ) const {
-
-        // If no hint specified, find a tetrahedron randomly
+    index_t Delaunay3d::walkable_hint(index_t hint) const {
+        // If no hint specified, find a tetrahedron randomly. Both walks below draw from the same
+        // process-wide stream, so which tetrahedra they start from depends on the order they run
+        // in, and that is what decides the triangulation on cospherical input.
         while(hint == NO_TETRAHEDRON) {
             hint = index_t(random_int32()) % nb_cells();
             if(tet_is_free(hint)) {
@@ -153,6 +152,14 @@ namespace geo {
                 }
             }
         }
+        return hint;
+    }
+
+    index_t Delaunay3d::locate_inexact(
+        const double* p, index_t hint, index_t max_iter
+    ) const {
+
+        hint = walkable_hint(hint);
 
         index_t t = hint;
         index_t t_pred = NO_TETRAHEDRON;
@@ -244,26 +251,7 @@ namespace geo {
         // locate_inexact() loops forever !
         hint = locate_inexact(p, hint, 2500);
 
-        // If no hint specified, find a tetrahedron randomly
-        while(hint == NO_TETRAHEDRON) {
-            hint = index_t(random_int32()) % nb_cells();
-            if(tet_is_free(hint)) {
-                hint = NO_TETRAHEDRON;
-            }
-        }
-
-        //  Always start from a real tet. If the tet is virtual,
-        // find its real neighbor (always opposite to the
-        // infinite vertex)
-        if(tet_is_virtual(hint)) {
-            for(index_t lf = 0; lf < 4; ++lf) {
-                if(tet_vertex(hint, lf) == VERTEX_AT_INFINITY) {
-                    hint = tet_adjacent(hint, lf);
-                    geo_debug_assert(hint != NO_TETRAHEDRON);
-                    break;
-                }
-            }
-        }
+        hint = walkable_hint(hint);
 
         index_t t = hint;
         index_t t_pred = NO_TETRAHEDRON;
@@ -420,6 +408,15 @@ namespace geo {
         find_conflict_zone_iterative(p,t,t_bndry,f_bndry,first,last);
     }
 
+    void Delaunay3d::record_cavity_facet(index_t t, index_t lf) {
+        cavity_.new_facet(
+            t, lf,
+            tet_vertex(t, tet_facet_vertex_[lf][0]),
+            tet_vertex(t, tet_facet_vertex_[lf][1]),
+            tet_vertex(t, tet_facet_vertex_[lf][2])
+        );
+    }
+
     void Delaunay3d::find_conflict_zone_iterative(
         const double* p, index_t t_in,
         index_t& t_bndry, index_t& f_bndry,
@@ -446,12 +443,7 @@ namespace geo {
                 if(
                     tet_is_marked(t2)     // known as non-conflict
                 ) {
-                    cavity_.new_facet(
-                        t, lf,
-                        tet_vertex(t, tet_facet_vertex_[lf][0]),
-                        tet_vertex(t, tet_facet_vertex_[lf][1]),
-                        tet_vertex(t, tet_facet_vertex_[lf][2])
-                    );
+                    record_cavity_facet(t, lf);
                     continue;
                 }
 
@@ -471,12 +463,7 @@ namespace geo {
                 // Mark t2 as visited (but not conflict)
                 mark_tet(t2);
 
-                cavity_.new_facet(
-                    t, lf,
-                    tet_vertex(t, tet_facet_vertex_[lf][0]),
-                    tet_vertex(t, tet_facet_vertex_[lf][1]),
-                    tet_vertex(t, tet_facet_vertex_[lf][2])
-                );
+                record_cavity_facet(t, lf);
 
             }
         }

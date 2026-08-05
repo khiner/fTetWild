@@ -161,41 +161,49 @@ void sort_input_faces(const std::vector<Vector3i>& input_faces,
     std::shuffle(sorted_f_ids.begin(), sorted_f_ids.end(), g);
 }
 
+// What subdivide_tets() produces and push_new_tets() consumes: the rebuilt tets, the input faces
+// each of their four faces tracks, and the ids of the tets they replace. The first
+// modified_t_ids.size() new tets go back into those slots and the rest are appended.
+struct Subdivision
+{
+    std::vector<MeshTet>                         tets;
+    std::vector<std::array<std::vector<int>, 4>> track_surface_fs;
+    std::vector<int>                             modified_t_ids;
+};
+
 void push_new_tets(Mesh&                                         mesh,
                    std::vector<std::array<std::vector<int>, 4>>& track_surface_fs,
                    std::vector<Vector3>&                         points,
-                   std::vector<MeshTet>&                         new_tets,
-                   std::vector<std::array<std::vector<int>, 4>>& new_track_surface_fs,
-                   std::vector<int>&                             modified_t_ids)
+                   Subdivision&                                  sub)
 {
     const int old_v_size = mesh.tet_vertices.size();
     mesh.tet_vertices.resize(mesh.tet_vertices.size() + points.size());
     for (int i = 0; i < points.size(); i++)
         mesh.tet_vertices[old_v_size + i].pos = points[i];
 
-    // The first new_tets replace the subdivided ones in place. The rest are appended, so their ids
-    // start at the current end of mesh.tets. subdivide_tets already set their tags.
-    for (int i = 0; i < modified_t_ids.size(); i++) {
-        const int t_id = modified_t_ids[i];
+    // The leading new tets replace the subdivided ones in place. The rest are appended, so their
+    // ids start at the current end of mesh.tets. subdivide_tets already set their tags.
+    for (int i = 0; i < sub.modified_t_ids.size(); i++) {
+        const int t_id = sub.modified_t_ids[i];
         for (int j = 0; j < 4; j++)
             vector_erase(mesh.tet_vertices[mesh.tets[t_id][j]].conn_tets, t_id);
 
-        mesh.tets[t_id]        = new_tets[i];
-        track_surface_fs[t_id] = new_track_surface_fs[i];
+        mesh.tets[t_id]        = sub.tets[i];
+        track_surface_fs[t_id] = sub.track_surface_fs[i];
         for (int j = 0; j < 4; j++)
             mesh.tet_vertices[mesh.tets[t_id][j]].conn_tets.push_back(t_id);
     }
-    for (int i = modified_t_ids.size(); i < new_tets.size(); i++) {
-        const int t_id = mesh.tets.size() + i - modified_t_ids.size();
+    for (int i = sub.modified_t_ids.size(); i < sub.tets.size(); i++) {
+        const int t_id = mesh.tets.size() + i - sub.modified_t_ids.size();
         for (int j = 0; j < 4; j++)
-            mesh.tet_vertices[new_tets[i][j]].conn_tets.push_back(t_id);
+            mesh.tet_vertices[sub.tets[i][j]].conn_tets.push_back(t_id);
     }
 
-    mesh.tets.insert(mesh.tets.end(), new_tets.begin() + modified_t_ids.size(), new_tets.end());
+    mesh.tets.insert(mesh.tets.end(), sub.tets.begin() + sub.modified_t_ids.size(), sub.tets.end());
     track_surface_fs.insert(track_surface_fs.end(),
-                            new_track_surface_fs.begin() + modified_t_ids.size(),
-                            new_track_surface_fs.end());
-    modified_t_ids.clear();
+                            sub.track_surface_fs.begin() + sub.modified_t_ids.size(),
+                            sub.track_surface_fs.end());
+    sub.modified_t_ids.clear();
 }
 
 void find_cutting_tets(int                           f_id,
@@ -298,9 +306,7 @@ bool subdivide_tets(
   std::vector<std::array<std::vector<int>, 4>>& track_surface_fs,
   std::vector<int>&                             subdivide_t_ids,
   std::vector<bool>&                            is_mark_surface,
-  std::vector<MeshTet>&                         new_tets,
-  std::vector<std::array<std::vector<int>, 4>>& new_track_surface_fs,
-  std::vector<int>&                             modified_t_ids)
+  Subdivision&                                  sub)
 {
     static const std::array<std::array<int, 2>, 6> t_es = {
       {{{0, 1}}, {{1, 2}}, {{2, 0}}, {{0, 3}}, {{1, 3}}, {{2, 3}}}};
@@ -342,10 +348,10 @@ bool subdivide_tets(
                     }
 
                     if (cnt_on == 3) {
-                        new_tets.push_back(mesh.tets[t_id]);
-                        new_track_surface_fs.push_back(track_surface_fs[t_id]);
-                        (new_track_surface_fs.back())[j].push_back(insert_f_id);
-                        modified_t_ids.push_back(t_id);
+                        sub.tets.push_back(mesh.tets[t_id]);
+                        sub.track_surface_fs.push_back(track_surface_fs[t_id]);
+                        (sub.track_surface_fs.back())[j].push_back(insert_f_id);
+                        sub.modified_t_ids.push_back(t_id);
 
                         covered_tet_fs.push_back({{mesh.tets[t_id][(j + 1) % 4],
                                                    mesh.tets[t_id][(j + 2) % 4],
@@ -499,13 +505,13 @@ bool subdivide_tets(
         const auto& new_local_f_ids   = CutTable::get_face_id_conf(config_id, diag_config_id);
         for (int i = 0; i < config.size(); i++) {
             const auto& lt = config[i];
-            new_tets.push_back(MeshTet(map_lv_to_v_id[lt[0]],
+            sub.tets.push_back(MeshTet(map_lv_to_v_id[lt[0]],
                                        map_lv_to_v_id[lt[1]],
                                        map_lv_to_v_id[lt[2]],
                                        map_lv_to_v_id[lt[3]]));
-            new_track_surface_fs.emplace_back();
-            MeshTet&                         nt  = new_tets.back();
-            std::array<std::vector<int>, 4>& nfs = new_track_surface_fs.back();
+            sub.track_surface_fs.emplace_back();
+            MeshTet&                         nt  = sub.tets.back();
+            std::array<std::vector<int>, 4>& nfs = sub.track_surface_fs.back();
 
             for (int j = 0; j < 4; j++) {
                 if (new_is_surface_fs[i][j] && is_mark_sf) {
@@ -525,7 +531,7 @@ bool subdivide_tets(
                 nt.surface_tags[j]  = mesh.tets[t_id].surface_tags[old_local_f_id];
             }
         }
-        modified_t_ids.push_back(t_id);
+        sub.modified_t_ids.push_back(t_id);
     }
 
     return true;
@@ -754,9 +760,7 @@ bool insert_one_triangle(
     cut_t_ids.insert(cut_t_ids.end(), tmp.begin(), tmp.end());
     is_mark_surface.resize(is_mark_surface.size() + tmp.size(), false);
 
-    std::vector<MeshTet>                         new_tets;
-    std::vector<std::array<std::vector<int>, 4>> new_track_surface_fs;
-    std::vector<int>                             modified_t_ids;
+    Subdivision sub;
     if (!subdivide_tets(insert_f_id,
                         mesh,
                         cut_mesh,
@@ -765,13 +769,10 @@ bool insert_one_triangle(
                         track_surface_fs,
                         cut_t_ids,
                         is_mark_surface,
-                        new_tets,
-                        new_track_surface_fs,
-                        modified_t_ids))
+                        sub))
         return failed("FAIL subdivide_tets");
 
-    push_new_tets(
-      mesh, track_surface_fs, points, new_tets, new_track_surface_fs, modified_t_ids);
+    push_new_tets(mesh, track_surface_fs, points, sub);
 
     simplify_subdivision_result(insert_f_id, input_vertices.size(), mesh, tree, track_surface_fs);
 
@@ -1109,9 +1110,7 @@ void insert_boundary_edges(
         vector_unique(cut_t_ids);
         std::vector<bool> is_mark_surface(cut_t_ids.size(), false);
         CutMesh           empty_cut_mesh(mesh, Vector3(0, 0, 0), std::array<Vector3, 3>());
-        std::vector<MeshTet>                         new_tets;
-        std::vector<std::array<std::vector<int>, 4>> new_track_surface_fs;
-        std::vector<int>                             modified_t_ids;
+        Subdivision sub;
         if (!subdivide_tets(-1,
                             mesh,
                             empty_cut_mesh,
@@ -1120,9 +1119,7 @@ void insert_boundary_edges(
                             track_surface_fs,
                             cut_t_ids,
                             is_mark_surface,
-                            new_tets,
-                            new_track_surface_fs,
-                            modified_t_ids)) {
+                            sub)) {
             bool is_inside_envelope = true;
             for (auto& f : cut_fs) {
                 geo::index_t prev_facet = geo::NO_FACET;
@@ -1157,8 +1154,7 @@ void insert_boundary_edges(
             continue;
         }
 
-        push_new_tets(
-          mesh, track_surface_fs, points, new_tets, new_track_surface_fs, modified_t_ids);
+        push_new_tets(mesh, track_surface_fs, points, sub);
 
         // points went on the end of mesh.tet_vertices, which is what this reads back.
         record_boundary_info(points, snapped_v_ids, e, is_on_cut);

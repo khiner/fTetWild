@@ -88,73 +88,49 @@ namespace geo {
         const index_t left_node_index = 2 * node_index;
         const index_t right_node_index = 2 * node_index + 1;
 
-        double cut_diff = query_point[coord] - val;
+        const double cut_diff = query_point[coord] - val;
 
-        // If the query point is on the left side
-        if(cut_diff < 0.0) {
+        //  The subtree the query point falls in is visited first, with the cutting plane standing
+        // in for the bound it replaces; \p bound is whichever of bbox_min and bbox_max that is.
+        // The bound is restored on the way out, so the caller's box is unchanged.
+        const auto descend = [&](index_t child, index_t cb, index_t ce, double* bound) {
+            const double save = bound[coord];
+            bound[coord] = val;
+            nearest_recursive(
+                child, cb, ce,
+                bbox_min, bbox_max, box_dist, query_point, best_sq_dist
+            );
+            bound[coord] = save;
+        };
 
-            // Traverse left subtree
-            {
-                double bbox_max_save = bbox_max[coord];
-                bbox_max[coord] = val;
-                nearest_recursive(
-                    left_node_index, b, m,
-                    bbox_min, bbox_max, box_dist, query_point, best_sq_dist
-                );
-                bbox_max[coord] = bbox_max_save;
-            }
+        const bool near_is_left = cut_diff < 0.0;
+        // The near subtree clamps the bound on the far side of the cut, and the far subtree the
+        // near one.
+        double* const near_bound = near_is_left ? bbox_max : bbox_min;
+        double* const far_bound = near_is_left ? bbox_min : bbox_max;
 
-            // Update bbox distance (now measures the
-            // distance to the bbox of the right subtree)
-            double box_diff = bbox_min[coord] - query_point[coord];
-            if(box_diff > 0.0) {
-                box_dist -= geo_sqr(box_diff);
-            }
-            box_dist += geo_sqr(cut_diff);
-
-            // Traverse the right subtree, only if bbox
-            // distance is nearer than the nearest point so far,
-            // else there is no chance that the right
-            // subtree contains anything nearer.
-            if(box_dist <= best_sq_dist) {
-                double bbox_min_save = bbox_min[coord];
-                bbox_min[coord] = val;
-                nearest_recursive(
-                    right_node_index, m, e,
-                    bbox_min, bbox_max, box_dist, query_point, best_sq_dist
-                );
-                bbox_min[coord] = bbox_min_save;
-            }
+        if(near_is_left) {
+            descend(left_node_index, b, m, near_bound);
         } else {
-            // else the query point is on the right side
-            // (then do the same with left and right subtree
-            //  permutted).
-            {
-                double bbox_min_save = bbox_min[coord];
-                bbox_min[coord] = val;
-                nearest_recursive(
-                    right_node_index, m, e,
-                    bbox_min, bbox_max, box_dist, query_point, best_sq_dist
-                );
-                bbox_min[coord] = bbox_min_save;
-            }
+            descend(right_node_index, m, e, near_bound);
+        }
 
-            // Update bbox distance (now measures the
-            // distance to the bbox of the left subtree)
-            double box_diff = query_point[coord] - bbox_max[coord];
-            if(box_diff > 0.0) {
-                box_dist -= geo_sqr(box_diff);
-            }
-            box_dist += geo_sqr(cut_diff);
+        // Update bbox distance (now measures the distance to the bbox of the far subtree)
+        const double box_diff = near_is_left
+            ? far_bound[coord] - query_point[coord]
+            : query_point[coord] - far_bound[coord];
+        if(box_diff > 0.0) {
+            box_dist -= geo_sqr(box_diff);
+        }
+        box_dist += geo_sqr(cut_diff);
 
-            if(box_dist <= best_sq_dist) {
-                double bbox_max_save = bbox_max[coord];
-                bbox_max[coord] = val;
-                nearest_recursive(
-                    left_node_index, b, m,
-                    bbox_min, bbox_max, box_dist, query_point, best_sq_dist
-                );
-                bbox_max[coord] = bbox_max_save;
+        // Traverse the far subtree, only if bbox distance is nearer than the nearest point so
+        // far, else there is no chance that it contains anything nearer.
+        if(box_dist <= best_sq_dist) {
+            if(near_is_left) {
+                descend(right_node_index, m, e, far_bound);
+            } else {
+                descend(left_node_index, b, m, far_bound);
             }
         }
     }
