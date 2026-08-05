@@ -137,7 +137,7 @@ int main(int argc, char** argv)
     command_line.add_option("--tag", tag_path, "Tag input faces for Boolean operation.")
       ->check(CLI::ExistingFile);
     int         boolean_op = -1;
-    std::string csg_file   = "";
+    std::string csg_file;
     command_line.add_option(
       "--op", boolean_op, "Boolean operation: 0: union, 1: intersection, 2: difference.");
 
@@ -208,7 +208,6 @@ int main(int argc, char** argv)
     // only. It cannot default to output_path, which init would truncate — that path is the
     // output mesh when -o names one, and the *input* mesh when -o is omitted.
     Logger::init(!is_quiet, log_path);
-    log_level = std::max(0, std::min(6, log_level));
     logger().set_level(log_level);
     logger().info("threads {}", num_threads);
 
@@ -235,11 +234,8 @@ int main(int argc, char** argv)
     if (!tag_path.empty()) {
         std::string   line;
         std::ifstream fin(tag_path);
-        if (fin.is_open()) {
-            while (getline(fin, line)) {
-                input_tags.push_back(std::stoi(line));
-            }
-            fin.close();
+        while (getline(fin, line)) {
+            input_tags.push_back(std::stoi(line));
         }
     }
 
@@ -249,18 +245,11 @@ int main(int argc, char** argv)
     std::vector<std::vector<Vector3>>  csg_Vs;
     std::vector<std::vector<Vector3i>> csg_Fs;
     if (!csg_file.empty()) {
-        std::ifstream file(csg_file);
-
-        if (!file.is_open()) {
-            logger().error("unable to open {} file", csg_file);
-            return EXIT_FAILURE;
-        }
         std::string parse_error;
-        if (!CSGTreeParser::parse(file, csg_tree, parse_error)) {
+        if (!CSGTreeParser::parse(csg_file, csg_tree, parse_error)) {
             logger().error("{}: {}", csg_file, parse_error);
             return EXIT_FAILURE;
         }
-        file.close();
 
         const std::vector<std::string> meshes = CSGTreeParser::assign_mesh_ids(csg_tree);
 
@@ -378,7 +367,6 @@ int main(int argc, char** argv)
     std::ofstream fout((log_path.empty() ? output_path : log_path) + "_" + postfix + ".csv");
     if (fout.good())
         write_stats_csv(fout, stats());
-    fout.close();
 
     return EXIT_SUCCESS;
 }

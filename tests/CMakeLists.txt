@@ -7,20 +7,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-# Add Catch2 to module path for test discovery
-list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
-
-set(test_sources
-	main.cpp
-	test_predicates.cpp
-	test_table.cpp
-)
-
-add_executable(unit_tests ${test_sources})
+add_executable(unit_tests test_predicates.cpp test_table.cpp)
 
 target_link_libraries(unit_tests PUBLIC FloatTetwild Catch2::Catch2WithMain warnings::all)
 
 # Register tests
-set(PARSE_CATCH_TESTS_ADD_TO_CONFIGURE_DEPENDS ON)
+list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
 include(Catch)
 catch_discover_tests(unit_tests)

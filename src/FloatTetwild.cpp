@@ -170,8 +170,7 @@ void init_params(Parameters& params, Scalar bbox_diag_l)
     }
 
     params.eps_input = params.bbox_diag_length * params.eps_rel;
-    params.dd = params.eps_input;
-    params.dd /= 1.5;
+    params.dd = params.eps_input / 1.5;
 
     // The sampled envelope check is conservative by the sampling error bound, the circumradius
     // dd/sqrt(3) of the triangle the samples sit on, so that budget comes out of the epsilon the

@@ -380,15 +380,10 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
     mesh.reset_v_empty_start();
 
     auto is_swappable = [&](int v1_id, int v2_id, const std::vector<int> &n12_t_ids) {
-        if (n12_t_ids.size() < 3 || n12_t_ids.size() > 5)
-            return false;
-        if (!is_valid_edge(mesh, v1_id, v2_id))
-            return false;
-        if (is_surface_edge(mesh, v1_id, v2_id, n12_t_ids))
-            return false;
-        if (is_bbox_edge(mesh, v1_id, v2_id, n12_t_ids))
-            return false;
-        return true;
+        return n12_t_ids.size() >= 3 && n12_t_ids.size() <= 5 &&
+               is_valid_edge(mesh, v1_id, v2_id) &&
+               !is_surface_edge(mesh, v1_id, v2_id, n12_t_ids) &&
+               !is_bbox_edge(mesh, v1_id, v2_id, n12_t_ids);
     };
 
     LongestFirstQueue es_queue;

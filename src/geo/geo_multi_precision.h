@@ -80,10 +80,6 @@ namespace geo {
     capacity_(capa) {
     }
 
-    static expansion* new_expansion_on_heap(index_t capa);
-
-    static void delete_expansion_on_heap(expansion* e);
-
     // Each operation comes as a capacity, which the macros below allocate, and an assignment,
     // which fills what they allocated. The capacities never depend on the values, only on the
     // lengths, so they can be computed before the operands are.
@@ -215,12 +211,6 @@ namespace geo {
     }
 
     private:
-    static index_t sub_product_capacity(
-        index_t a_length, index_t b_length
-    ) {
-        return a_length * b_length * 2;
-    }
-
     // [a1...a_length] * b. Used by assign_product() in balanced distillation mode, where it
     // recursively assembles sub-sums.
     expansion& assign_sub_product(

@@ -3,19 +3,11 @@ cmake_minimum_required(VERSION 3.20)
 project(FloatTetwild)
 # ##############################################################################
 
-# Detects whether this is a top-level project
-get_directory_property(HAS_PARENT PARENT_DIRECTORY)
-if(HAS_PARENT)
-    set(FLOAT_TETWILD_TOPLEVEL_PROJECT OFF)
-else()
-    set(FLOAT_TETWILD_TOPLEVEL_PROJECT ON)
-endif()
-
 # Release unless asked for something else. With no build type CMake passes no optimisation flags
 # at all, which is not just slower: the arithmetic differs, so script/check_corpus fails against a
 # baseline recorded from an optimised build. An explicit -DCMAKE_BUILD_TYPE still wins, and
 # multi-config generators pick their configuration at build time so they are left alone.
-if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     # FORCE because project() has already created the cache entry, empty, and a plain set()
     # against an existing entry does nothing. The guard above is what keeps this from stomping
     # a build type the user asked for.
@@ -35,8 +27,6 @@ include(Warnings)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ##############################################################################
-
-# ##############################################################################
 # Dependencies
 # ##############################################################################
 
@@ -44,15 +34,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(Threads REQUIRED)
 
 # Argument parsing in main.cpp, so only the binary needs it.
-if(FLOAT_TETWILD_TOPLEVEL_PROJECT AND NOT TARGET CLI11::CLI11)
-    include(FetchContent)
-    FetchContent_Declare(
-        cli11
-        GIT_REPOSITORY https://github.com/CLIUtils/CLI11
-        GIT_TAG v2.5.0
-    )
-    FetchContent_MakeAvailable(cli11)
-endif()
+include(FetchContent)
+FetchContent_Declare(
+    cli11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11
+    GIT_TAG v2.5.0
+)
+FetchContent_MakeAvailable(cli11)
 
 # ##############################################################################
 # FloatTetwild library
@@ -79,17 +67,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
 # FloatTetwild binary
 # ##############################################################################
 
-# Main executable
-if(FLOAT_TETWILD_TOPLEVEL_PROJECT)
-    add_executable(${PROJECT_NAME}_bin src/main.cpp)
-    target_compile_features(${PROJECT_NAME}_bin PUBLIC cxx_std_14)
+add_executable(${PROJECT_NAME}_bin src/main.cpp)
+target_compile_features(${PROJECT_NAME}_bin PUBLIC cxx_std_14)
 
-    target_link_libraries(${PROJECT_NAME}_bin PUBLIC ${PROJECT_NAME} CLI11::CLI11
-                                                   warnings::all)
+target_link_libraries(${PROJECT_NAME}_bin PUBLIC ${PROJECT_NAME} CLI11::CLI11
+                                               warnings::all)
 
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                 PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME}_bin)
-endif()
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+             PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME}_bin)
 
 # ##############################################################################
 # Subdirectories
@@ -98,10 +83,6 @@ endif()
 # Other sources
 add_subdirectory(src)
 
-# Compile extras only if this is a top-level project
-if(FLOAT_TETWILD_TOPLEVEL_PROJECT)
-    # Unit tests
-    include(CTest)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
+# Unit tests. include(CTest) already calls enable_testing().
+include(CTest)
+add_subdirectory(tests)

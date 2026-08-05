@@ -259,11 +259,11 @@ namespace geo {
     // Reached only by the intermediates of assign_product() that are too big for the stack.
     // geogram pooled these behind a global lock, for a high-level expansion_nt that allocated
     // every value on the heap and that nothing here uses.
-    expansion* expansion::new_expansion_on_heap(index_t capa) {
+    static expansion* new_expansion_on_heap(index_t capa) {
         return new(new unsigned char[expansion::bytes(capa)])expansion(capa);
     }
 
-    void expansion::delete_expansion_on_heap(expansion* e) {
+    static void delete_expansion_on_heap(expansion* e) {
         delete[] reinterpret_cast<unsigned char*>(e);
     }
 
@@ -326,8 +326,8 @@ namespace geo {
             // Allocate both halves on the stack or on the heap if too large
             // (some platformes, e.g. MacOSX, have a small stack)
 
-            index_t a1b_capa = sub_product_capacity(a1_length, b.length());
-            index_t a2b_capa = sub_product_capacity(a2_length, b.length());
+            index_t a1b_capa = a1_length * b.length() * 2;
+            index_t a2b_capa = a2_length * b.length() * 2;
 
             bool a1b_on_heap = (a1b_capa > MAX_CAPACITY_ON_STACK);
             bool a2b_on_heap = (a2b_capa > MAX_CAPACITY_ON_STACK);

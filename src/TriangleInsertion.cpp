@@ -157,17 +157,16 @@ Scalar orient_3d_volume(const Vector3& p1, const Vector3& p2, const Vector3& p3,
 
 // The patch of tets an input triangle's plane cuts through, in local ids, with the per-vertex
 // snapping state the cut carries between its phases. insert_one_triangle drives the phases in
-// order: construct, snap_to_plane, expand_new, project_to_plane, get_intersecting_edges_and_points.
+// order: snap_to_plane, expand_new, project_to_plane, get_intersecting_edges_and_points.
 struct CutMesh {
     // The mesh vertex ids the cut reaches, mapped to their local index here.
     std::map<int, int> map_v_ids;
     // The input face whose plane is doing the cutting.
     int insert_f_id;
 
-    CutMesh(Mesh &_mesh, int _insert_f_id, const Vector3 &_p_n, const std::array<Vector3, 3> &_p_vs) :
-            insert_f_id(_insert_f_id), mesh(_mesh), p_n(_p_n), p_vs(_p_vs) {}
-
-    void construct(const std::vector<int>& cut_t_ids) {
+    CutMesh(Mesh &_mesh, int _insert_f_id, const Vector3 &_p_n, const std::array<Vector3, 3> &_p_vs,
+            const std::vector<int>& cut_t_ids) :
+            insert_f_id(_insert_f_id), mesh(_mesh), p_n(_p_n), p_vs(_p_vs) {
         collect_tet_vertices(mesh, cut_t_ids, v_ids);
 
         for (int i = 0; i < v_ids.size(); i++)
@@ -986,8 +985,7 @@ bool insert_one_triangle(
         return false;
     };
 
-    CutMesh cut_mesh(mesh, insert_f_id, n, vs);
-    cut_mesh.construct(cut_t_ids);
+    CutMesh cut_mesh(mesh, insert_f_id, n, vs, cut_t_ids);
 
     if (cut_mesh.snap_to_plane()) {
         cut_mesh.project_to_plane(input_vertices.size());
@@ -1064,186 +1062,6 @@ void pair_track_surface_fs(
     }
 }
 
-void insert_boundary_edges_get_intersecting_edges_and_points(
-  const std::vector<std::vector<std::pair<int, int>>>& covered_fs_infos,
-  const std::vector<Vector3>&                          input_vertices,
-  const std::vector<Vector3i>&                         input_faces,
-  const std::array<int, 2>&                            e,
-  const std::vector<int>&                              n_f_ids,
-  std::vector<std::array<std::vector<int>, 4>>&        track_surface_fs,
-  Mesh&                                                mesh,
-  std::vector<Vector3>&                                points,
-  std::map<std::array<int, 2>, int>&                   map_edge_to_intersecting_point,
-  std::vector<int>&                                    snapped_v_ids,
-  std::vector<std::array<int, 3>>&                     cut_fs,
-  bool                                                 is_again)
-{
-
-    // The edge is cut in the plane of the first of the faces it belongs to.
-    const std::array<Vector3, 3> fps = face_points(input_vertices, input_faces, n_f_ids.front());
-    const int                    t   = get_t(fps[0], fps[1], fps[2]);
-    std::array<Vector2, 2>       evs_2d = {
-      {to_2d(input_vertices[e[0]], t), to_2d(input_vertices[e[1]], t)}};
-    const Vector3& pp = fps[0];
-    const Vector3  n  = plane_normal(fps);
-
-    /// find seed t_ids: the tets already covering one of the faces, plus the tets around the edge
-    std::vector<int> t_ids;
-    for (int f_id : n_f_ids) {
-        for (const auto& info : covered_fs_infos[f_id])
-            t_ids.push_back(info.first);
-    }
-    if (!is_again) {
-        for (int v_id : e)
-            t_ids.insert(t_ids.end(),
-                         mesh.tet_vertices[v_id].conn_tets.begin(),
-                         mesh.tet_vertices[v_id].conn_tets.end());
-    }
-    else {
-        Vector3 min_e, max_e;
-        get_bbox({input_vertices[e[0]], input_vertices[e[1]]}, min_e, max_e);
-
-        const std::vector<int> bbox_t_ids =
-          tets_overlapping_bbox(mesh, min_e, max_e, [&](size_t t_id) {
-              return !track_surface_fs[t_id][0].empty() || !track_surface_fs[t_id][1].empty() ||
-                     !track_surface_fs[t_id][2].empty() || !track_surface_fs[t_id][3].empty();
-          });
-        t_ids.insert(t_ids.end(), bbox_t_ids.begin(), bbox_t_ids.end());
-    }
-    vector_unique(t_ids);
-
-    std::vector<int> v_oris(mesh.tet_vertices.size(), Predicates::ORI_UNKNOWN);
-    flood_from_cut(mesh, t_ids, [&](int t_id, std::array<bool, 4>& is_cut_vs) {
-        for (int j = 0; j < 4; j++) {
-            if (track_surface_fs[t_id][j].empty())
-                continue;
-            std::sort(track_surface_fs[t_id][j].begin(), track_surface_fs[t_id][j].end());
-            std::vector<int> tmp;
-            std::set_intersection(track_surface_fs[t_id][j].begin(),
-                                  track_surface_fs[t_id][j].end(),
-                                  n_f_ids.begin(),
-                                  n_f_ids.end(),
-                                  std::back_inserter(tmp));
-            if (tmp.empty())
-                continue;
-
-            std::array<int, 3>     f_v_ids = face_corners(mesh.tets[t_id], j);
-            std::array<Vector2, 3> fvs_2d  = {{to_2d(mesh.tet_vertices[f_v_ids[0]].pos, n, pp, t),
-                                               to_2d(mesh.tet_vertices[f_v_ids[1]].pos, n, pp, t),
-                                               to_2d(mesh.tet_vertices[f_v_ids[2]].pos, n, pp, t)}};
-            int                    cnt_pos = 0;
-            int                    cnt_neg = 0;
-            int                    cnt_on  = 0;
-            for (int k = 0; k < 3; k++) {
-                int& ori = v_oris[f_v_ids[k]];
-                if (ori == Predicates::ORI_UNKNOWN)
-                    ori = Predicates::orient_2d(evs_2d[0], evs_2d[1], fvs_2d[k]);
-                if (ori == Predicates::ORI_ZERO) {
-                    cnt_on++;
-                }
-                else {
-                    Scalar dis_2 = p_seg_squared_dist_3d(mesh.tet_vertices[f_v_ids[k]].pos,
-                                                         input_vertices[e[0]],
-                                                         input_vertices[e[1]]);
-                    if (dis_2 < mesh.params.eps_2_coplanar) {
-                        ori = Predicates::ORI_ZERO;
-                        cnt_on++;
-                        continue;
-                    }
-                    if (ori == Predicates::ORI_POSITIVE)
-                        cnt_pos++;
-                    else
-                        cnt_neg++;
-                }
-            }
-            if (cnt_on >= 2) {
-                cut_fs.push_back(sorted_face(mesh.tets[t_id], j));
-                continue;
-            }
-            if (cnt_neg == 0 || cnt_pos == 0)
-                continue;
-
-            bool is_intersected = false;
-            for (auto& p : evs_2d) {
-                if (is_p_inside_tri_2d(p, fvs_2d)) {
-                    is_intersected = true;
-                    break;
-                }
-            }
-            if (!is_intersected) {
-                for (int k = 0; k < 3; k++) {
-                    if (!is_crossing(v_oris[f_v_ids[k]], v_oris[f_v_ids[(k + 1) % 3]]))
-                        continue;
-                    std::array<int, 2> tri_e = sorted_edge(f_v_ids[k], f_v_ids[(k + 1) % 3]);
-                    if (map_edge_to_intersecting_point.find(tri_e) !=
-                        map_edge_to_intersecting_point.end()) {
-                        is_intersected = true;
-                        break;
-                    }
-                    double t1 = -1, t2 = -1;
-                    if (line_line_intersection_2d(evs_2d, {{fvs_2d[k], fvs_2d[(k + 1) % 3]}}, t1, t2)
-                        && t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
-                        Vector3 p = (1 - t2) * mesh.tet_vertices[f_v_ids[k]].pos +
-                                    t2 * mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos;
-                        // Either end of the tet edge being close enough to the crossing point
-                        // snaps that edge onto the boundary edge, and it is the first end that
-                        // takes the mark whichever end it was.
-                        double dis1 = (p - mesh.tet_vertices[f_v_ids[k]].pos).squaredNorm();
-                        double dis2 =
-                          (p - mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos).squaredNorm();
-                        if (dis1 < mesh.params.eps_2_coplanar ||
-                            dis2 < mesh.params.eps_2_coplanar) {
-                            v_oris[f_v_ids[k]] = Predicates::ORI_ZERO;
-                            is_intersected     = true;
-                            break;
-                        }
-                        points.push_back(p);
-                        map_edge_to_intersecting_point[tri_e] = points.size() - 1;
-                        is_intersected                        = true;
-                        break;
-                    }
-                }
-                if (!is_intersected)  /// no need to return false here
-                    continue;
-            }
-
-            std::sort(f_v_ids.begin(), f_v_ids.end());
-            cut_fs.push_back(f_v_ids);
-            is_cut_vs[(j + 1) % 4] = true;
-            is_cut_vs[(j + 2) % 4] = true;
-            is_cut_vs[(j + 3) % 4] = true;
-        }
-    });
-    vector_unique(cut_fs);
-
-    std::vector<std::array<int, 2>> tet_edges;
-    for (const auto& f : cut_fs)
-        push_tri_edges(f, tet_edges);
-    vector_unique(tet_edges);
-    for (const auto& tet_e : tet_edges) {
-        bool is_snapped = false;
-        for (int j = 0; j < 2; j++) {
-            if (v_oris[tet_e[j]] == Predicates::ORI_ZERO) {
-                snapped_v_ids.push_back(tet_e[j]);
-                is_snapped = true;
-            }
-        }
-        if (is_snapped)
-            continue;
-        if (map_edge_to_intersecting_point.find(tet_e) != map_edge_to_intersecting_point.end())
-            continue;
-        std::array<Vector2, 2> tri_evs_2d = {{to_2d(mesh.tet_vertices[tet_e[0]].pos, n, pp, t),
-                                              to_2d(mesh.tet_vertices[tet_e[1]].pos, n, pp, t)}};
-        Scalar                 t_seg = -1, t_line = -1;
-        if (line_line_intersection_2d(tri_evs_2d, evs_2d, t_seg, t_line) && t_seg >= 0 && t_seg <= 1) {
-            points.push_back((1 - t_seg) * mesh.tet_vertices[tet_e[0]].pos +
-                             t_seg * mesh.tet_vertices[tet_e[1]].pos);
-            map_edge_to_intersecting_point[tet_e] = points.size() - 1;
-        }
-    }
-    vector_unique(snapped_v_ids);
-}
-
 void insert_boundary_edges(
   const std::vector<Vector3>&                                   input_vertices,
   const std::vector<Vector3i>&                                  input_faces,
@@ -1312,7 +1130,6 @@ void insert_boundary_edges(
         for (int i = 0; i < n_f_ids.size(); i++) {
             if (!is_face_inserted[n_f_ids[i]]) {
                 n_f_ids.erase(n_f_ids.begin() + i);
-                i--;
                 break;
             }
         }
@@ -1325,18 +1142,168 @@ void insert_boundary_edges(
         std::map<std::array<int, 2>, int> map_edge_to_intersecting_point;
         std::vector<int>                  snapped_v_ids;
         std::vector<std::array<int, 3>>   cut_fs;
-        insert_boundary_edges_get_intersecting_edges_and_points(covered_fs_infos,
-                                                                input_vertices,
-                                                                input_faces,
-                                                                e,
-                                                                n_f_ids,
-                                                                track_surface_fs,
-                                                                mesh,
-                                                                points,
-                                                                map_edge_to_intersecting_point,
-                                                                snapped_v_ids,
-                                                                cut_fs,
-                                                                is_again);
+        // The edge is cut in the plane of the first of the faces it belongs to.
+        const std::array<Vector3, 3> fps = face_points(input_vertices, input_faces, n_f_ids.front());
+        const int                    t   = get_t(fps[0], fps[1], fps[2]);
+        std::array<Vector2, 2>       evs_2d = {
+          {to_2d(input_vertices[e[0]], t), to_2d(input_vertices[e[1]], t)}};
+        const Vector3& pp = fps[0];
+        const Vector3  n  = plane_normal(fps);
+
+        /// find seed t_ids: the tets already covering one of the faces, plus the tets around the edge
+        std::vector<int> t_ids;
+        for (int f_id : n_f_ids) {
+            for (const auto& info : covered_fs_infos[f_id])
+                t_ids.push_back(info.first);
+        }
+        if (!is_again) {
+            for (int v_id : e)
+                t_ids.insert(t_ids.end(),
+                             mesh.tet_vertices[v_id].conn_tets.begin(),
+                             mesh.tet_vertices[v_id].conn_tets.end());
+        }
+        else {
+            Vector3 min_e, max_e;
+            get_bbox({input_vertices[e[0]], input_vertices[e[1]]}, min_e, max_e);
+
+            const std::vector<int> bbox_t_ids =
+              tets_overlapping_bbox(mesh, min_e, max_e, [&](size_t t_id) {
+                  return !track_surface_fs[t_id][0].empty() || !track_surface_fs[t_id][1].empty() ||
+                         !track_surface_fs[t_id][2].empty() || !track_surface_fs[t_id][3].empty();
+              });
+            t_ids.insert(t_ids.end(), bbox_t_ids.begin(), bbox_t_ids.end());
+        }
+        vector_unique(t_ids);
+
+        std::vector<int> v_oris(mesh.tet_vertices.size(), Predicates::ORI_UNKNOWN);
+        flood_from_cut(mesh, t_ids, [&](int t_id, std::array<bool, 4>& is_cut_vs) {
+            for (int j = 0; j < 4; j++) {
+                if (track_surface_fs[t_id][j].empty())
+                    continue;
+                std::sort(track_surface_fs[t_id][j].begin(), track_surface_fs[t_id][j].end());
+                std::vector<int> tmp;
+                std::set_intersection(track_surface_fs[t_id][j].begin(),
+                                      track_surface_fs[t_id][j].end(),
+                                      n_f_ids.begin(),
+                                      n_f_ids.end(),
+                                      std::back_inserter(tmp));
+                if (tmp.empty())
+                    continue;
+
+                std::array<int, 3>     f_v_ids = face_corners(mesh.tets[t_id], j);
+                std::array<Vector2, 3> fvs_2d  = {{to_2d(mesh.tet_vertices[f_v_ids[0]].pos, n, pp, t),
+                                                   to_2d(mesh.tet_vertices[f_v_ids[1]].pos, n, pp, t),
+                                                   to_2d(mesh.tet_vertices[f_v_ids[2]].pos, n, pp, t)}};
+                int                    cnt_pos = 0;
+                int                    cnt_neg = 0;
+                int                    cnt_on  = 0;
+                for (int k = 0; k < 3; k++) {
+                    int& ori = v_oris[f_v_ids[k]];
+                    if (ori == Predicates::ORI_UNKNOWN)
+                        ori = Predicates::orient_2d(evs_2d[0], evs_2d[1], fvs_2d[k]);
+                    if (ori == Predicates::ORI_ZERO) {
+                        cnt_on++;
+                    }
+                    else {
+                        Scalar dis_2 = p_seg_squared_dist_3d(mesh.tet_vertices[f_v_ids[k]].pos,
+                                                             input_vertices[e[0]],
+                                                             input_vertices[e[1]]);
+                        if (dis_2 < mesh.params.eps_2_coplanar) {
+                            ori = Predicates::ORI_ZERO;
+                            cnt_on++;
+                            continue;
+                        }
+                        if (ori == Predicates::ORI_POSITIVE)
+                            cnt_pos++;
+                        else
+                            cnt_neg++;
+                    }
+                }
+                if (cnt_on >= 2) {
+                    cut_fs.push_back(sorted_face(mesh.tets[t_id], j));
+                    continue;
+                }
+                if (cnt_neg == 0 || cnt_pos == 0)
+                    continue;
+
+                bool is_intersected = false;
+                for (auto& p : evs_2d) {
+                    if (is_p_inside_tri_2d(p, fvs_2d)) {
+                        is_intersected = true;
+                        break;
+                    }
+                }
+                if (!is_intersected) {
+                    for (int k = 0; k < 3; k++) {
+                        if (!is_crossing(v_oris[f_v_ids[k]], v_oris[f_v_ids[(k + 1) % 3]]))
+                            continue;
+                        std::array<int, 2> tri_e = sorted_edge(f_v_ids[k], f_v_ids[(k + 1) % 3]);
+                        if (map_edge_to_intersecting_point.find(tri_e) !=
+                            map_edge_to_intersecting_point.end()) {
+                            is_intersected = true;
+                            break;
+                        }
+                        double t1 = -1, t2 = -1;
+                        if (line_line_intersection_2d(evs_2d, {{fvs_2d[k], fvs_2d[(k + 1) % 3]}}, t1, t2)
+                            && t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
+                            Vector3 p = (1 - t2) * mesh.tet_vertices[f_v_ids[k]].pos +
+                                        t2 * mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos;
+                            // Either end of the tet edge being close enough to the crossing point
+                            // snaps that edge onto the boundary edge, and it is the first end that
+                            // takes the mark whichever end it was.
+                            double dis1 = (p - mesh.tet_vertices[f_v_ids[k]].pos).squaredNorm();
+                            double dis2 =
+                              (p - mesh.tet_vertices[f_v_ids[(k + 1) % 3]].pos).squaredNorm();
+                            if (dis1 < mesh.params.eps_2_coplanar ||
+                                dis2 < mesh.params.eps_2_coplanar) {
+                                v_oris[f_v_ids[k]] = Predicates::ORI_ZERO;
+                                is_intersected     = true;
+                                break;
+                            }
+                            points.push_back(p);
+                            map_edge_to_intersecting_point[tri_e] = points.size() - 1;
+                            is_intersected                        = true;
+                            break;
+                        }
+                    }
+                    if (!is_intersected)  /// no need to return false here
+                        continue;
+                }
+
+                std::sort(f_v_ids.begin(), f_v_ids.end());
+                cut_fs.push_back(f_v_ids);
+                for (int k = 1; k < 4; k++)
+                    is_cut_vs[(j + k) % 4] = true;
+            }
+        });
+        vector_unique(cut_fs);
+
+        std::vector<std::array<int, 2>> tet_edges;
+        for (const auto& f : cut_fs)
+            push_tri_edges(f, tet_edges);
+        vector_unique(tet_edges);
+        for (const auto& tet_e : tet_edges) {
+            bool is_snapped = false;
+            for (int j = 0; j < 2; j++) {
+                if (v_oris[tet_e[j]] == Predicates::ORI_ZERO) {
+                    snapped_v_ids.push_back(tet_e[j]);
+                    is_snapped = true;
+                }
+            }
+            if (is_snapped)
+                continue;
+            if (map_edge_to_intersecting_point.find(tet_e) != map_edge_to_intersecting_point.end())
+                continue;
+            std::array<Vector2, 2> tri_evs_2d = {{to_2d(mesh.tet_vertices[tet_e[0]].pos, n, pp, t),
+                                                  to_2d(mesh.tet_vertices[tet_e[1]].pos, n, pp, t)}};
+            Scalar                 t_seg = -1, t_line = -1;
+            if (line_line_intersection_2d(tri_evs_2d, evs_2d, t_seg, t_line) && t_seg >= 0 && t_seg <= 1) {
+                points.push_back((1 - t_seg) * mesh.tet_vertices[tet_e[0]].pos +
+                                 t_seg * mesh.tet_vertices[tet_e[1]].pos);
+                map_edge_to_intersecting_point[tet_e] = points.size() - 1;
+            }
+        }
+        vector_unique(snapped_v_ids);
         if (points.empty()) {  // everything snapped, nothing to subdivide
             record_boundary_info(points, snapped_v_ids, e, is_on_cut);
             cnt++;
@@ -1536,13 +1503,9 @@ void mark_surface_fs(const std::vector<Vector3>&                   input_vertice
           mesh.tet_vertices[e[0]].conn_tets, mesh.tet_vertices[e[1]].conn_tets, n_t_ids);
         for (int t_id : n_t_ids) {
             for (int j = 0; j < 4; j++) {
-                if (mesh.tets[t_id][j] != e[0] && mesh.tets[t_id][j] != e[1]) {
-                    if (mesh.tets[t_id].is_surface_fs[j] != NOT_SURFACE) {
-                        cnt++;
-                        if (cnt > 2)
-                            break;
-                    }
-                }
+                if (mesh.tets[t_id][j] != e[0] && mesh.tets[t_id][j] != e[1] &&
+                    mesh.tets[t_id].is_surface_fs[j] != NOT_SURFACE)
+                    cnt++;
                 if (cnt > 2)
                     break;
             }

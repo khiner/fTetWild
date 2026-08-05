@@ -12,7 +12,6 @@
 
 #include "geo/geo_mesh.h"
 
-#include <istream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -43,9 +42,9 @@ struct CSGTree
 
 namespace CSGTreeParser {
 
-// Reads a tree, leaving the caller to open the file. Returns false with a description in
-// error rather than throwing.
-bool parse(std::istream& in, CSGTree& tree, std::string& error);
+// Reads a tree from the file at path. Returns false with a description in error rather than
+// throwing.
+bool parse(const std::string& path, CSGTree& tree, std::string& error);
 
 // Numbers every mesh in the tree and returns the names, so that meshes[child.id] is the name the
 // child was parsed with. Ids run dense from 0 in the order the names are first seen walking the

@@ -71,13 +71,13 @@ bool has_tagged_face_off_edge(const Mesh&                       mesh,
     return false;
 }
 
-// Appends the interior samples of the segment from ps[from_id] to ps.back(), spaced by dd.
-void sample_segment(std::vector<geo::vec3>& ps, int from_id, Scalar length, Scalar dd)
+// Appends the interior samples of the segment from ps[0] to ps.back(), spaced by dd.
+void sample_segment(std::vector<geo::vec3>& ps, Scalar length, Scalar dd)
 {
     const int to_id = ps.size() - 1;
     const int N     = length / dd + 1;
     for (Scalar j = 1; j < N - 1; j++)
-        ps.push_back(ps[from_id] * (j / N) + ps[to_id] * (1 - j / N));
+        ps.push_back(ps[0] * (j / N) + ps[to_id] * (1 - j / N));
 }
 }  // namespace
 }  // namespace floatTetWild
@@ -112,7 +112,7 @@ bool floatTetWild::is_boundary_edge(const Mesh& mesh, int v1_id, int v2_id, cons
     std::vector<geo::vec3> ps;
     ps.push_back(to_geo_p(mesh.tet_vertices[v1_id].pos));
     ps.push_back(to_geo_p(mesh.tet_vertices[v2_id].pos));
-    sample_segment(ps, 0, get_edge_length(mesh, v1_id, v2_id), mesh.params.dd);
+    sample_segment(ps, get_edge_length(mesh, v1_id, v2_id), mesh.params.dd);
 
     if (!mesh.is_input_all_inserted)
         return !tree.is_out_tmp_b_envelope(ps, mesh.params.eps_2);
@@ -231,7 +231,7 @@ bool floatTetWild::is_out_boundary_envelope(const Mesh&        mesh,
     ps.push_back(to_geo_p(new_pos));
     for (int b_v_id : b_v_ids) {
         ps.push_back(to_geo_p(mesh.tet_vertices[b_v_id].pos));
-        sample_segment(ps, 0, get_edge_length(mesh, v_id, b_v_id), mesh.params.dd);
+        sample_segment(ps, get_edge_length(mesh, v_id, b_v_id), mesh.params.dd);
     }
 
     return tree.is_out_tmp_b_envelope(ps, mesh.params.eps_2 / 100, prev_facet);
@@ -457,7 +457,7 @@ void floatTetWild::split_tets_at(Mesh&                   mesh,
                 tet_vertices[tets[old_t_ids[i]][j]].conn_tets.push_back(new_t_ids[i]);
         }
         auto& conn1 = tet_vertices[v1_id].conn_tets;
-        conn1.erase(std::find(conn1.begin(), conn1.end(), old_t_ids[i]));
+        vector_erase(conn1, old_t_ids[i]);
         conn1.push_back(new_t_ids[i]);
     }
 }
@@ -504,11 +504,6 @@ std::vector<int> floatTetWild::get_face_tets(const Mesh& mesh, int v1_id, int v2
 
 namespace floatTetWild {
 namespace {
-bool is_degenerate(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3)
-{
-    return Predicates::orient_3d(v0, v1, v2, v3) == Predicates::ORI_ZERO;
-}
-
 Scalar AMIPS_energy_aux(const std::array<Scalar, 12>& T)
 {
     Scalar helper_1 = T[2];
@@ -619,10 +614,10 @@ Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T)
         return res;
 
     // The cheap form has lost the determinant to cancellation, so redo it exactly.
-    if (is_degenerate(Vector3(T[0], T[1], T[2]),
-                      Vector3(T[3], T[4], T[5]),
-                      Vector3(T[6], T[7], T[8]),
-                      Vector3(T[9], T[10], T[11])))
+    if (Predicates::orient_3d(Vector3(T[0], T[1], T[2]),
+                              Vector3(T[3], T[4], T[5]),
+                              Vector3(T[6], T[7], T[8]),
+                              Vector3(T[9], T[10], T[11])) == Predicates::ORI_ZERO)
         return std::numeric_limits<double>::infinity();
     return AMIPS_energy_exact(T);
 }

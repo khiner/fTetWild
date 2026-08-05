@@ -12,12 +12,9 @@ set(MY_FLAGS
         -Wall
         -Wextra
         -pedantic
-        -Wunused
 
-        -Wno-long-long
         -Wpointer-arith
         -Wformat=2
-        -Wuninitialized
         -Wcast-qual
         -Wmissing-noreturn
         -Wmissing-format-attribute
@@ -34,7 +31,6 @@ set(MY_FLAGS
         -Woverloaded-virtual
         -Wsign-promo
         -Wstack-protector
-        -Wstrict-aliasing
         -Wstrict-aliasing=2
         -Wswitch-default
         -Wswitch-enum
@@ -45,7 +41,6 @@ set(MY_FLAGS
         -Winvalid-pch
         -Wpacked
         -Wno-padded
-        -Wstrict-overflow
         -Wstrict-overflow=2
 
         -Wctor-dtor-privacy

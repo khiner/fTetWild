@@ -397,46 +397,43 @@ namespace {
 namespace floatTetWild {
 namespace geo {
 
-    namespace PCK {
+    Sign in_sphere_3d_SOS(
+        const double* p0, const double* p1,
+        const double* p2, const double* p3,
+        const double* p4
+    ) {
+        // in_sphere_3d is simply implemented using side4_3d.
+        // Both predicates are equivalent through duality as can
+        // be easily seen:
+        // side4_3d(p0,p1,p2,p3,p4) returns POSITIVE if
+        //    d(q,p0) < d(q,p4)
+        //    where q denotes the circumcenter of (p0,p1,p2,p3)
+        // Note that d(q,p0) = R  (radius of circumscribed sphere)
+        // In other words, side4_3d(p0,p1,p2,p3,p4) returns POSITIVE if
+        //   d(q,p4) > R which means whenever p4 is not in the
+        //   circumscribed sphere of (p0,p1,p2,p3).
+        // Therefore:
+        // in_sphere_3d(p0,p1,p2,p3,p4) = -side4_3d(p0,p1,p2,p3,p4)
 
-        Sign in_sphere_3d_SOS(
-            const double* p0, const double* p1,
-            const double* p2, const double* p3,
-            const double* p4
-        ) {
-            // in_sphere_3d is simply implemented using side4_3d.
-            // Both predicates are equivalent through duality as can
-            // be easily seen:
-            // side4_3d(p0,p1,p2,p3,p4) returns POSITIVE if
-            //    d(q,p0) < d(q,p4)
-            //    where q denotes the circumcenter of (p0,p1,p2,p3)
-            // Note that d(q,p0) = R  (radius of circumscribed sphere)
-            // In other words, side4_3d(p0,p1,p2,p3,p4) returns POSITIVE if
-            //   d(q,p4) > R which means whenever p4 is not in the
-            //   circumscribed sphere of (p0,p1,p2,p3).
-            // Therefore:
-            // in_sphere_3d(p0,p1,p2,p3,p4) = -side4_3d(p0,p1,p2,p3,p4)
+        // This specialized filter supposes that orient_3d(p0,p1,p2,p3) > 0
 
-            // This specialized filter supposes that orient_3d(p0,p1,p2,p3) > 0
+        Sign result = Sign(in_sphere_3d_filter_optim(p0, p1, p2, p3, p4));
 
-            Sign result = Sign(in_sphere_3d_filter_optim(p0, p1, p2, p3, p4));
-
-            if(result == 0) {
-                result = side4_3d_exact_SOS(p0, p1, p2, p3, p4);
-            }
-            return Sign(-result);
+        if(result == 0) {
+            result = side4_3d_exact_SOS(p0, p1, p2, p3, p4);
         }
-
-        Sign orient_3d(
-            const double* p0, const double* p1,
-            const double* p2, const double* p3
-        ) {
-            Sign result = Sign(orient_3d_filter(p0, p1, p2, p3));
-            if(result == 0) {
-                result = orient_3d_exact(p0, p1, p2, p3);
-            }
-            return result;
-        }
-
+        return Sign(-result);
     }
+
+    Sign orient_3d(
+        const double* p0, const double* p1,
+        const double* p2, const double* p3
+    ) {
+        Sign result = Sign(orient_3d_filter(p0, p1, p2, p3));
+        if(result == 0) {
+            result = orient_3d_exact(p0, p1, p2, p3);
+        }
+        return result;
+    }
+
 } }

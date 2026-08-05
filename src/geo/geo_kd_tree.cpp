@@ -7,8 +7,8 @@
 #include "geo_geometry.h"
 
 #include <algorithm>
-
 #include <limits>
+#include <numeric>
 
 namespace floatTetWild {
 namespace geo {
@@ -20,18 +20,16 @@ namespace geo {
         points_ = points;
 
         point_index_.resize(nb_points);
-        for(index_t i = 0; i < nb_points; i++) {
-            point_index_[i] = i;
-        }
+        std::iota(point_index_.begin(), point_index_.end(), index_t(0));
 
         // Compute the bounding box.
-        for(coord_index_t c = 0; c < DIMENSION; ++c) {
+        for(uint8_t c = 0; c < DIMENSION; ++c) {
             bbox_min_[c] =  std::numeric_limits<double>::max();
             bbox_max_[c] = -std::numeric_limits<double>::max();
         }
         for(index_t i = 0; i < nb_points; ++i) {
             const double* p = point_ptr(i);
-            for(coord_index_t c = 0; c < DIMENSION; ++c) {
+            for(uint8_t c = 0; c < DIMENSION; ++c) {
                 bbox_min_[c] = std::min(bbox_min_[c], p[c]);
                 bbox_max_[c] = std::max(bbox_max_[c], p[c]);
             }
@@ -47,7 +45,7 @@ namespace geo {
         double box_dist = 0.0;
         double bbox_min[DIMENSION];
         double bbox_max[DIMENSION];
-        for(coord_index_t c = 0; c < DIMENSION; ++c) {
+        for(uint8_t c = 0; c < DIMENSION; ++c) {
             bbox_min[c] = bbox_min_[c];
             bbox_max[c] = bbox_max_[c];
             if(query_point[c] < bbox_min_[c]) {
@@ -84,7 +82,7 @@ namespace geo {
             return;
         }
 
-        const coord_index_t coord = splitting_coord_[node_index];
+        const uint8_t coord = splitting_coord_[node_index];
         const double val = splitting_val_[node_index];
         const index_t m = b + (e - b) / 2;
         const index_t left_node_index = 2 * node_index;
@@ -214,7 +212,7 @@ namespace geo {
             return b;
         }
 
-        coord_index_t splitting_coord = best_splitting_coord(b, e);
+        uint8_t splitting_coord = best_splitting_coord(b, e);
         index_t m = b + (e - b) / 2;
 
         // sorts the indices in such a way that points's
@@ -238,11 +236,11 @@ namespace geo {
         return m;
     }
 
-    coord_index_t BalancedKdTree::best_splitting_coord(
+    uint8_t BalancedKdTree::best_splitting_coord(
         index_t b, index_t e
     ) {
         // The extent of the [b,e) sequence along a coordinate.
-        const auto spread = [&](coord_index_t coord) {
+        const auto spread = [&](uint8_t coord) {
             double minval = std::numeric_limits<double>::max();
             double maxval = std::numeric_limits<double>::lowest();
             for(index_t i = b; i < e; ++i) {
@@ -259,9 +257,9 @@ namespace geo {
         // bbox shape ratio, as done in ANN, but
         // this simple method seems to give good
         // results in our case.
-        coord_index_t result = 0;
+        uint8_t result = 0;
         double max_spread = spread(0);
-        for(coord_index_t c = 1; c < DIMENSION; ++c) {
+        for(uint8_t c = 1; c < DIMENSION; ++c) {
             double coord_spread = spread(c);
             if(coord_spread > max_spread) {
                 result = c;

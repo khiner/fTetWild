@@ -96,13 +96,11 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
 
     A.assign(nf, std::vector<int>());
     for (const auto& faces : edge_faces) {
-        // Non-manifold edges join nothing.
-        if (faces.size() > 2)
-            continue;
-        for (size_t i = 0; i < faces.size(); i++)
-            for (size_t j = 0; j < faces.size(); j++)
-                if (i != j)
-                    A[faces[i]].push_back(faces[j]);
+        // Only an edge shared by exactly two faces joins them. A non-manifold edge joins nothing.
+        if (faces.size() == 2) {
+            A[faces[0]].push_back(faces[1]);
+            A[faces[1]].push_back(faces[0]);
+        }
     }
     for (auto& neighbours : A)
         vector_unique(neighbours);
@@ -190,11 +188,10 @@ void bfs_orient(const MatrixXi &F, MatrixXi &FF) {
             seen[f]++;
             for (const int n : A[f]) {
                 for (int efi = 0; efi < 3; efi++) {
-                    const Vector2i ef(FF(f, ES[efi][0]), FF(f, ES[efi][1]));
                     for (int eni = 0; eni < 3; eni++) {
-                        const Vector2i en(FF(n, ES[eni][0]), FF(n, ES[eni][1]));
                         // Match (half-edges go same direction)
-                        if (ef(0) == en(0) && ef(1) == en(1)) {
+                        if (FF(f, ES[efi][0]) == FF(n, ES[eni][0]) &&
+                            FF(f, ES[efi][1]) == FF(n, ES[eni][1])) {
                             std::swap(FF(n, 0), FF(n, 2));
                             cnt_inverted++;
                         }

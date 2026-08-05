@@ -23,11 +23,8 @@ void build_segment_tree(geo::Mesh&                                 mesh,
     } else {
         mesh.create_vertices((int)segments.size() * 2);
         for (int i = 0; i < segments.size(); i++) {
-            for (int j = 0; j < 2; j++) {
-                geo::vec3& p = mesh.point(i * 2 + j);
-                for (int k = 0; k < 3; k++)
-                    p[k] = segments[i][j][k];
-            }
+            for (int j = 0; j < 2; j++)
+                mesh.point(i * 2 + j) = to_geo_p(segments[i][j]);
         }
 
         mesh.create_triangles((int)segments.size());
@@ -69,13 +66,8 @@ bool AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
     std::vector<std::pair<std::array<int, 2>, std::vector<int>>> _;
     std::vector<bool>                                           _1;
     std::vector<std::array<int, 2>>                             b_edges;
-    find_boundary_edges(input_vertices,
-                        input_faces,
-                        std::vector<bool>(input_faces.size(), true),
-                        std::vector<bool>(input_faces.size(), true),
-                        _,
-                        _1,
-                        b_edges);
+    const std::vector<bool> all_inserted(input_faces.size(), true);
+    find_boundary_edges(input_vertices, input_faces, all_inserted, all_inserted, _, _1, b_edges);
 
     std::vector<std::array<Vector3, 2>> segments;
     segments.reserve(b_edges.size());
@@ -110,14 +102,6 @@ void AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vector3>&          
 namespace {
 
     using namespace geo;
-
-    // The smallest Box that encloses \p B1 and \p B2.
-    inline void bbox_union(Box& target, const Box& B1, const Box& B2) {
-        for(index_t c = 0; c < 3; ++c) {
-            target.xyz_min[c] = std::min(B1.xyz_min[c], B2.xyz_min[c]);
-            target.xyz_max[c] = std::max(B1.xyz_max[c], B2.xyz_max[c]);
-        }
-    }
 
     void get_facet_bbox(
         const geo::Mesh& M, Box& B, index_t f
@@ -166,21 +150,11 @@ namespace {
         index_t childr = 2 * node_index + 1;
         init_bboxes_recursive(M, bboxes, childl, b, m);
         init_bboxes_recursive(M, bboxes, childr, m, e);
-        bbox_union(bboxes[node_index], bboxes[childl], bboxes[childr]);
-    }
-
-    // \pre p is inside B
-    double inner_point_box_squared_distance(
-        const vec3& p,
-        const Box& B
-    ) {
-        double result = geo_sqr(p[0] - B.xyz_min[0]);
-        result = std::min(result, geo_sqr(p[0] - B.xyz_max[0]));
-        for(index_t c = 1; c < 3; ++c) {
-            result = std::min(result, geo_sqr(p[c] - B.xyz_min[c]));
-            result = std::min(result, geo_sqr(p[c] - B.xyz_max[c]));
+        // The node's box is the smallest that encloses both children's.
+        for(index_t c = 0; c < 3; ++c) {
+            bboxes[node_index].xyz_min[c] = std::min(bboxes[childl].xyz_min[c], bboxes[childr].xyz_min[c]);
+            bboxes[node_index].xyz_max[c] = std::max(bboxes[childl].xyz_max[c], bboxes[childr].xyz_max[c]);
         }
-        return result;
     }
 
     // Negative when the point is inside the box.
@@ -200,7 +174,14 @@ namespace {
             }
         }
         if(inside) {
-            result = -inner_point_box_squared_distance(p, B);
+            // Inside, the distance is to the nearest face, negated.
+            result = geo_sqr(p[0] - B.xyz_min[0]);
+            result = std::min(result, geo_sqr(p[0] - B.xyz_max[0]));
+            for(index_t c = 1; c < 3; ++c) {
+                result = std::min(result, geo_sqr(p[c] - B.xyz_min[c]));
+                result = std::min(result, geo_sqr(p[c] - B.xyz_max[c]));
+            }
+            result = -result;
         }
         return result;
     }

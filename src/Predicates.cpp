@@ -17,7 +17,7 @@ int orient_3d(const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vec
 {
     // geogram's orient_3d takes the determinant of [p2-p1, p3-p1, p4-p1] where Shewchuk took
     // [p1-p4, p2-p4, p3-p4], so the two exact signs are each other's negation.
-    return -geo::PCK::orient_3d(p1.data(), p2.data(), p3.data(), p4.data());
+    return -geo::orient_3d(p1.data(), p2.data(), p3.data(), p4.data());
 }
 
 int orient_2d(const Vector2& p1, const Vector2& p2, const Vector2& p3)

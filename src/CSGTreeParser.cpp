@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <fstream>
 #include <map>
 
 namespace floatTetWild {
@@ -198,7 +199,7 @@ class CsgReader
             return parse_string(ignored);
         }
         if (at('{') || at('[')) {
-            const bool is_object = at('{');
+            const bool is_object = text_[pos_] == '{';
             const char close     = is_object ? '}' : ']';
             ++pos_;
             if (take(close))
@@ -302,8 +303,13 @@ void assign_mesh_ids_aux(CSGTree&                    node,
 
 }  // namespace
 
-bool CSGTreeParser::parse(std::istream& in, CSGTree& tree, std::string& error)
+bool CSGTreeParser::parse(const std::string& path, CSGTree& tree, std::string& error)
 {
+    std::ifstream in(path);
+    if (!in.is_open()) {
+        error = "unable to open the file";
+        return false;
+    }
     return CsgReader(in, error).parse(tree);
 }
 

@@ -19,7 +19,7 @@ that per-file notice is the actual grant: libigl, for instance, ships both `LICE
 | `src/predicates.c` | [Jonathan Richard Shewchuk](https://www.cs.cmu.edu/~quake/robust.html), CMU | Public domain |
 | `src/AABBWrapper.h`, `src/AABBWrapper.cpp` (the `MeshFacetsAABBWithEps` tree only) | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause |
 | `src/geo/*` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause (`src/geo/LICENSE.geogram`) |
-| `src/triangle_triangle_intersection.cpp` | Guigue & Devillers, *Journal of Graphics Tools* 8(1), 2003 | **none stated** |
+| `src/intersections.cpp` (the `tri_tri_intersection_test_3d` function only) | Guigue & Devillers, *Journal of Graphics Tools* 8(1), 2003 | **none stated** |
 | `src/main.cpp` (the `getPeakRSS` function only) | David Robert Nadeau, [NadeauSoftware.com](http://NadeauSoftware.com/) | CC BY 3.0 |
 | `src/MeshIO.cpp` (the Gmsh 2.2 writer only) | [PyMesh](https://github.com/PyMesh/PyMesh) — Qingnan Zhou | **none — see below** |
 
@@ -50,7 +50,7 @@ same way — and neither is a new exposure, but neither is settled either.
   repository has no `LICENSE` file; the GitHub API reports its licence as `null`. This is the weaker
   of the two. It is also the easy one to fix: Gmsh MSH 2.2 is a published format, and a writer
   written from the spec would owe nothing to Zhou's code.
-- **`triangle_triangle_intersection.cpp` (Guigue–Devillers).** Companion code to a published JGT
+- **`tri_tri_intersection_test_3d` in `intersections.cpp` (Guigue–Devillers).** Companion code to a published JGT
   paper, with a citation but no licence. Weaker concern in practice — it has been redistributed for
   two decades — and rewriting it is the wrong move regardless: the routine is numerically delicate,
   and a from-the-paper reimplementation would risk the byte-identical corpus match for no real gain.

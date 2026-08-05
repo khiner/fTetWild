@@ -241,6 +241,23 @@ namespace geo {
                 return sq_dist_at(s, t);
             };
 
+            // The nearest point on the edge where \p u stays 0: past the far end when \p tmp1 is
+            // not positive, at V0 when \p b is not negative, else between. The same three cases
+            // as on_edge in the opposite order, which matters when a and b are both zero.
+            const auto on_far_edge = [&c](double tmp1, double b, double a, double& u, double& v) {
+                u = 0.0;
+                if(tmp1 <= 0.0) {
+                    v = 1.0;
+                    return a + 2.0 * b + c;
+                }
+                if(b >= 0.0) {
+                    v = 0.0;
+                    return c;
+                }
+                v = -b / a;
+                return b * v + c;
+            };
+
             // If the triangle is degenerate, the answer is the nearest of its three edges. The
             // first one always takes, so that the winner is one of the three even under a NaN.
             if(det < 1e-30) {
@@ -296,18 +313,7 @@ namespace geo {
                     if(tmp1 > tmp0) {
                         sqrDistance = on_diagonal(tmp1 - tmp0, s, t, a00, b0);
                     } else {
-                        s = 0.0;
-                        if(tmp1 <= 0.0) {
-                            t = 1.0;
-                            sqrDistance = a11 + 2.0 * b1 + c;
-                        }
-                        else if(b1 >= 0.0) {
-                            t = 0.0;
-                            sqrDistance = c;
-                        } else {
-                            t = -b1 / a11;
-                            sqrDistance = b1 * t + c;
-                        }
+                        sqrDistance = on_far_edge(tmp1, b1, a11, s, t);
                     }
                 } else if(t < 0.0) {  // region 6
                     tmp0 = a01 + b1;
@@ -315,17 +321,7 @@ namespace geo {
                     if(tmp1 > tmp0) {
                         sqrDistance = on_diagonal(tmp1 - tmp0, t, s, a11, b1);
                     } else {
-                        t = 0.0;
-                        if(tmp1 <= 0.0) {
-                            s = 1.0;
-                            sqrDistance = a00 + 2.0 * b0 + c;
-                        } else if(b0 >= 0.0) {
-                            s = 0.0;
-                            sqrDistance = c;
-                        } else {
-                            s = -b0 / a00;
-                            sqrDistance = b0 * s + c;
-                        }
+                        sqrDistance = on_far_edge(tmp1, b0, a00, t, s);
                     }
                 } else { // region 1
                     numer = a11 + b1 - a01 - b0;

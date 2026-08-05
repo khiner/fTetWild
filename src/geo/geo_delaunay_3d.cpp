@@ -69,10 +69,10 @@ namespace geo {
             static const double q010[3] = {0.0, 1.0, 0.0};
             static const double q100[3] = {1.0, 0.0, 0.0};
             return
-                PCK::orient_3d(p1, p2, p3, q000) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q001) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q010) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q100) == ZERO
+                orient_3d(p1, p2, p3, q000) == ZERO &&
+                orient_3d(p1, p2, p3, q001) == ZERO &&
+                orient_3d(p1, p2, p3, q010) == ZERO &&
+                orient_3d(p1, p2, p3, q100) == ZERO
                 ;
         }
 
@@ -108,10 +108,8 @@ namespace geo {
         // open-addressed arrays: overflow is not an error, it sets OK false and Delaunay3d falls
         // back to walking the border instead. From geogram/delaunay/cavity.h.
         struct Cavity {
-            typedef uint8_t local_index_t;
-
             static constexpr index_t        MAX_H = 1033;
-            static constexpr local_index_t  END_OF_LIST = 255;
+            static constexpr uint8_t        END_OF_LIST = 255;
             static constexpr index_t        MAX_F = 128;
 
             Cavity() {
@@ -134,7 +132,7 @@ namespace geo {
                     return;
                 }
 
-                local_index_t new_t = local_index_t(nb_f_);
+                uint8_t new_t = uint8_t(nb_f_);
 
                 if(nb_f_ == MAX_F) {
                     OK_ = false;
@@ -177,17 +175,22 @@ namespace geo {
                 );
             }
 
+            // The packed form of an oriented edge that h2v_ stores, so a probe can tell a match
+            // from a collision.
+            static uint64_t key(index_t v1, index_t v2) {
+                return (uint64_t(v1+1) << 32) | uint64_t(v2+1);
+            }
+
             // Associates local facet \p f with the oriented edge \p v1, \p v2, by linear probing.
             void set_vv2t(
-                index_t v1, index_t v2, local_index_t f
+                index_t v1, index_t v2, uint8_t f
             ) {
                 index_t h = hash(v1,v2);
                 index_t cur = h;
                 do {
                     if(h2t_[cur] == END_OF_LIST) {
                         h2t_[cur] = f;
-                        h2v_[cur] = (uint64_t(v1+1) << 32) |
-                            uint64_t(v2+1);
+                        h2v_[cur] = key(v1, v2);
                         return;
                     }
                     cur = (cur+1)%MAX_H;
@@ -195,9 +198,8 @@ namespace geo {
                 OK_ = false;
             }
 
-            local_index_t get_vv2t(index_t v1, index_t v2) const {
-                uint64_t K = (uint64_t(v1+1) << 32) |
-                    uint64_t(v2+1);
+            uint8_t get_vv2t(index_t v1, index_t v2) const {
+                uint64_t K = key(v1, v2);
                 index_t h = hash(v1,v2);
                 index_t cur = h;
                 do {
@@ -209,9 +211,9 @@ namespace geo {
                 geo_assert(false);
             }
 
-            // The hash table: an oriented edge to the local facet it belongs to, and the edge
-            // itself so a probe can tell a match from a collision.
-            local_index_t  h2t_[MAX_H];
+            // The hash table: an oriented edge to the local facet it belongs to, and the packed
+            // edge itself.
+            uint8_t        h2t_[MAX_H];
             uint64_t h2v_[MAX_H];
 
             index_t nb_f_;
@@ -417,7 +419,7 @@ namespace geo {
                         // Orientation is obtained by replacing vertex lf
                         // with p.
                         pv[lf] = p;
-                        Sign sign = PCK::orient_3d(pv[0],pv[1],pv[2],pv[3]);
+                        Sign sign = orient_3d(pv[0],pv[1],pv[2],pv[3]);
 
                         if(sign > 0) {
                             return true;
@@ -450,7 +452,7 @@ namespace geo {
                 // if its circumscribed sphere contains the point (this is
                 // the standard case).
 
-                return (PCK::in_sphere_3d_SOS(pv[0], pv[1], pv[2], pv[3], p) > 0);
+                return (in_sphere_3d_SOS(pv[0], pv[1], pv[2], pv[3], p) > 0);
             }
 
             /****** Insertion ***********************************************/
@@ -492,12 +494,13 @@ namespace geo {
             // (one random_int32() draw per tet visited, part of the process-wide stream that
             // decides the triangulation on cospherical input). Not EXACT is the "structural
             // filtering" prepass: inexact predicates, facets scanned in order, no draws and no
-            // orient, giving up after \p max_iter tetrahedra since there exist configurations in
+            // orient, giving up after 2500 tetrahedra since there exist configurations in
             // which the inexact walk loops forever.
             template <bool EXACT>
             index_t walk(
-                const double* p, index_t hint, index_t max_iter, Sign* orient
+                const double* p, index_t hint, Sign* orient
             ) const {
+                index_t max_iter = 2500;
 
                 hint = walkable_hint(hint);
 
@@ -507,10 +510,9 @@ namespace geo {
             still_walking:
                 {
                     const double* pv[4];
-                    pv[0] = vertex_ptr(tet_vertex(t,0));
-                    pv[1] = vertex_ptr(tet_vertex(t,1));
-                    pv[2] = vertex_ptr(tet_vertex(t,2));
-                    pv[3] = vertex_ptr(tet_vertex(t,3));
+                    for(index_t i = 0; i < 4; ++i) {
+                        pv[i] = vertex_ptr(tet_vertex(t,i));
+                    }
 
                     const index_t f0 = EXACT ? index_t(random_int32()) % 4 : 0;
                     for(index_t df = 0; df < 4; ++df) {
@@ -545,7 +547,7 @@ namespace geo {
                         const double* pv_bkp = pv[f];
                         pv[f] = p;
                         const Sign ori = EXACT
-                            ? PCK::orient_3d(pv[0], pv[1], pv[2], pv[3])
+                            ? orient_3d(pv[0], pv[1], pv[2], pv[3])
                             : orient_3d_inexact(pv[0], pv[1], pv[2], pv[3]);
                         if(EXACT) {
                             orient[f] = ori;
@@ -601,8 +603,8 @@ namespace geo {
                 //   Try improving the hint by using the inexact walk first. This gains a little
                 // performance (a few percent in total Delaunay computation time), but it is
                 // better than nothing...
-                hint = walk<false>(p, hint, 2500, nullptr);
-                return walk<true>(p, hint, 0, orient);
+                hint = walk<false>(p, hint, nullptr);
+                return walk<true>(p, hint, orient);
             }
 
             // Hands facet \p lf of \p t, which is on the boundary of the conflict zone, to the
@@ -923,10 +925,9 @@ namespace geo {
                     index_t old_tet = cavity_.tglobal_[f];
                     index_t lf = cavity_.boundary_f_[f];
                     index_t t_neigh = tet_adjacent(old_tet, lf);
-                    index_t v1 = cavity_.f2v_[f][0];
-                    index_t v2 = cavity_.f2v_[f][1];
-                    index_t v3 = cavity_.f2v_[f][2];
-                    new_tet = new_tetrahedron(v, v1, v2, v3);
+                    new_tet = new_tetrahedron(
+                        v, cavity_.f2v_[f][0], cavity_.f2v_[f][1], cavity_.f2v_[f][2]
+                    );
                     set_tet_adjacent(new_tet, 0, t_neigh);
                     set_tet_adjacent(
                         t_neigh, find_tet_adjacent(t_neigh,old_tet), new_tet
@@ -1022,7 +1023,7 @@ namespace geo {
                 Sign s = ZERO;
                 while(
                     iv3 < nb_vertices_ &&
-                    (s = PCK::orient_3d(
+                    (s = orient_3d(
                         vertex_ptr(iv0), vertex_ptr(iv1),
                         vertex_ptr(iv2), vertex_ptr(iv3)
                     )) == ZERO
@@ -1052,22 +1053,14 @@ namespace geo {
                     t[f] = new_tetrahedron(VERTEX_AT_INFINITY, v1, v2, v3);
                 }
 
-                // Connect the virtual tetrahedra to the real one
-                for(index_t f=0; f<4; ++f) {
+                // Connect the virtual tetrahedra to the real one, and to each other along their
+                // common faces (again in reverse order)
+                for(index_t f = 0; f < 4; ++f) {
                     set_tet_adjacent(t[f], 0, t0);
                     set_tet_adjacent(t0, f, t[f]);
-                }
-
-                // Interconnect the four virtual tetrahedra along their common
-                // faces
-                for(index_t f = 0; f < 4; ++f) {
-                    // In reverse order since it is an adjacent tetrahedron
-                    index_t lv1 = tet_facet_vertex_[f][2];
-                    index_t lv2 = tet_facet_vertex_[f][1];
-                    index_t lv3 = tet_facet_vertex_[f][0];
-                    set_tet_adjacent(t[f], 1, t[lv1]);
-                    set_tet_adjacent(t[f], 2, t[lv2]);
-                    set_tet_adjacent(t[f], 3, t[lv3]);
+                    set_tet_adjacent(t[f], 1, t[tet_facet_vertex_[f][2]]);
+                    set_tet_adjacent(t[f], 2, t[tet_facet_vertex_[f][1]]);
+                    set_tet_adjacent(t[f], 3, t[tet_facet_vertex_[f][0]]);
                 }
 
                 return true;

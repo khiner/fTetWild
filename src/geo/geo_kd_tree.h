@@ -25,15 +25,12 @@
 namespace floatTetWild {
 namespace geo {
 
-    // The type for coordinate indices: one byte, since splitting_coord_ stores one per node.
-    typedef uint8_t coord_index_t;
-
     // Nearest neighbour search over a perfectly balanced kd-tree. No combinatorics is stored: the
     // two children of node n are 2n+1 and 2n+2. It works well for regular to moderately irregular
     // pointsets.
     struct BalancedKdTree {
         // The dimension of the points, and the stride between two of them.
-        static constexpr coord_index_t DIMENSION = 3;
+        static constexpr uint8_t DIMENSION = 3;
 
         // \p points is an array of nb_points * DIMENSION doubles.
         void set_points(index_t nb_points, const double* points);
@@ -68,7 +65,7 @@ namespace geo {
         static index_t max_node_index(index_t node_id, index_t b, index_t e);
 
         // The coordinate the [b,e) sequence will be split along.
-        coord_index_t best_splitting_coord(index_t b, index_t e);
+        uint8_t best_splitting_coord(index_t b, index_t e);
 
         void create_kd_tree_recursive(index_t node_index, index_t b, index_t e);
 
@@ -87,7 +84,7 @@ namespace geo {
         double bbox_max_[DIMENSION];
 
         // One per node: the coordinate it splits along and the value it splits at.
-        std::vector<coord_index_t> splitting_coord_;
+        std::vector<uint8_t> splitting_coord_;
         std::vector<double> splitting_val_;
     };
 

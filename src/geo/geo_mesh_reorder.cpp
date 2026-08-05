@@ -61,9 +61,8 @@ namespace {
         // Every facet is a triangle, so the corners move three at a time.
         std::vector<index_t> reordered(M.corners.size());
         for(index_t f = 0; f < permutation.size(); ++f) {
-            for(index_t lv = 0; lv < 3; ++lv) {
-                reordered[3 * f + lv] = M.corners[3 * permutation[f] + lv];
-            }
+            const index_t* from = &M.corners[3 * permutation[f]];
+            std::copy(from, from + 3, reordered.begin() + 3 * f);
         }
         M.corners.swap(reordered);
     }

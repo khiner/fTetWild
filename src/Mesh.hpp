@@ -11,10 +11,11 @@
 #include "Parameters.h"
 #include "Types.hpp"
 
-#include <vector>
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <climits>
+#include <vector>
 
 namespace floatTetWild {
 
@@ -85,22 +86,14 @@ namespace floatTetWild {
     // are walked the same way.
     template<typename T>
     inline int count_live(const std::vector<T> &v) {
-        int cnt = 0;
-        for (const auto &e:v) {
-            if (!e.is_removed)
-                cnt++;
-        }
-        return cnt;
+        return int(std::count_if(v.begin(), v.end(), [](const T &e) { return !e.is_removed; }));
     }
 
     // The first slot a removal left free, or the end when there is none.
     template<typename T>
     inline int first_removed(const std::vector<T> &v) {
-        for (int i = 0; i < int(v.size()); i++) {
-            if (v[i].is_removed)
-                return i;
-        }
-        return int(v.size());
+        return int(std::find_if(v.begin(), v.end(), [](const T &e) { return e.is_removed; }) -
+                   v.begin());
     }
 
     struct Mesh {

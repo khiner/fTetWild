@@ -243,8 +243,7 @@ bool load_obj(const std::string& path, geo::Mesh& mesh)
                 }
                 facet_vertices.push_back(v);
             }
-            if (facet_vertices.size() >= 3)
-                add_polygon(mesh, facet_vertices);
+            add_polygon(mesh, facet_vertices);
         }
     }
     return true;
@@ -475,10 +474,10 @@ bool load_surface_mesh(const std::string& path, geo::Mesh& mesh)
 }  // namespace
 
 bool load_mesh(const std::string&     path,
-                       std::vector<Vector3>&  points,
-                       std::vector<Vector3i>& faces,
-                       geo::Mesh&             input,
-                       std::vector<int>&      flags)
+               std::vector<Vector3>&  points,
+               std::vector<Vector3i>& faces,
+               geo::Mesh&             input,
+               std::vector<int>&      flags)
 {
     logger().debug("Loading mesh at {}...", path);
 
@@ -493,10 +492,10 @@ bool load_mesh(const std::string&     path,
 // elements are tets, which is all fTetWild writes. PyMesh also handled 2D nodes and triangle,
 // quad and hex elements.
 void write_mesh(const std::string&         path,
-                        const Mesh&                mesh,
-                        const std::vector<Scalar>& color,
-                        const bool                 binary,
-                        const bool                 separate_components)
+                const Mesh&                mesh,
+                const std::vector<Scalar>& color,
+                const bool                 binary,
+                const bool                 separate_components)
 {
     assert(color.empty() || color.size() == mesh.tets.size());
 
@@ -546,11 +545,10 @@ void write_mesh(const std::string&         path,
     fout << cnt_t << std::endl;
     if (cnt_t > 0) {
         int elem_type = 4;  // Gmsh's element type for a 4-node tetrahedron
-        int num_elems = cnt_t;
         int tags      = separate_components ? 2 : 0;
         if (binary) {
             fout.write((char*)&elem_type, sizeof(int));
-            fout.write((char*)&num_elems, sizeof(int));
+            fout.write((const char*)&cnt_t, sizeof(int));
             fout.write((char*)&tags, sizeof(int));
         }
         int elem_num = 1;

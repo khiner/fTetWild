@@ -385,7 +385,7 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             break;
         }
 
-        if (!found_step || !x_next.allFinite())
+        if (!found_step)
             break;
         x = x_next;
     }
@@ -402,11 +402,8 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
     auto& tet_vertices = mesh.tet_vertices;
 
     const auto smooth_one = [&](const int v_id) {
-        if (tet_vertices[v_id].is_removed)
-            return;
-        if (tet_vertices[v_id].is_freezed)
-            return;
-        if (tet_vertices[v_id].is_on_bbox)
+        if (tet_vertices[v_id].is_removed || tet_vertices[v_id].is_freezed ||
+            tet_vertices[v_id].is_on_bbox)
             return;
 
         Vector3 p;
@@ -417,9 +414,8 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
         if (tet_vertices[v_id].is_on_boundary) {
             if (!project_and_check(mesh, v_id, p, tree, false, new_qs))
                 return;
-            if (is_out_boundary_envelope(mesh, v_id, p, tree))
-                return;
-            else if (is_out_envelope(mesh, v_id, p, tree))
+            if (is_out_boundary_envelope(mesh, v_id, p, tree) ||
+                is_out_envelope(mesh, v_id, p, tree))
                 return;
         }
         else if (tet_vertices[v_id].is_on_surface) {

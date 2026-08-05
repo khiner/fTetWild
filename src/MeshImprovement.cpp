@@ -49,22 +49,22 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
 // times. Nothing here reuses a hierarchy, so the two are one call.
 MatrixXd winding_numbers(const MatrixXd &V, const MatrixXi &F, const MatrixXd &C,
                          bool invert_faces) {
-    std::vector<float> points(V.rows() * 3);
-    for (int i = 0; i < V.rows(); i++) {
-        for (int j = 0; j < 3; j++)
-            points[3 * i + j] = V(i, j);
-    }
+    const auto flatten = [](const MatrixXd& M) {
+        std::vector<float> out(M.rows() * 3);
+        for (int i = 0; i < M.rows(); i++) {
+            for (int j = 0; j < 3; j++)
+                out[3 * i + j] = M(i, j);
+        }
+        return out;
+    };
+    const std::vector<float> points = flatten(V);
     std::vector<int> faces(F.size());
     for (int f = 0; f < F.rows(); f++) {
         faces[3 * f] = F(f, 0);
         faces[3 * f + 1] = F(f, invert_faces ? 2 : 1);
         faces[3 * f + 2] = F(f, invert_faces ? 1 : 2);
     }
-    std::vector<float> queries(C.rows() * 3);
-    for (int i = 0; i < C.rows(); i++) {
-        for (int j = 0; j < 3; j++)
-            queries[3 * i + j] = C(i, j);
-    }
+    const std::vector<float> queries = flatten(C);
 
     const std::vector<float> angles = FastWindingNumber::solid_angles(points, faces, queries);
 
@@ -117,8 +117,8 @@ std::vector<bool> tets_inside_surface(const Mesh &mesh, const MatrixXd &V, const
 
 // The faces carried by exactly one tet, as {v0, v1, v2, t_id, j}: the corners sorted, then the tet
 // the face belongs to and its local index there. The result is sorted by corner triple.
-// skip picks which tets take part, is_outside for the passes that run after mark_outside and
-// is_removed for the rest.
+// skip picks which tets take part, is_outside for the smooth_open_boundary passes and is_removed
+// for the rest.
 std::vector<std::array<int, 5>> boundary_faces(const Mesh &mesh,
                                                bool MeshTet::*skip) {
     std::vector<std::array<int, 5>> faces;
@@ -455,15 +455,6 @@ int get_max_p(const Mesh &mesh)
     return max_p;
 }
 
-void mark_outside(Mesh& mesh){
-    MatrixXd V;
-    MatrixXi F;
-    get_tracked_surface(mesh, V, F);
-    const std::vector<bool> is_inside = tets_inside_surface(mesh, V, F);
-    for (size_t t_id = 0; t_id < mesh.tets.size(); ++t_id)
-        mesh.tets[t_id].is_outside = !is_inside[t_id];
-}
-
 void untangle(Mesh &mesh) {
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
@@ -775,14 +766,11 @@ void apply_coarsening(Mesh& mesh, AABBWrapper& tree) {
     mesh.is_coarsening = false;
 }
 
-// One round: the local operation passes ops asks for, then, if reinsert_triangles, another go at
-// the input faces that are still missing.
-void operation(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
+// Another go at the input faces that are still missing.
+void reinsert_input(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,
         const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
-        Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops, bool reinsert_triangles) {
-    run_passes(mesh, tree, ops);
-
-    if (!reinsert_triangles || mesh.is_input_all_inserted)
+        Mesh &mesh, AABBWrapper& tree) {
+    if (mesh.is_input_all_inserted)
         return;
 
     Timer igl_timer;
@@ -820,9 +808,9 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
         Mesh &mesh, AABBWrapper& tree) {
     init(mesh);
 
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 1, 0, 0}}, false);
+    run_passes(mesh, tree, {{0, 1, 0, 0}});
     cleanup_empty_slots(mesh);
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 0, 0, 0}}, true);
+    reinsert_input(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree);
 
     const int M = 5;
     const int N = 5;
@@ -854,9 +842,10 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
         }
 
         logger().info("pass {}", it);
+        run_passes(mesh, tree, {{1, 1, 1, 1}});
         // Every third pass also tries to insert what is still missing.
-        operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree,
-                  {{1, 1, 1, 1}}, it % 3 == 2);
+        if (it % 3 == 2)
+            reinsert_input(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree);
 
         if (it > mesh.params.max_its / 4 && max_energy > 1e3) {
             if (cnt_increase_epsilon > 0 && cnt_increase_epsilon == mesh.params.stage - 1)
@@ -885,7 +874,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
 
     logger().info("postprocessing");
     reset_sizing_field(mesh);
-    operation(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{0, 1, 0, 0}}, false);
+    run_passes(mesh, tree, {{0, 1, 0, 0}});
 
     if(mesh.params.coarsen){
         apply_coarsening(mesh, tree);
@@ -996,7 +985,7 @@ void floatTetWild::boolean_operation(Mesh&                                     m
         int tid = 0;
         for (int id = 0; id <= max_id; ++id) {
             if (w[id][cnt] > 0.5)
-                tid = std::max(id + 1, tid);
+                tid = id + 1;
         }
         t.scalar = tid;
         cnt++;
@@ -1100,7 +1089,14 @@ void floatTetWild::smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree) {
     auto &tets = mesh.tets;
     auto &tet_vertices = mesh.tet_vertices;
 
-    mark_outside(mesh);
+    {
+        MatrixXd V;
+        MatrixXi F;
+        get_tracked_surface(mesh, V, F);
+        const std::vector<bool> is_inside = tets_inside_surface(mesh, V, F);
+        for (size_t t_id = 0; t_id < tets.size(); ++t_id)
+            tets[t_id].is_outside = !is_inside[t_id];
+    }
     const std::vector<std::array<int, 5>> faces = boundary_faces(mesh, &MeshTet::is_outside);
     if (faces.empty())
         return;

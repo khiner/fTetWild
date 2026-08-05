@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <numeric>
 #include <vector>
 
 namespace floatTetWild
@@ -40,10 +41,7 @@ namespace floatTetWild
     // matlab's sortrows(A) as a permutation, without building the sorted copy libigl did:
     // A(IM(i),:) is the i-th row in sorted order.
     MatrixXi IM(num_rows, 1);
-    for(int i = 0;i<num_rows;i++)
-    {
-      IM(i) = i;
-    }
+    std::iota(IM.data(), IM.data() + num_rows, 0);
     const auto index_less_than = [&A, num_cols](int i, int j) {
       for (int c=0; c<num_cols; c++) {
         if (A(i, c) < A(j, c)) return true;
@@ -54,10 +52,7 @@ namespace floatTetWild
     std::sort(IM.data(), IM.data()+IM.size(), index_less_than);
 
     std::vector<int> vIA(num_rows);
-    for(int i=0;i<num_rows;i++)
-    {
-      vIA[i] = i;
-    }
+    std::iota(vIA.begin(), vIA.end(), 0);
 
     const auto index_equal = [&A, &IM, num_cols](const int i, const int j) {
       for (int c=0; c<num_cols; c++) {

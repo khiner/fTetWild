@@ -428,26 +428,30 @@ void compute_full_bounding_box(Box&            axes_minmax,
 // them. Returns whether any were dropped and updates nboxes.
 bool exclude_nan_inf_boxes(const Box* boxes, uint32_t* indices, uint32_t& nboxes)
 {
-    const uint32_t* indices_end = indices + nboxes;
-
-    uint32_t* psrc_index = indices;
-    for (; psrc_index != indices_end; ++psrc_index) {
-        if (boxes[*psrc_index].has_nan_or_inf())
-            break;
-    }
-    if (psrc_index == indices_end)
+    uint32_t* new_end = std::remove_if(
+      indices, indices + nboxes, [boxes](uint32_t i) { return boxes[i].has_nan_or_inf(); });
+    if (new_end == indices + nboxes)
         return false;
-
-    // First NaN or infinite box
-    uint32_t* nan_start = psrc_index;
-    for (++psrc_index; psrc_index != indices_end; ++psrc_index) {
-        if (!boxes[*psrc_index].has_nan_or_inf()) {
-            *nan_start = *psrc_index;
-            ++nan_start;
-        }
-    }
-    nboxes = nan_start - indices;
+    nboxes = new_end - indices;
     return true;
+}
+
+// The bounds of [indices, split) and [split, indices_end), for the split paths that have to
+// recompute both halves' boxes from scratch.
+void boxes_around_split(const Box*      boxes,
+                        const uint32_t* indices,
+                        const uint32_t* split,
+                        const uint32_t* indices_end,
+                        Box*            split_boxes)
+{
+    Box left_box = boxes[indices[0]];
+    for (const uint32_t* left_indices = indices + 1; left_indices < split; ++left_indices)
+        left_box.enlarge(boxes[*left_indices]);
+    Box right_box = boxes[split[0]];
+    for (const uint32_t* right_indices = split + 1; right_indices < indices_end; ++right_indices)
+        right_box.enlarge(boxes[*right_indices]);
+    split_boxes[0] = left_box;
+    split_boxes[1] = right_box;
 }
 
 // Reorders [indices, indices_end) so that everything with a centre below pivotx2 comes first,
@@ -839,14 +843,7 @@ void split(const Box& axes_minmax,
         select_nth_by_centre(boxes, indices, indices + nboxes, max_axis, nth_index);
 
         split_indices = nth_index;
-        Box left_box  = boxes[indices[0]];
-        for (uint32_t* left_indices = indices + 1; left_indices < nth_index; ++left_indices)
-            left_box.enlarge(boxes[*left_indices]);
-        Box right_box = boxes[nth_index[0]];
-        for (uint32_t* right_indices = nth_index + 1; right_indices < indices_end; ++right_indices)
-            right_box.enlarge(boxes[*right_indices]);
-        split_boxes[0] = left_box;
-        split_boxes[1] = right_box;
+        boxes_around_split(boxes, indices, nth_index, indices_end, split_boxes);
     }
     else {
         const float pivotx2 = axis_min_x2 + (split_index + 1) * axis_length / (NSpans / 2);
@@ -874,15 +871,7 @@ void split(const Box& axes_minmax,
         else if (split_indices == indices_end)
             --split_indices;
 
-        Box left_box = boxes[indices[0]];
-        for (uint32_t* left_indices = indices + 1; left_indices < split_indices; ++left_indices)
-            left_box.enlarge(boxes[*left_indices]);
-        Box right_box = boxes[split_indices[0]];
-        for (uint32_t* right_indices = split_indices + 1; right_indices < indices_end;
-             ++right_indices)
-            right_box.enlarge(boxes[*right_indices]);
-        split_boxes[0] = left_box;
-        split_boxes[1] = right_box;
+        boxes_around_split(boxes, indices, split_indices, indices_end, split_boxes);
     }
 }
 
@@ -940,6 +929,16 @@ void multi_split(const Box& axes_minmax,
 
 constexpr uint32_t BuildParallelThreshold = 1024;
 
+// Renumbers a node's internal children from subtree-local to global by adding offset.
+void offset_internal_children(Node& node, uint32_t offset)
+{
+    for (uint32_t childi = 0; childi < BvhN; ++childi) {
+        const uint32_t child = node.child[childi];
+        if (Node::is_internal(child) && child != Node::Empty)
+            node.child[childi] = child + offset;
+    }
+}
+
 // Copies the subtrees that were built in parallel into the node array, renumbering their internal
 // child indices to where they landed.
 void adjust_parallel_child_nodes(uint32_t                 nparallel,
@@ -969,11 +968,7 @@ void adjust_parallel_child_nodes(uint32_t                 nparallel,
 
         for (uint32_t j = 0; j < n; ++j) {
             Node local_node = local_nodes[j];
-            for (uint32_t childj = 0; childj < BvhN; ++childj) {
-                uint32_t local_child = local_node.child[childj];
-                if (Node::is_internal(local_child) && local_child != Node::Empty)
-                    local_node.child[childj] = local_child + local_nodes_start;
-            }
+            offset_internal_children(local_node, local_nodes_start);
             nodes[local_nodes_start + j] = local_node;
         }
     }
@@ -1057,11 +1052,7 @@ void init_node(std::vector<Node>& nodes,
                 // First, adjust the root child node
                 Node child_node = parallel_parent_nodes[counted_parallel];
                 ++local_nodes_start;
-                for (uint32_t childi = 0; childi < BvhN; ++childi) {
-                    const uint32_t child_child = child_node.child[childi];
-                    if (Node::is_internal(child_child) && child_child != Node::Empty)
-                        child_node.child[childi] = child_child + local_nodes_start;
-                }
+                offset_internal_children(child_node, local_nodes_start);
 
                 // Make space in the array for the sub-child nodes
                 const uint32_t n = parallel_nodes[counted_parallel].size();
@@ -1287,35 +1278,26 @@ void Precompute::triangle(uint32_t itemi, LocalData& out) const
     // We need to use the NORMALIZED normal to multiply the integrals by.
     Vec3f n = N / area;
 
-    // Figure out the order of a, b, and c in x, y, and z for computing the integrals for Nijk.
+    // Figure out the order of a, b, and c in x, y, and z for computing the integrals for Nijk,
+    // and the value spread along each axis.
     Vec3f values[3] = {a, b, c};
 
-    int order_x[3] = {0, 1, 2};
-    if (a[0] > b[0])
-        std::swap(order_x[0], order_x[1]);
-    if (values[order_x[0]][0] > c[0])
-        std::swap(order_x[0], order_x[2]);
-    if (values[order_x[1]][0] > values[order_x[2]][0])
-        std::swap(order_x[1], order_x[2]);
-    float dx = values[order_x[2]][0] - values[order_x[0]][0];
+    const auto axis_order = [&values](int ax, int order[3]) {
+        if (values[0][ax] > values[1][ax])
+            std::swap(order[0], order[1]);
+        if (values[order[0]][ax] > values[2][ax])
+            std::swap(order[0], order[2]);
+        if (values[order[1]][ax] > values[order[2]][ax])
+            std::swap(order[1], order[2]);
+        return values[order[2]][ax] - values[order[0]][ax];
+    };
 
-    int order_y[3] = {0, 1, 2};
-    if (a[1] > b[1])
-        std::swap(order_y[0], order_y[1]);
-    if (values[order_y[0]][1] > c[1])
-        std::swap(order_y[0], order_y[2]);
-    if (values[order_y[1]][1] > values[order_y[2]][1])
-        std::swap(order_y[1], order_y[2]);
-    float dy = values[order_y[2]][1] - values[order_y[0]][1];
-
-    int order_z[3] = {0, 1, 2};
-    if (a[2] > b[2])
-        std::swap(order_z[0], order_z[1]);
-    if (values[order_z[0]][2] > c[2])
-        std::swap(order_z[0], order_z[2]);
-    if (values[order_z[1]][2] > values[order_z[2]][2])
-        std::swap(order_z[1], order_z[2]);
-    float dz = values[order_z[2]][2] - values[order_z[0]][2];
+    int   order_x[3] = {0, 1, 2};
+    float dx         = axis_order(0, order_x);
+    int   order_y[3] = {0, 1, 2};
+    float dy         = axis_order(1, order_y);
+    int   order_z[3] = {0, 1, 2};
+    float dz         = axis_order(2, order_z);
 
     auto&& compute_integrals = [](const Vec3f& a,
                                   const Vec3f& b,

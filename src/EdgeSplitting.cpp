@@ -65,8 +65,7 @@ bool split_an_edge(Mesh& mesh, int v1_id, int v2_id, bool is_repush,
         finish(new_t_ids[i], v1_id);
     }
 
-    if(mesh.tets.size()!=is_splittable.size())
-        is_splittable.resize(mesh.tets.size(), true);
+    is_splittable.resize(mesh.tets.size(), true);
 
     if (!is_repush)
         return true;

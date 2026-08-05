@@ -335,8 +335,6 @@ struct MatrixX
 
     MatrixX() {}
     MatrixX(int r, int c) : a(size_t(r) * size_t(c)), nrows(r), ncols(c) {}
-    // A dynamic vector is an n by 1 matrix, matching how Eigen's VectorX behaved here.
-    explicit MatrixX(int n) : a(size_t(n)), nrows(n), ncols(1) {}
 
     int rows() const { return nrows; }
     int cols() const { return ncols; }
@@ -348,8 +346,6 @@ struct MatrixX
         nrows = r;
         ncols = c;
     }
-    void resize(int n) { resize(n, 1); }
-
     T&       operator()(int i, int j) { return a[size_t(i) * ncols + j]; }
     const T& operator()(int i, int j) const { return a[size_t(i) * ncols + j]; }
     // Linear access, for the n by 1 case.

@@ -51,8 +51,8 @@ namespace floatTetWild {
     OriCounts count_orientations(const int* oris, int n);
 }
 
-// Guigue-Devillers, in triangle_triangle_intersection.cpp, which has no header of its own. Returns
-// 1 when the triangles overlap, and then source and target are the ends of the shared segment.
+// Guigue-Devillers, at the end of intersections.cpp. Returns 1 when the triangles overlap, and
+// then source and target are the ends of the shared segment.
 int tri_tri_intersection_test_3d(const floatTetWild::Scalar p1[3], const floatTetWild::Scalar q1[3],
                                  const floatTetWild::Scalar r1[3], const floatTetWild::Scalar p2[3],
                                  const floatTetWild::Scalar q2[3], const floatTetWild::Scalar r2[3],
