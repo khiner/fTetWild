@@ -24,14 +24,16 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <floattetwild/FastWindingNumber.h>
+#include "FastWindingNumber.h"
 
-#include <floattetwild/ParallelFor.hpp>
+#include "ParallelFor.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <numeric>
 #include <thread>
 #include <utility>
 
@@ -130,6 +132,129 @@ uint32_t mask_bits(Mask4 a)
            (uint32_t(a.v[3] < 0) << 3);
 }
 
+// A 3-vector of whatever the solid angle is being accumulated in: plain floats for the exact
+// per-triangle part, four-at-a-time lanes for the part that approximates a BVH node's four
+// children together. The arithmetic is written the way the paper's implementation wrote it,
+// down to reciprocal-multiply for scalar division, because the mesher's output depends on it.
+template<typename T>
+struct Vec3
+{
+    T v[3];
+
+    Vec3() {}
+    explicit Vec3(const T a[3])
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] = a[i];
+    }
+
+    const T& operator[](int i) const { return v[i]; }
+    T&       operator[](int i) { return v[i]; }
+
+    void operator=(T a)
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] = a;
+    }
+    void operator+=(const Vec3& r)
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] += r.v[i];
+    }
+    void operator-=(const Vec3& r)
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] -= r.v[i];
+    }
+    void operator*=(const Vec3& r)
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] *= r.v[i];
+    }
+    void operator*=(T r)
+    {
+        for (int i = 0; i < 3; ++i)
+            v[i] *= r;
+    }
+    void operator/=(T r)
+    {
+        r = 1 / r;
+        for (int i = 0; i < 3; ++i)
+            v[i] *= r;
+    }
+
+    Vec3 operator+(const Vec3& r) const
+    {
+        Vec3 o;
+        for (int i = 0; i < 3; ++i)
+            o.v[i] = v[i] + r.v[i];
+        return o;
+    }
+    Vec3 operator-(const Vec3& r) const
+    {
+        Vec3 o;
+        for (int i = 0; i < 3; ++i)
+            o.v[i] = v[i] - r.v[i];
+        return o;
+    }
+    Vec3 operator*(const Vec3& r) const
+    {
+        Vec3 o;
+        for (int i = 0; i < 3; ++i)
+            o.v[i] = v[i] * r.v[i];
+        return o;
+    }
+    Vec3 operator*(T r) const
+    {
+        Vec3 o;
+        for (int i = 0; i < 3; ++i)
+            o.v[i] = v[i] * r;
+        return o;
+    }
+    Vec3 operator/(T r) const
+    {
+        Vec3 o;
+        r = 1 / r;
+        for (int i = 0; i < 3; ++i)
+            o.v[i] = v[i] * r;
+        return o;
+    }
+
+    T length2() const
+    {
+        T a0(v[0]);
+        T result(a0 * a0);
+        for (int i = 1; i < 3; ++i) {
+            T ai(v[i]);
+            result += ai * ai;
+        }
+        return result;
+    }
+    T length() const { return std::sqrt(length2()); }
+
+    T dot(const Vec3& r) const
+    {
+        T result(v[0] * r.v[0]);
+        for (int i = 1; i < 3; ++i)
+            result += v[i] * r.v[i];
+        return result;
+    }
+};
+
+template<typename T>
+Vec3<T> operator*(T a, const Vec3<T>& b)
+{
+    Vec3<T> o;
+    for (int i = 0; i < 3; ++i)
+        o[i] = a * b[i];
+    return o;
+}
+
+template<typename T>
+T dot(const Vec3<T>& a, const Vec3<T>& b)
+{ return a.dot(b); }
+
+using Vec3f  = Vec3<float>;
 using Vec3x4 = Vec3<Float4>;
 
 Vec3f cross(const Vec3f& v1, const Vec3f& v2)
@@ -285,17 +410,9 @@ void compute_full_bounding_box(Box&            axes_minmax,
         ntasks = (nprocessors > 1) ? std::min(4 * nprocessors, nboxes / 4096) : 1;
     }
     if (ntasks == 1) {
-        Box box;
-        if (indices) {
-            box = boxes[indices[0]];
-            for (uint32_t i = 1; i < nboxes; ++i)
-                box.enlarge(boxes[indices[i]]);
-        }
-        else {
-            box = boxes[0];
-            for (uint32_t i = 1; i < nboxes; ++i)
-                box.enlarge(boxes[i]);
-        }
+        Box box = boxes[indices[0]];
+        for (uint32_t i = 1; i < nboxes; ++i)
+            box.enlarge(boxes[indices[i]]);
         axes_minmax = box;
     }
     else {
@@ -305,7 +422,7 @@ void compute_full_bounding_box(Box&            axes_minmax,
         std::vector<Box> parallel_boxes(nslots);
         detail::parallel_ranges(0, nboxes, [&](size_t lo, size_t hi, size_t t) {
             for (size_t i = lo; i < hi; ++i)
-                parallel_boxes[t].enlarge(indices ? boxes[indices[i]] : boxes[i]);
+                parallel_boxes[t].enlarge(boxes[indices[i]]);
         });
         Box box = parallel_boxes[0];
         for (size_t t = 1; t < nslots; ++t)
@@ -315,8 +432,8 @@ void compute_full_bounding_box(Box&            axes_minmax,
 }
 
 // Drops the indices of every box with a NaN or infinite bound by shifting the rest down over
-// them. Returns how many were dropped and updates nboxes.
-uint32_t exclude_nan_inf_boxes(const Box* boxes, uint32_t* indices, uint32_t& nboxes)
+// them. Returns whether any were dropped and updates nboxes.
+bool exclude_nan_inf_boxes(const Box* boxes, uint32_t* indices, uint32_t& nboxes)
 {
     const uint32_t* indices_end = indices + nboxes;
 
@@ -326,7 +443,7 @@ uint32_t exclude_nan_inf_boxes(const Box* boxes, uint32_t* indices, uint32_t& nb
             break;
     }
     if (psrc_index == indices_end)
-        return 0;
+        return false;
 
     // First NaN or infinite box
     uint32_t* nan_start = psrc_index;
@@ -337,7 +454,7 @@ uint32_t exclude_nan_inf_boxes(const Box* boxes, uint32_t* indices, uint32_t& nb
         }
     }
     nboxes = nan_start - indices;
-    return indices_end - nan_start;
+    return true;
 }
 
 // Reorders [indices, indices_end) so that everything with a centre below pivotx2 comes first,
@@ -993,14 +1110,14 @@ std::vector<Node> build_bvh(const Box* boxes, uint32_t nboxes)
     if (nboxes == 0)
         return {};
 
-    Box axes_minmax;
-    compute_full_bounding_box(axes_minmax, boxes, nboxes, nullptr);
-
     std::vector<uint32_t> indices(nboxes);
-    parallel_for(0, nboxes, [&indices](size_t i) { indices[i] = i; }, 65536);
+    std::iota(indices.begin(), indices.end(), 0u);
+
+    Box axes_minmax;
+    compute_full_bounding_box(axes_minmax, boxes, nboxes, indices.data());
 
     // Exclude any boxes with NaNs or infinities, which shifts the good indices down over them.
-    if (exclude_nan_inf_boxes(boxes, indices.data(), nboxes) != 0) {
+    if (exclude_nan_inf_boxes(boxes, indices.data(), nboxes)) {
         if (nboxes == 0)
             return {};
         compute_full_bounding_box(axes_minmax, boxes, nboxes, indices.data());
@@ -1583,13 +1700,11 @@ void Precompute::node_parallel(uint32_t nodei, uint32_t next_node_id, LocalData*
     LocalData child[BvhN];
     if (nparallel >= 2) {
         // Do any non-parallel ones first
-        if (nparallel < nchildren) {
-            for (uint32_t s = 0; s < BvhN; ++s) {
-                if (nnodes[s] >= PrecomputeParallelThreshold)
-                    continue;
-                if (!child_data(n, s, child))
-                    break;
-            }
+        for (uint32_t s = 0; s < BvhN; ++s) {
+            if (nnodes[s] >= PrecomputeParallelThreshold)
+                continue;
+            if (!child_data(n, s, child))
+                break;
         }
         parallel_for(0, nparallel, [&](size_t taski) {
             // First, find which child this is
@@ -1608,14 +1723,12 @@ void Precompute::node_parallel(uint32_t nodei, uint32_t next_node_id, LocalData*
             else
                 triangle(c, child[s]);
         });
+        combine(nodei, out, nchildren, child);
     }
     else {
-        for (uint32_t s = 0; s < BvhN; ++s) {
-            if (!child_data(n, s, child))
-                break;
-        }
+        // Empty children sit at the tail, so node() combines the same nchildren entries.
+        node(nodei, out);
     }
-    combine(nodei, out, nchildren, child);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1734,7 +1847,8 @@ float Query::node(uint32_t nodei) const
                                               query_point);
         }
     }
-    // NOTE: s is now the number of non-empty entries in this node.
+    // NOTE: s is BvhN unless the loop broke on an Empty child, in which case everything at s and
+    // beyond is empty and its descend bits were just cleared.
     float sum = (descend & 1) ? child[0] : 0;
     for (uint32_t i = 1; i < s; ++i)
         sum += ((descend >> i) & 1) ? child[i] : 0;
@@ -1743,13 +1857,16 @@ float Query::node(uint32_t nodei) const
 
 }  // namespace
 
-std::vector<float> solid_angles(const std::vector<Vec3f>& points,
+std::vector<float> solid_angles(const std::vector<float>& points,
                                 const std::vector<int>&   triangles,
-                                const std::vector<Vec3f>& queries)
+                                const std::vector<float>& queries)
 {
-    const int*     triangle_points = triangles.data();
-    const Vec3f*   positions       = points.data();
-    const uint32_t ntriangles      = triangles.size() / 3;
+    const int* triangle_points = triangles.data();
+    // Vec3f is three floats and nothing else, so the flat arrays are read in place.
+    const Vec3f*   positions    = reinterpret_cast<const Vec3f*>(points.data());
+    const Vec3f*   query_points = reinterpret_cast<const Vec3f*>(queries.data());
+    const size_t   nqueries     = queries.size() / 3;
+    const uint32_t ntriangles   = triangles.size() / 3;
 
     std::vector<Box> triangle_boxes(ntriangles);
     const auto       fill_box = [&](size_t i) {
@@ -1769,7 +1886,7 @@ std::vector<float> solid_angles(const std::vector<Vec3f>& points,
 
     const std::vector<Node> nodes = build_bvh(triangle_boxes.data(), ntriangles);
 
-    std::vector<float> out(queries.size(), 0.0f);
+    std::vector<float> out(nqueries, 0.0f);
     if (nodes.empty())
         return out;
 
@@ -1779,14 +1896,11 @@ std::vector<float> solid_angles(const std::vector<Vec3f>& points,
     LocalData root;
     precompute.node_parallel(0, nodes.size(), &root);
 
-    parallel_for(
-      0,
-      queries.size(),
-      [&](size_t p) {
-          const Query query {box_data.data(), nodes.data(), triangle_points, positions, queries[p]};
-          out[p] = query.node(0);
-      },
-      1000);
+    parallel_for(0, nqueries, [&](size_t p) {
+        const Query query {
+          box_data.data(), nodes.data(), triangle_points, positions, query_points[p]};
+        out[p] = query.node(0);
+    });
     return out;
 }
 

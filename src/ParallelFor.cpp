@@ -5,7 +5,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/ParallelFor.hpp>
+#include "ParallelFor.hpp"
 
 #include <algorithm>
 #include <condition_variable>

@@ -6,7 +6,7 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 
-#include <floattetwild/MeshCleanup.hpp>
+#include "MeshCleanup.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -111,7 +111,8 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
 
 }  // namespace
 
-void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C) {
+void bfs_orient(const MatrixXi &F, MatrixXi &FF) {
+    MatrixXi C;  // component id per face
     std::vector<std::vector<int>> A;
     orientable_patches(F, C, A);
 

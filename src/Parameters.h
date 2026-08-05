@@ -8,28 +8,13 @@
 
 #pragma once
 
-#include <floattetwild/Types.hpp>
+#include "Types.hpp"
 
-#include <floattetwild/Logger.hpp>
+#include "Logger.hpp"
 
 namespace floatTetWild {
-    class Parameters {
-    public:
-        std::string log_path = "";
-        std::string input_path = "";
-        std::string output_path = "";
-        std::string tag_path = "";
-        std::string postfix = "";
-
+    struct Parameters {
         bool not_sort_input = false;
-        bool is_quiet = false;
-        int log_level = 2;  // Info
-
-        bool smooth_open_boundary = false;
-        bool manifold_surface = false;
-        bool disable_filtering = false;
-        bool use_floodfill = false;
-        bool use_input_for_wn = false;
         bool coarsen = false;
 
         // Fractions of the bounding box diagonal, except ideal_edge_length_abs, which is an
@@ -44,8 +29,6 @@ namespace floatTetWild {
         Scalar stop_energy = 10;
 
         int stage = 2;
-
-        unsigned int num_threads = std::numeric_limits<unsigned int>::max();
 
         int stop_p = -1;
 

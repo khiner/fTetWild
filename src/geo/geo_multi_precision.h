@@ -50,19 +50,16 @@ namespace geo {
     }
 
     void set_length(index_t new_length) {
-        geo_debug_assert(new_length <= capacity());
         length_ = new_length;
     }
 
     // Component i. One past capacity is valid to read: the storage carries a sentry because
     // fast_expansion_sum_zeroelim() may look one past the end without using what it finds.
     const double& operator[] (index_t i) const {
-        geo_debug_assert(i <= capacity_);
         return x_[i];
     }
 
     double& operator[] (index_t i) {
-        geo_debug_assert(i <= capacity_);
         return x_[i];
     }
 

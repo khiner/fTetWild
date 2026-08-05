@@ -18,13 +18,13 @@ namespace geo {
     // geogram also has a Hilbert ordering here, which has a continuous mapping between indices
     // and space. No caller asked for it. The Hilbert curve itself is still what
     // compute_BRIO_order() sorts along.
-    void mesh_reorder(Mesh& M, vector<index_t>* facet_permutation = nullptr);
+    void mesh_reorder(Mesh& M, std::vector<index_t>* facet_permutation = nullptr);
 
     // Sorts \p nb_vertices points, three coordinates each, into BRIO order, which is what makes
     // incremental insertion into a Delaunay triangulation fast. See Amenta, Choi and Rote,
     // "Incremental constructions con brio", Sympos. Comput. Geom. 2003.
     void compute_BRIO_order(
-        index_t nb_vertices, const double* vertices, vector<index_t>& sorted_indices
+        index_t nb_vertices, const double* vertices, std::vector<index_t>& sorted_indices
     );
 
 }

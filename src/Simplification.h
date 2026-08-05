@@ -9,9 +9,9 @@
 #ifndef FLOATTETWILD_SIMPLIFICATION_H
 #define FLOATTETWILD_SIMPLIFICATION_H
 
-#include <floattetwild/AABBWrapper.h>
-#include <floattetwild/Parameters.h>
-#include <floattetwild/Types.hpp>
+#include "AABBWrapper.h"
+#include "Parameters.h"
+#include "Types.hpp"
 
 #include <vector>
 

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <floattetwild/Matrix.hpp>
+#include "Matrix.hpp"
 
 #include <algorithm>
 #include <vector>

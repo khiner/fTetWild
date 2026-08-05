@@ -6,10 +6,9 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/CSGTreeParser.hpp>
+#include "CSGTreeParser.hpp"
 
-#include <floattetwild/FloatTetwild.h>
-#include <floattetwild/Logger.hpp>
+#include "FloatTetwild.h"
 
 #include <map>
 
@@ -224,11 +223,8 @@ class CsgReader
 
     bool parse_child(CSGTree::Child& child)
     {
-        if (at('"')) {
-            child.kind = CSGTree::Child::Mesh;
+        if (at('"'))
             return parse_string(child.mesh);
-        }
-        child.kind    = CSGTree::Child::Subtree;
         child.subtree = std::make_shared<CSGTree>();
         return parse_node(*child.subtree);
     }
@@ -281,49 +277,25 @@ class CsgReader
     std::string       error_;
 };
 
-void get_meshes_aux(const CSGTree&              csg_tree_node,
-                    std::vector<std::string>&   meshes,
-                    std::map<std::string, int>& existings,
-                    int&                        index,
-                    CSGTree&                    current_node)
+void assign_mesh_ids_aux(CSGTree&                    node,
+                         std::vector<std::string>&   meshes,
+                         std::map<std::string, int>& existings)
 {
-    // A name already seen keeps the index it was given the first time, so a mesh used twice is
-    // only loaded once.
-    const auto resolve = [&](const CSGTree::Child& child) {
-        CSGTree::Child out;
-        if (child.kind == CSGTree::Child::Subtree) {
-            out.kind    = CSGTree::Child::Subtree;
-            out.subtree = std::make_shared<CSGTree>();
-            get_meshes_aux(*child.subtree, meshes, existings, index, *out.subtree);
-            return out;
+    for (CSGTree::Child* child : {&node.left, &node.right}) {
+        if (child->subtree) {
+            assign_mesh_ids_aux(*child->subtree, meshes, existings);
+            continue;
         }
-
-        const auto iter = existings.find(child.mesh);
+        // A name already seen keeps the id it was given the first time, so a mesh used twice is
+        // only loaded once.
+        const auto iter = existings.find(child->mesh);
         if (iter == existings.end()) {
-            meshes.push_back(child.mesh);
-            existings[child.mesh] = index;
-            out.id                = index;
-            ++index;
+            child->id             = int(meshes.size());
+            existings[child->mesh] = child->id;
+            meshes.push_back(child->mesh);
         }
         else
-            out.id = iter->second;
-
-        out.kind = CSGTree::Child::Id;
-        return out;
-    };
-
-    current_node.operation = csg_tree_node.operation;
-    current_node.left      = resolve(csg_tree_node.left);
-    current_node.right     = resolve(csg_tree_node.right);
-}
-
-void get_max_id_aux(const CSGTree& csg_tree_node, int& max)
-{
-    for (const CSGTree::Child* child : {&csg_tree_node.left, &csg_tree_node.right}) {
-        if (child->kind == CSGTree::Child::Id)
-            max = std::max(max, child->id);
-        else
-            get_max_id_aux(*child->subtree, max);
+            child->id = iter->second;
     }
 }
 
@@ -338,24 +310,12 @@ bool CSGTreeParser::parse(std::istream& in, CSGTree& tree, std::string& error)
     return false;
 }
 
-void CSGTreeParser::get_meshes(const CSGTree&            csg_tree,
-                               std::vector<std::string>& meshes,
-                               CSGTree&                  csg_tree_with_ids)
+std::vector<std::string> CSGTreeParser::assign_mesh_ids(CSGTree& tree)
 {
-    int index = 0;
-    meshes.clear();
-
+    std::vector<std::string>   meshes;
     std::map<std::string, int> existings;
-
-    get_meshes_aux(csg_tree, meshes, existings, index, csg_tree_with_ids);
-}
-
-int CSGTreeParser::get_max_id(const CSGTree& csg_tree_with_ids)
-{
-    int max = -1;
-    get_max_id_aux(csg_tree_with_ids, max);
-
-    return max;
+    assign_mesh_ids_aux(tree, meshes, existings);
+    return meshes;
 }
 
 void CSGTreeParser::merge(const std::vector<std::vector<Vector3>>&  Vs,
@@ -404,19 +364,16 @@ void CSGTreeParser::merge(const std::vector<std::vector<Vector3>>&  Vs,
     reorder_and_read_back(sf_mesh, V, F, tags);
 }
 
-bool CSGTreeParser::keep_tet(const CSGTree&                      csg_tree_with_ids,
-                             const int                           t_id,
-                             const std::vector<MatrixXd>&        w)
+bool CSGTreeParser::keep_tet(const CSGTree& csg_tree, const int t_id, const std::vector<MatrixXd>& w)
 {
     const auto inside = [&](const CSGTree::Child& child) {
-        return child.kind == CSGTree::Child::Id ? w[child.id][t_id] > 0.5
-                                                : keep_tet(*child.subtree, t_id, w);
+        return child.subtree ? keep_tet(*child.subtree, t_id, w) : w[child.id][t_id] > 0.5;
     };
 
-    const bool left_inside  = inside(csg_tree_with_ids.left);
-    const bool right_inside = inside(csg_tree_with_ids.right);
+    const bool left_inside  = inside(csg_tree.left);
+    const bool right_inside = inside(csg_tree.right);
 
-    const std::string& op = csg_tree_with_ids.operation;
+    const std::string& op = csg_tree.operation;
     if (op == "union")
         return left_inside || right_inside;
     if (op == "intersection")

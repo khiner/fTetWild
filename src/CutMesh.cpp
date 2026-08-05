@@ -6,11 +6,11 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/CutMesh.h>
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/Predicates.hpp>
-#include <floattetwild/intersections.h>
-#include <floattetwild/Logger.hpp>
+#include "CutMesh.h"
+#include "LocalOperations.h"
+#include "Predicates.hpp"
+#include "intersections.h"
+#include "Logger.hpp"
 
 void floatTetWild::CutMesh::construct(const std::vector<int>& cut_t_ids) {
     collect_tet_vertices(mesh, cut_t_ids, v_ids);

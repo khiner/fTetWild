@@ -6,8 +6,8 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/EdgeSplitting.h>
-#include <floattetwild/LocalOperations.h>
+#include "EdgeSplitting.h"
+#include "LocalOperations.h"
 
 namespace floatTetWild {
 namespace {
@@ -98,9 +98,6 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
     mesh.reset_t_empty_start();
     mesh.reset_v_empty_start();
 
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-
     LongestFirstQueue es_queue;
 
     // An edge is worth splitting once it is longer than the threshold scaled by the sizing field
@@ -112,9 +109,8 @@ void floatTetWild::edge_splitting(Mesh& mesh, const AABBWrapper& tree) {
             es_queue.push({e, l_2});
     };
 
-    for (auto& e:edges)
+    for (auto& e : get_all_edges(mesh))
         push_if_long(e);
-    edges.clear();
 
     // Every split adds a vertex and turns each incident tet into two, so reserve for the queue as
     // it stands and leave the empty slots already in the mesh to be reused.

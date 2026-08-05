@@ -6,10 +6,10 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/VertexSmoothing.h>
+#include "LocalOperations.h"
+#include "VertexSmoothing.h"
 
-#include <floattetwild/ParallelFor.hpp>
+#include "ParallelFor.hpp"
 
 namespace floatTetWild {
 namespace {
@@ -124,10 +124,10 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
         js.push_back(j);
 
         std::array<int, 4> loop_ids = {{0, 1, 2, 3}};
-        if (is_inverted(tet_vertices[tets[t_id][j]],
-                        tet_vertices[tets[t_id][(j + 1) % 4]],
-                        tet_vertices[tets[t_id][(j + 2) % 4]],
-                        tet_vertices[tets[t_id][(j + 3) % 4]]))
+        if (is_inverted(tet_vertices[tets[t_id][j]].pos,
+                        tet_vertices[tets[t_id][(j + 1) % 4]].pos,
+                        tet_vertices[tets[t_id][(j + 2) % 4]].pos,
+                        tet_vertices[tets[t_id][(j + 3) % 4]].pos))
             std::swap(loop_ids[2], loop_ids[3]);
 
         std::array<Scalar, 12> T;
@@ -277,9 +277,9 @@ void floatTetWild::vertex_smoothing(Mesh& mesh, const AABBWrapper& tree)
 
     std::vector<std::vector<int>> concurrent_sets;
     std::vector<int>              serial_set;
-    // 2 is what params.num_threads * 2 gave at one thread, so this is the partition a serial run
-    // always used. serial_set mixes colours and so changes the order neighbours are smoothed in,
-    // which made the output depend on the thread count.
+    // The partition is the one a serial run always used, whatever the thread count: serial_set
+    // mixes colours and so changes the order neighbours are smoothed in, which used to make the
+    // output depend on how many threads ran.
     one_ring_vertex_sets(mesh, concurrent_sets, serial_set);
 
     for (const auto& s : concurrent_sets) {

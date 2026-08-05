@@ -9,8 +9,8 @@
 #ifndef FLOATTETWILD_VERTEXSMOOTHING_H
 #define FLOATTETWILD_VERTEXSMOOTHING_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
 
 namespace floatTetWild {
     void vertex_smoothing(Mesh& mesh, const AABBWrapper& tree);

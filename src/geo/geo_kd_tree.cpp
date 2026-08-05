@@ -57,7 +57,7 @@ namespace geo {
         // Root node is number 1. This is because "children at 2*n and 2*n+1" does not work with 0.
         double best_sq_dist = std::numeric_limits<double>::max();
         nearest_recursive(
-            1, 0, nb_points(), bbox_min, bbox_max, box_dist, query_point, best_sq_dist
+            1, 0, nb_points_, bbox_min, bbox_max, box_dist, query_point, best_sq_dist
         );
         return best_sq_dist;
     }
@@ -67,7 +67,6 @@ namespace geo {
         double* bbox_min, double* bbox_max, double box_dist,
         const double* query_point, double& best_sq_dist
     ) const {
-        geo_debug_assert(e > b);
 
         // Simple case (node is a leaf)
         if((e - b) <= MAX_LEAF_SIZE) {
@@ -138,23 +137,23 @@ namespace geo {
 /****************************************************************************/
 
     void BalancedKdTree::build_tree() {
-        index_t sz = max_node_index(1, 0, nb_points()) + 1;
+        index_t sz = max_node_index(1, 0, nb_points_) + 1;
         splitting_coord_.resize(sz);
         splitting_val_.resize(sz);
 
         // If there are more than 16*MAX_LEAF_SIZE (=256) points,
         // create the tree in parallel
         if(
-            nb_points() < (16 * MAX_LEAF_SIZE) ||
+            nb_points_ < (16 * MAX_LEAF_SIZE) ||
             std::thread::hardware_concurrency() <= 1
         ) {
-            create_kd_tree_recursive(1, 0, nb_points());
+            create_kd_tree_recursive(1, 0, nb_points_);
             return;
         }
 
         // Split points m0..m8 of the first four levels. parallel() joins before it returns, so
         // each level sees the one above it finished.
-        index_t m0 = 0, m8 = nb_points();
+        index_t m0 = 0, m8 = nb_points_;
         index_t m1, m2, m3, m4, m5, m6, m7;
 
         m4 = split_kd_node(1, m0, m8);
@@ -187,7 +186,6 @@ namespace geo {
         index_t node_index, index_t b, index_t e
     ) {
 
-        geo_debug_assert(e > b);
         // Do not split leafs
         if(b + 1 == e) {
             return b;
@@ -195,7 +193,6 @@ namespace geo {
 
         coord_index_t splitting_coord = best_splitting_coord(b, e);
         index_t m = b + (e - b) / 2;
-        geo_debug_assert(m < e);
 
         // sorts the indices in such a way that points's
         // coordinates splitting_coord in [b,m) are smaller

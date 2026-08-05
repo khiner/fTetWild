@@ -10,10 +10,10 @@
 
 // to generate delaunay mesh using the 3d model along with points of the box
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/Types.hpp>
+#include "Mesh.hpp"
+#include "Types.hpp"
 
-#include <floattetwild/AABBWrapper.h>
+#include "AABBWrapper.h"
 
 namespace floatTetWild {
 

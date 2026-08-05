@@ -299,15 +299,6 @@ struct RowRef
         return r;
     }
 
-    bool operator==(const RowRef& o) const
-    {
-        assert(n == o.n);
-        for (int i = 0; i < n; i++)
-            if (!(p[i] == o.p[i])) return false;
-        return true;
-    }
-    bool operator!=(const RowRef& o) const { return !(*this == o); }
-
     template <int N>
     const RowRef& operator=(const Vector<T, N>& v) const
     {
@@ -380,8 +371,6 @@ struct MatrixX
     // Vector-style subscript, as Eigen offered on an n by 1 matrix.
     T&       operator[](int i) { return a[i]; }
     const T& operator[](int i) const { return a[i]; }
-
-    T        coeff(int i, int j) const { return a[size_t(i) * ncols + j]; }
 
     T maxCoeff() const
     {

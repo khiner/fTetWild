@@ -6,14 +6,14 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/FloatTetDelaunay.h>
+#include "FloatTetDelaunay.h"
 
-#include <floattetwild/Logger.hpp>
+#include "Logger.hpp"
 
 #include <algorithm>
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/geo_delaunay_3d.h>
+#include "LocalOperations.h"
+#include "geo/geo_delaunay_3d.h"
 
 namespace floatTetWild {
 	namespace {
@@ -128,11 +128,9 @@ namespace floatTetWild {
                 V_d[i * 3 + j] = tet_vertices[i].pos[j];
         }
 
-        geo::Delaunay3d T;
-        T.set_vertices(n_pts, V_d.data());
-        tets.resize(T.nb_cells());
-        const auto &tet2v = T.cell_to_v();
-        for (int i = 0; i < T.nb_cells(); i++) {
+        const std::vector<geo::index_t> tet2v = geo::delaunay_3d(n_pts, V_d.data());
+        tets.resize(tet2v.size() / 4);
+        for (int i = 0; i < tets.size(); i++) {
             for (int j = 0; j < 4; ++j) {
                 const int v_id = tet2v[i * 4 + j];
 

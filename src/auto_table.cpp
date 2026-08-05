@@ -8,7 +8,6 @@
 
 #include "auto_table.hpp"
 
-#include <cassert>
 
 namespace floatTetWild {
 	const std::vector<std::vector<Vector4i>>& CutTable::get_tet_confs(const int idx) {
@@ -792,7 +791,6 @@ namespace floatTetWild {
 			{}
 		}};
 
-		assert(!table[idx].empty());
 		return table[idx];
 	}
 
@@ -1582,7 +1580,7 @@ namespace floatTetWild {
 	}
 
 
-	const std::vector<std::vector<std::array<bool, 4>>>& CutTable::get_surface_conf(const int idx) {
+	const std::vector<std::vector<std::array<bool, 4>>>& CutTable::get_surface_confs(const int idx) {
 		static const std::array<std::vector<std::vector<std::array<bool, 4>>>, 64> table= {{
 
 			{
@@ -2363,12 +2361,11 @@ namespace floatTetWild {
 			{}
 		}};
 
-		assert(!table[idx].empty());
 		return table[idx];
 	}
 
 
-	const std::vector<std::vector<Vector4i>>& CutTable::get_face_id_conf(const int idx) {
+	const std::vector<std::vector<Vector4i>>& CutTable::get_face_id_confs(const int idx) {
 		static const std::array<std::vector<std::vector<Vector4i>>, 64> table= {{
 
 			{
@@ -3149,7 +3146,6 @@ namespace floatTetWild {
 			{}
 		}};
 
-		assert(!table[idx].empty());
 		return table[idx];
 	}
 

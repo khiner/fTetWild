@@ -9,9 +9,9 @@
 #ifndef FLOATTETWILD_LOCALOPERATIONS_H
 #define FLOATTETWILD_LOCALOPERATIONS_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
-#include <floattetwild/Predicates.hpp>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
+#include "Predicates.hpp"
 
 #include <queue>
 #include <unordered_set>
@@ -104,7 +104,7 @@ namespace floatTetWild {
             out.push_back(sorted_edge(f[j], f[(j + 1) % 3]));
     }
 
-    void get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges);
+    std::vector<std::array<int, 2>> get_all_edges(const Mesh& mesh);
 
     Scalar get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id);
 
@@ -122,7 +122,6 @@ namespace floatTetWild {
 
     bool is_inverted(const Mesh& mesh, const MeshTet& t);
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
-    bool is_inverted(const MeshVertex& v0, const MeshVertex& v1, const MeshVertex& v2, const MeshVertex& v3);
     bool is_inverted(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
 
     bool is_out_envelope(Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
@@ -136,8 +135,6 @@ namespace floatTetWild {
     bool is_boundary_edge(const Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree);
     bool is_valid_edge(const Mesh& mesh, int v1_id, int v2_id);
 
-    bool is_isolate_surface_point(const Mesh& mesh, int v_id);
-    bool is_point_out_boundary_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree);
 
     void get_new_tet_slots(Mesh& mesh, int n, std::vector<int>& new_conn_tets);
     int get_new_vertex_slot(Mesh& mesh, const MeshVertex& v);
@@ -177,7 +174,7 @@ namespace floatTetWild {
     void set_intersection(const std::vector<int>& s1, const std::vector<int>& s2, std::vector<int>& v);
 
     // The tets that share the face with these three corners: two of them, or one on the boundary.
-    void get_face_tets(const Mesh& mesh, int v1_id, int v2_id, int v3_id, std::vector<int>& t_ids);
+    std::vector<int> get_face_tets(const Mesh& mesh, int v1_id, int v2_id, int v3_id);
 
     // An edge waiting its turn, weighted by whatever the operation orders by. The tie-break on
     // v_ids is what keeps the order of equally weighted edges from depending on the queue's

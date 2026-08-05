@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include <floattetwild/Parameters.h>
-#include <floattetwild/Types.hpp>
+#include "Parameters.h"
+#include "Types.hpp"
 
 #include <vector>
 #include <array>
@@ -31,10 +31,7 @@ namespace floatTetWild {
     // What get_opp_t_id returns for a face with nothing on the other side.
     constexpr int OPP_T_ID_BOUNDARY = -1;
 
-    class MeshVertex {
-    public:
-        MeshVertex() {}
-
+    struct MeshVertex {
         Vector3 pos;
 
         std::vector<int> conn_tets;
@@ -50,8 +47,7 @@ namespace floatTetWild {
         Scalar sizing_scalar = 1;
     };
 
-    class MeshTet {
-    public:
+    struct MeshTet {
         Vector4i indices;
 
         MeshTet() {}
@@ -107,8 +103,7 @@ namespace floatTetWild {
         return int(v.size());
     }
 
-    class Mesh {
-    public:
+    struct Mesh {
         std::vector<MeshVertex> tet_vertices;
         std::vector<MeshTet> tets;
 

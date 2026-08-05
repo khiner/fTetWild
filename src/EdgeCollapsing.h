@@ -9,14 +9,16 @@
 #ifndef FLOATTETWILD_EDGECOLLAPSING_H
 #define FLOATTETWILD_EDGECOLLAPSING_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
 
 namespace floatTetWild {
     void edge_collapsing(Mesh& mesh, const AABBWrapper& tree);
+
+    // tet_tss, when given, receives ts + 1 on every tet the collapse rewires, which is how
+    // edge_collapsing tells whether anything moved near a previously failed edge.
     bool collapse_an_edge(Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree,
-             std::vector<std::array<int, 2>>& new_edges, int ts, std::vector<int>& tet_tss,
-             bool is_update_tss = true);
+             std::vector<std::array<int, 2>>& new_edges, int ts, std::vector<int>* tet_tss);
 }
 
 #endif //FLOATTETWILD_EDGECOLLAPSING_H

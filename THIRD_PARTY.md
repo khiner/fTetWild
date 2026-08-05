@@ -4,11 +4,10 @@ fTetWild is MPL 2.0 (`LICENSE.MPL2`). It has no third-party dependencies at buil
 CLI11 (binary only) and Catch2 (tests only); everything else the algorithm needs has been brought
 in-tree. The files below came from other projects and stay under their own terms.
 
-They live in `src/` alongside first-party code rather than in an `external/` directory, because the
-include path is flat either way — every header is copied to `<floattetwild/>` regardless of where it
-sits. This file is what keeps their provenance findable. Each one also repeats its licence in its
-own header, and that per-file notice is the actual grant: libigl, for instance, ships both
-`LICENSE.GPL` and `LICENSE.MPL2`, and only the per-file headers say which applies.
+They live in `src/` alongside first-party code rather than in an `external/` directory. This file
+is what keeps their provenance findable. Each one also repeats its licence in its own header, and
+that per-file notice is the actual grant: libigl, for instance, ships both `LICENSE.GPL` and
+`LICENSE.MPL2`, and only the per-file headers say which applies.
 
 ## Files
 
@@ -18,7 +17,7 @@ own header, and that per-file notice is the actual grant: libigl, for instance, 
 | `src/writeOBJ.h` | libigl — `igl/writeOBJ.h` | MPL 2.0 |
 | `src/FastWindingNumber.h`, `src/FastWindingNumber.cpp` | [Side Effects Software](https://github.com/sideeffects/WindingNumber), via libigl | MIT |
 | `src/predicates.c` | [Jonathan Richard Shewchuk](https://www.cs.cmu.edu/~quake/robust.html), CMU | Public domain |
-| `src/mesh_AABB.h`, `src/mesh_AABB.cpp` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause |
+| `src/AABBWrapper.h`, `src/AABBWrapper.cpp` (the `MeshFacetsAABBWithEps` tree only) | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause |
 | `src/geo/*` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause (`src/geo/LICENSE.geogram`) |
 | `src/triangle_triangle_intersection.cpp` | Guigue & Devillers, *Journal of Graphics Tools* 8(1), 2003 | **none stated** |
 | `src/getRSS.c` | David Robert Nadeau, [NadeauSoftware.com](http://NadeauSoftware.com/) | CC BY 3.0 |

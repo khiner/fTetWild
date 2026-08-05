@@ -9,7 +9,7 @@
 #ifndef FLOATTETWILD_CUTMESH_H
 #define FLOATTETWILD_CUTMESH_H
 
-#include <floattetwild/Mesh.hpp>
+#include "Mesh.hpp"
 
 #include <array>
 #include <map>

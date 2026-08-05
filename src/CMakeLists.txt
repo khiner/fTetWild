@@ -47,17 +47,12 @@ set(SOURCES
 )
 
 # Code from other projects, kept under its own licence, listed in THIRD_PARTY.md and repeated in
-# each file's header. No subdirectory because the include path is flat either way:
-# float_tetwild_copy_headers puts every header in <floattetwild/> wherever it came from.
+# each file's header.
 set(VENDORED_SOURCES
 	# Shewchuk's exact predicates, public domain, and fTetWild's wrapper over them.
 	predicates.c
 	Predicates.hpp
 	Predicates.cpp
-
-	# geogram, BSD 3-clause. See geo/LICENSE.geogram.
-	mesh_AABB.h
-	mesh_AABB.cpp
 
 	# Guigue-Devillers triangle-triangle overlap, from the JGT paper. No licence stated upstream.
 	triangle_triangle_intersection.cpp
@@ -74,12 +69,7 @@ set(VENDORED_SOURCES
 	FastWindingNumber.cpp
 )
 
-list(APPEND SOURCES ${VENDORED_SOURCES})
-
-prepend_current_path(SOURCES)
-float_tetwild_copy_headers(${SOURCES})
-float_tetwild_set_source_group(${SOURCES})
-target_sources(FloatTetwild PRIVATE ${SOURCES})
+target_sources(FloatTetwild PRIVATE ${SOURCES} ${VENDORED_SOURCES})
 
 # File I/O is not part of the core library: the binary owns it. writeOBJ.h is vendored libigl,
 # MPL 2.0, reached only from main.cpp.
@@ -88,9 +78,6 @@ set(IO_SOURCES
 	MeshIO.cpp
 	writeOBJ.h
 )
-prepend_current_path(IO_SOURCES)
-float_tetwild_copy_headers(${IO_SOURCES})
-float_tetwild_set_source_group(${IO_SOURCES})
 if(TARGET FloatTetwild_bin)
 	target_sources(FloatTetwild_bin PRIVATE ${IO_SOURCES})
 endif()
@@ -101,7 +88,6 @@ if(NOT MSVC)
 	set_source_files_properties(
 		${CMAKE_CURRENT_SOURCE_DIR}/predicates.c
 		${CMAKE_CURRENT_SOURCE_DIR}/getRSS.c
-		${CMAKE_CURRENT_SOURCE_DIR}/mesh_AABB.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/geo/geo_mesh_reorder.cpp
 		TARGET_DIRECTORY FloatTetwild PROPERTIES COMPILE_OPTIONS
 		"-Wno-cast-qual;-Wno-deprecated-non-prototype;-Wno-strict-prototypes;-Wno-switch-default;-Wno-unused-function")

@@ -8,12 +8,12 @@
 
 #include "MeshIO.hpp"
 
-#include <floattetwild/FloatTetwild.h>
-#include <floattetwild/Logger.hpp>
+#include "FloatTetwild.h"
+#include "Logger.hpp"
 
-#include <floattetwild/Timer.h>
+#include "Timer.h"
 
-#include <floattetwild/geo_mesh.h>
+#include "geo/geo_mesh.h"
 
 #include <algorithm>
 #include <array>
@@ -112,10 +112,11 @@ void save_elements(std::ofstream& fout, bool binary, const MatrixXi& elements,
     fout.flush();
 }
 
-// One value per node or per element, which is the same section apart from its name and length.
-void save_field(std::ofstream& fout, bool binary, const char* section,
+// One value per element.
+void save_field(std::ofstream& fout, bool binary,
                 const std::string& fieldname, const MatrixXs& field)
 {
+    const char* section = "ElementData";
     fout << "$" << section << std::endl;
     fout << "1" << std::endl;            // num string tags.
     fout << "\"" << fieldname << "\"" << std::endl;
@@ -614,8 +615,7 @@ void write_mesh(const std::string&         path,
                         const bool                 binary,
                         const bool                 separate_components)
 {
-    assert(color.empty() || color.size() == mesh.tet_vertices.size() ||
-           color.size() == mesh.tets.size());
+    assert(color.empty() || color.size() == mesh.tets.size());
 
     logger().info("Writing mesh to {}...", path);
     Timer timer;
@@ -666,17 +666,17 @@ void write_mesh(const std::string&         path,
     save_nodes(fout, binary, V_flat);
     save_elements(fout, binary, T_flat, C_flat);
 
-    // One colour per tet or one per vertex, whichever the caller sized the array to.
-    const bool per_tet = color.size() == mesh.tets.size();
-    if (per_tet || color.size() == mesh.tet_vertices.size()) {
-        MatrixXs color_flat(per_tet ? cnt_t : cnt_v);
+    // One colour per tet, when the caller passed any. msh also has a per-node form, which
+    // nothing writes any more.
+    if (color.size() == mesh.tets.size()) {
+        MatrixXs color_flat(cnt_t);
         index = 0;
         for (size_t i = 0; i < color.size(); i++) {
-            if (per_tet ? mesh.tets[i].is_removed : mesh.tet_vertices[i].is_removed)
+            if (mesh.tets[i].is_removed)
                 continue;
             color_flat[index++] = color[i];
         }
-        save_field(fout, binary, per_tet ? "ElementData" : "NodeData", "color", color_flat);
+        save_field(fout, binary, "color", color_flat);
     }
 
     logger().info(" took {}s", timer.getElapsedTimeInSec());

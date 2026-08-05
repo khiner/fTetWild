@@ -9,9 +9,8 @@
 #ifndef FLOATTETWILD_TRIANGLEINSERTION_H
 #define FLOATTETWILD_TRIANGLEINSERTION_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
-#include <floattetwild/CutMesh.h>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
 
 namespace floatTetWild {
     void insert_triangles(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces,

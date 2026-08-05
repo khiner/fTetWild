@@ -1,4 +1,4 @@
-#include <floattetwild/Predicates.hpp>
+#include "Predicates.hpp"
 
 // The Shewchuk exact predicates in predicates.c, which defines REAL off the same
 // FLOAT_TETWILD_USE_FLOAT switch Scalar follows and does not include these declarations itself.

@@ -33,12 +33,6 @@ namespace geo {
             const double* p2, const double* p3
         );
 
-        bool points_are_colinear_3d(
-            const double* p1,
-            const double* p2,
-            const double* p3
-        );
-
     }
 }
 }

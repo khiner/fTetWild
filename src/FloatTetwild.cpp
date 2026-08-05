@@ -6,15 +6,15 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/FloatTetwild.h>
+#include "FloatTetwild.h"
 
-#include <floattetwild/FloatTetDelaunay.h>
-#include <floattetwild/MeshImprovement.h>
-#include <floattetwild/Simplification.h>
-#include <floattetwild/Statistics.h>
-#include <floattetwild/Timer.h>
-#include <floattetwild/TriangleInsertion.h>
-#include <floattetwild/geo_mesh_reorder.h>
+#include "FloatTetDelaunay.h"
+#include "MeshImprovement.h"
+#include "Simplification.h"
+#include "Statistics.h"
+#include "Timer.h"
+#include "TriangleInsertion.h"
+#include "geo/geo_mesh_reorder.h"
 
 #include <algorithm>
 
@@ -27,7 +27,7 @@ void reorder_and_read_back(geo::Mesh&             mesh,
 {
     const bool has_tags = (tags.size() == mesh.nb_facets());
 
-    geo::vector<geo::index_t> facet_permutation;
+    std::vector<geo::index_t> facet_permutation;
     geo::mesh_reorder(mesh, &facet_permutation);
 
     if (has_tags) {

@@ -28,7 +28,7 @@
     typedef double real;                      // double
 #endif
 
-#include <floattetwild/geo_predicates.h>
+#include "geo/geo_predicates.h"
 
 /* The sign of the volume of the tetrahedron pa, pb, pc, pd, inverted: which side of the plane
 *  through the first three points the fourth is on. Exact, so a coplanar quadruple gives 0.

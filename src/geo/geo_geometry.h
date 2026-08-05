@@ -30,8 +30,7 @@ namespace geo {
     /************************************************************************/
 
     // A point or a vector in 3d. Syntax is (mostly) compatible with GLSL.
-    class vec3 {
-    public:
+    struct vec3 {
         vec3() :
             x(0.0),
             y(0.0),
@@ -42,27 +41,6 @@ namespace geo {
             x(x_in),
             y(y_in),
             z(z_in) {
-        }
-
-        inline double length2() const {
-            return x * x + y * y + z * z;
-        }
-
-        inline double length() const {
-            return sqrt(x * x + y * y + z * z);
-        }
-
-        // As one expression, which is not the same double as summing the three terms in a loop:
-        // see Geom::distance2() below.
-        inline double distance2(const vec3& v) const {
-            double dx = v.x - x;
-            double dy = v.y - y;
-            double dz = v.z - z;
-            return dx * dx + dy * dy + dz * dz;
-        }
-
-        inline double distance(const vec3& v) const {
-            return sqrt(distance2(v));
         }
 
         inline vec3 operator+ (const vec3& v) const {
@@ -90,12 +68,10 @@ namespace geo {
         }
 
         inline double& operator[] (index_t i) {
-            geo_debug_assert(i < 3);
             return data()[i];
         }
 
         inline const double& operator[] (index_t i) const {
-            geo_debug_assert(i < 3);
             return data()[i];
         }
 
@@ -105,19 +81,24 @@ namespace geo {
     };
 
     inline double length(const vec3& v) {
-        return v.length();
+        return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     }
 
     inline double length2(const vec3& v) {
-        return v.length2();
+        return v.x * v.x + v.y * v.y + v.z * v.z;
     }
 
+    // As one expression, which is not the same double as summing the three terms in a loop: see
+    // Geom::distance2() below.
     inline double distance2(const vec3& v1, const vec3& v2) {
-        return v2.distance2(v1);
+        double dx = v1.x - v2.x;
+        double dy = v1.y - v2.y;
+        double dz = v1.z - v2.z;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     inline double distance(const vec3& v1, const vec3& v2) {
-        return v2.distance(v1);
+        return sqrt(distance2(v1, v2));
     }
 
     inline vec3 operator* (double s, const vec3& v) {

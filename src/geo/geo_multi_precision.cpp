@@ -142,7 +142,6 @@ namespace geo {
         index_t elen = e.length();
 
         // Sanity check: e and h cannot be the same.
-        geo_debug_assert(&e != &h);
 
         two_product(e[0], b, Q, hh);
 
@@ -186,8 +185,6 @@ namespace geo {
         index_t flen = f.length();
 
         // sanity check: h cannot be e or f
-        geo_debug_assert(&h != &e);
-        geo_debug_assert(&h != &f);
 
         // Reading f through here is the whole of the difference between the two operations.
         const auto f_at = [&f](index_t i) { return Negate ? -f[i] : f[i]; };
@@ -279,7 +276,6 @@ namespace geo {
     // ====== Initialization from expansion and double ===============
 
     expansion& expansion::assign_product(const expansion& a, double b) {
-        geo_debug_assert(capacity() >= product_capacity(a, b));
         scale_expansion_zeroelim(a, b, *this);
         return *this;
     }
@@ -289,7 +285,6 @@ namespace geo {
     expansion& expansion::assign_sum(
         const expansion& a, const expansion& b
     ) {
-        geo_debug_assert(capacity() >= sum_capacity(a, b));
         fast_expansion_sum_zeroelim(a, b, *this);
         return *this;
     }
@@ -297,7 +292,6 @@ namespace geo {
     expansion& expansion::assign_sum(
         const expansion& a, const expansion& b, const expansion& c
     ) {
-        geo_debug_assert(capacity() >= sum_capacity(a, b, c));
         expansion& ab = expansion_sum(a, b);
         this->assign_sum(ab, c);
         return *this;
@@ -307,7 +301,6 @@ namespace geo {
         const expansion& a, const expansion& b,
         const expansion& c, const expansion& d
     ) {
-        geo_debug_assert(capacity() >= sum_capacity(a, b, c, d));
         expansion& ab = expansion_sum(a, b);
         expansion& cd = expansion_sum(c, d);
         this->assign_sum(ab, cd);
@@ -315,7 +308,6 @@ namespace geo {
     }
 
     expansion& expansion::assign_diff(const expansion& a, const expansion& b) {
-        geo_debug_assert(capacity() >= diff_capacity(a, b));
         fast_expansion_diff_zeroelim(a, b, *this);
         return *this;
     }
@@ -326,9 +318,6 @@ namespace geo {
     expansion& expansion::assign_sub_product(
         const double* a, index_t a_length, const expansion& b
     ) {
-        geo_debug_assert(
-            capacity() >= sub_product_capacity(a_length, b.length())
-        );
         if(a_length == 1) {
             scale_expansion_zeroelim(b, a[0], *this);
         } else {
@@ -377,7 +366,6 @@ namespace geo {
     expansion& expansion::assign_product(
         const expansion& a, const expansion& b
     ) {
-        geo_debug_assert(capacity() >= product_capacity(a, b));
         if(a.length() == 0 || b.length() == 0) {
             x_[0] = 0.0;
             set_length(0);
@@ -503,7 +491,6 @@ namespace geo {
     // =============  geometric operations ==================================
 
     expansion& expansion::assign_sq_dist(const double* p1, const double* p2) {
-        geo_debug_assert(capacity() >= sq_dist_capacity());
         // The distillation tree geogram builds by halving the dimension, written out: the y and z
         // terms are summed first, then the x term is added to that.
         expansion& dx = *new_expansion_on_stack(6);

@@ -11,7 +11,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 #pragma once
 
-#include <floattetwild/Types.hpp>
+#include "Types.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -20,45 +20,6 @@
 
 namespace floatTetWild
 {
-namespace detail
-{
-  // Act like matlab's [Y,I] = sortrows(X). Only the ascending case is vendored: unique_rows,
-  // the one caller, never asks for descending.
-  //
-  // Inputs:
-  //  X  m by n matrix whose rows are to be sorted
-  // Outputs:
-  //  Y  m by n matrix whose rows are sorted (should not be same reference as X)
-  //  IX  m list of indices so that Y = X(IX,:);
-  template <typename T>
-  inline void sortrows(const MatrixX<T>& X, MatrixXi& IX, MatrixX<T>& Y)
-  {
-    const int num_rows = X.rows();
-    const int num_cols = X.cols();
-    Y.resize(num_rows,num_cols);
-    IX.resize(num_rows,1);
-    for(int i = 0;i<num_rows;i++)
-    {
-      IX(i) = i;
-    }
-    const auto index_less_than = [&X, num_cols](int i, int j) {
-      for (int c=0; c<num_cols; c++) {
-        if (X.coeff(i, c) < X.coeff(j, c)) return true;
-        else if (X.coeff(j,c) < X.coeff(i,c)) return false;
-      }
-      return false;
-    };
-    std::sort(IX.data(), IX.data()+IX.size(), index_less_than);
-    for (int j=0; j<num_cols; j++) {
-        for(int i = 0;i<num_rows;i++)
-        {
-            Y(i,j) = X(IX(i), j);
-        }
-    }
-  }
-
-}  // namespace detail
-
   // Act like matlab's [C,IA,IC] = unique(X,'rows')
   //
   // Inputs:
@@ -74,21 +35,34 @@ namespace detail
     MatrixXi& IA,
     MatrixXi& IC)
   {
-    MatrixXi IM;
-    MatrixX<T> sortA;
-    detail::sortrows(A,IM,sortA);
+    const int num_rows = A.rows();
+    const int num_cols = A.cols();
 
-    const int num_rows = sortA.rows();
-    const int num_cols = sortA.cols();
+    // matlab's sortrows(A) as a permutation, without building the sorted copy libigl did:
+    // A(IM(i),:) is the i-th row in sorted order.
+    MatrixXi IM(num_rows, 1);
+    for(int i = 0;i<num_rows;i++)
+    {
+      IM(i) = i;
+    }
+    const auto index_less_than = [&A, num_cols](int i, int j) {
+      for (int c=0; c<num_cols; c++) {
+        if (A(i, c) < A(j, c)) return true;
+        else if (A(j,c) < A(i,c)) return false;
+      }
+      return false;
+    };
+    std::sort(IM.data(), IM.data()+IM.size(), index_less_than);
+
     std::vector<int> vIA(num_rows);
     for(int i=0;i<num_rows;i++)
     {
       vIA[i] = i;
     }
 
-    const auto index_equal = [&sortA, num_cols](const int i, const int j) {
+    const auto index_equal = [&A, &IM, num_cols](const int i, const int j) {
       for (int c=0; c<num_cols; c++) {
-        if (sortA(i,c) != sortA(j,c))
+        if (A(IM(i),c) != A(IM(j),c))
           return false;
       }
       return true;
@@ -100,7 +74,7 @@ namespace detail
       int j = 0;
       for(int i = 0;i<num_rows;i++)
       {
-        if(sortA.row(vIA[j]) != sortA.row(i))
+        if(!index_equal(vIA[j], i))
         {
           j++;
         }
@@ -128,8 +102,6 @@ namespace detail
   //    match, 1e-1 --> match up to first decimal, ... , 0 --> exact match.
   // Outputs:
   //  SV  #SV by dim new list of vertex positions
-  //  SVI #SV by 1 list of indices so SV = V(SVI,:)
-  //  SVJ #V by 1 list of indices so V = SV(SVJ,:)
   //  SF  #F by dim list of face indices into SV
   template <typename T>
   inline void remove_duplicate_vertices(
@@ -137,10 +109,10 @@ namespace detail
     const MatrixXi& F,
     const double epsilon,
     MatrixX<T>& SV,
-    MatrixXi& SVI,
-    MatrixXi& SVJ,
     MatrixXi& SF)
   {
+    // SV = V(SVI,:) and V = SV(SVJ,:). libigl returned both; no caller read them.
+    MatrixXi SVI, SVJ;
     if(epsilon > 0)
     {
       // The rounded copy only feeds unique_rows: SV is gathered from V, not from it.
@@ -179,7 +151,6 @@ namespace detail
   //  F  #F by 3 list of faces
   // Outputs:
   //  FF  #F by 3 list of faces (OK if same as F)
-  //  C  #F list of component ids
-  void bfs_orient(const MatrixXi &F, MatrixXi &FF, MatrixXi &C);
+  void bfs_orient(const MatrixXi &F, MatrixXi &FF);
 
 }  // namespace floatTetWild

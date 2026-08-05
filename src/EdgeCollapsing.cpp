@@ -6,11 +6,34 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/EdgeCollapsing.h>
-#include <floattetwild/LocalOperations.h>
+#include "EdgeCollapsing.h"
+#include "LocalOperations.h"
 
 namespace floatTetWild {
 namespace {
+// Whether every surface face around v_id is opposite it, so the vertex touches the surface only
+// through faces a collapse would not move.
+bool is_isolate_surface_point(const Mesh& mesh, int v_id)
+{
+    for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
+        for (int j = 0; j < 4; j++) {
+            if (mesh.tets[t_id][j] != v_id && mesh.tets[t_id].is_surface_fs[j] != NOT_SURFACE)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool is_point_out_boundary_envelope(const Mesh& mesh, const Vector3& p, const AABBWrapper& tree)
+{
+    if (mesh.is_input_all_inserted)
+        return false;
+
+    geo::index_t prev_facet;
+    return tree.is_out_tmp_b_envelope(p, mesh.params.eps_2, prev_facet);
+}
+
 bool is_edge_freezed(Mesh& mesh, int v1_id, int v2_id)
 {
     return mesh.tet_vertices[v1_id].is_freezed || mesh.tet_vertices[v2_id].is_freezed;
@@ -67,22 +90,18 @@ void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-
     ShortestFirstQueue ec_queue;
     // A collapse moves the first end onto the second, so an edge goes in once per direction.
     const auto push_both_ends = [&](const std::array<int, 2>& e, Scalar l_2) {
         ec_queue.push({e, l_2});
         ec_queue.push({{{e[1], e[0]}}, l_2});
     };
-    for (auto& e : edges) {
+    for (auto& e : get_all_edges(mesh)) {
         Scalar l_2 = get_edge_length_2(mesh, e[0], e[1]);
         if (is_collapsable_length(mesh, e[0], e[1], l_2) &&
             is_collapsable_boundary(mesh, e[0], e[1], tree))
             push_both_ends(e, l_2);
     }
-    edges.clear();
 
     int                             ts = 0;
     std::vector<std::array<int, 2>> inf_es;
@@ -116,7 +135,7 @@ void floatTetWild::edge_collapsing(Mesh& mesh, const AABBWrapper& tree)
                 continue;
 
             std::vector<std::array<int, 2>> new_edges;
-            if (collapse_an_edge(mesh, v_ids[0], v_ids[1], tree, new_edges, ts, tet_tss)) {
+            if (collapse_an_edge(mesh, v_ids[0], v_ids[1], tree, new_edges, ts, &tet_tss)) {
                 suc_counter++;
 
                 for (auto& e : new_edges) {
@@ -184,8 +203,7 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
                                     const AABBWrapper&               tree,
                                     std::vector<std::array<int, 2>>& new_edges,
                                     int                              ts,
-                                    std::vector<int>&                tet_tss,
-                                    bool                             is_update_tss)
+                                    std::vector<int>*                tet_tss)
 {
     auto& tet_vertices = mesh.tet_vertices;
     auto& tets         = mesh.tets;
@@ -326,14 +344,13 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
         }
     }
 
-    ts++;
     for (size_t i = 0; i < n1_t_ids.size(); i++) {
         const int t_id     = n1_t_ids[i];
         tets[t_id][js_n1_t_ids[i]] = v2_id;
         tets[t_id].quality = new_qs[i];
         tet_vertices[v2_id].conn_tets.push_back(t_id);
-        if (is_update_tss)
-            tet_tss[t_id] = ts;
+        if (tet_tss)
+            (*tet_tss)[t_id] = ts + 1;
     }
     for (int t_id : n12_t_ids) {
         tets[t_id].is_removed = true;

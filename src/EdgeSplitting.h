@@ -9,8 +9,8 @@
 #ifndef FLOATTETWILD_EDGESPLITTING_H
 #define FLOATTETWILD_EDGESPLITTING_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
 
 namespace floatTetWild {
     void edge_splitting(Mesh &mesh, const AABBWrapper& tree);

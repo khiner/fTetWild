@@ -15,6 +15,8 @@
 
 #include "geo_geometry.h"
 
+#include <vector>
+
 namespace floatTetWild {
 namespace geo {
 
@@ -35,12 +37,10 @@ namespace geo {
         }
 
         double* point_ptr(index_t v) {
-            geo_debug_assert(v < nb_vertices());
             return points.data() + 3 * v;
         }
 
         const double* point_ptr(index_t v) const {
-            geo_debug_assert(v < nb_vertices());
             return points.data() + 3 * v;
         }
 
@@ -53,12 +53,10 @@ namespace geo {
         }
 
         index_t facet_vertex(index_t f, index_t lv) const {
-            geo_debug_assert(f < nb_facets() && lv < 3);
             return corners[3 * f + lv];
         }
 
         void set_facet_vertex(index_t f, index_t lv, index_t v) {
-            geo_debug_assert(f < nb_facets() && lv < 3);
             corners[3 * f + lv] = v;
         }
 

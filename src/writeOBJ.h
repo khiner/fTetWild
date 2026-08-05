@@ -8,7 +8,7 @@
 #ifndef FLOATTETWILD_WRITEOBJ_H
 #define FLOATTETWILD_WRITEOBJ_H
 
-#include <floattetwild/Types.hpp>
+#include "Types.hpp"
 
 #include <cassert>
 #include <cstdio>

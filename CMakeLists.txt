@@ -28,17 +28,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Prepend function
-include(PrependCurrentPath)
-
-# FloatTetwild utils
-include(FloatTetwildUtils)
-
 # Extra warnings
 include(Warnings)
-
-# Sort projects inside the solution
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Generate position independent code by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -73,8 +64,8 @@ endif()
 # Sources are attached by src/CMakeLists.txt via target_sources().
 add_library(${PROJECT_NAME})
 
-# Public include directory for FloatTetwild
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR}/include)
+# Headers are included relative to src/ (e.g. "geo/geo_mesh.h"), from the tests too.
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Extra warnings
 target_link_libraries(${PROJECT_NAME} PRIVATE warnings::all)

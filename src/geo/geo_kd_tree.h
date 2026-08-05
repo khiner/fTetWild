@@ -39,16 +39,11 @@ namespace geo {
         // The squared distance from \p query_point, DIMENSION doubles, to the nearest point.
         double nearest_sq_dist(const double* query_point) const;
 
-        index_t nb_points() const {
-            return nb_points_;
-        }
-
+    private:
         const double* point_ptr(index_t i) const {
-            geo_debug_assert(i < nb_points());
             return points_ + i * DIMENSION;
         }
 
-    private:
         // Number of points stored in the leafs of the tree.
         static constexpr index_t MAX_LEAF_SIZE = 16;
 
@@ -105,13 +100,13 @@ namespace geo {
         index_t nb_points_ = 0;
         const double* points_ = nullptr;
 
-        vector<index_t> point_index_;
+        std::vector<index_t> point_index_;
         double bbox_min_[DIMENSION];
         double bbox_max_[DIMENSION];
 
         // One per node: the coordinate it splits along and the value it splits at.
-        vector<coord_index_t> splitting_coord_;
-        vector<double> splitting_val_;
+        std::vector<coord_index_t> splitting_coord_;
+        std::vector<double> splitting_val_;
     };
 
 } }

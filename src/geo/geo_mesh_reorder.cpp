@@ -19,7 +19,7 @@ namespace {
 
     using namespace floatTetWild::geo;
 
-    using Iterator = vector<index_t>::iterator;
+    using Iterator = std::vector<index_t>::iterator;
 
     // Partitions the sequence into two halves with the same number of elements, such that the
     // elements of the first are smaller than those of the second, and returns the middle.
@@ -37,7 +37,7 @@ namespace {
 
     // Reorders the vertices so that vertex k becomes the vertex that was at permutation[k], and
     // sends the facet corners after them.
-    void permute_vertices(Mesh& M, const vector<index_t>& permutation) {
+    void permute_vertices(Mesh& M, const std::vector<index_t>& permutation) {
         std::vector<double> reordered(M.points.size());
         for(index_t v = 0; v < permutation.size(); ++v) {
             const double* from = M.point_ptr(permutation[v]);
@@ -47,7 +47,7 @@ namespace {
 
         // The vertex that was at permutation[v] is now at v, so a corner naming the old index
         // has to be sent the other way.
-        vector<index_t> old_to_new(permutation.size());
+        std::vector<index_t> old_to_new(permutation.size());
         for(index_t v = 0; v < permutation.size(); ++v) {
             old_to_new[permutation[v]] = v;
         }
@@ -57,7 +57,7 @@ namespace {
     }
 
     // The same for the facets.
-    void permute_facets(Mesh& M, const vector<index_t>& permutation) {
+    void permute_facets(Mesh& M, const std::vector<index_t>& permutation) {
         // Every facet is a triangle, so the corners move three at a time.
         std::vector<index_t> reordered(M.corners.size());
         for(index_t f = 0; f < permutation.size(); ++f) {
@@ -148,7 +148,6 @@ namespace {
         // direct, written out because a lambda cannot take a template parameter of the enclosing
         // function as a template argument on every compiler.
         static void run(const COORD_OF& c, Iterator b, Iterator e) {
-            geo_debug_assert(e >= b);
 
             // If the sequence is small enough, sort it sequentially.
             if(e - b < 1024) {
@@ -189,7 +188,7 @@ namespace {
     /************************************************************************/
 
     // The identity permutation over \p n elements, for a sort to rearrange.
-    void trivial_indices(index_t n, vector<index_t>& sorted_indices) {
+    void trivial_indices(index_t n, std::vector<index_t>& sorted_indices) {
         sorted_indices.resize(n);
         for(index_t i = 0; i < n; ++i) {
             sorted_indices[i] = i;
@@ -201,7 +200,6 @@ namespace {
     void compute_BRIO_order_recursive(
         const double* vertices, Iterator b, Iterator e
     ) {
-        geo_debug_assert(e > b);
 
         // Minimum size of interval to be sorted, and the splitting ratio between the current
         // interval and the rest.
@@ -224,11 +222,11 @@ namespace floatTetWild {
 namespace geo {
 
 
-    void mesh_reorder(Mesh& M, vector<index_t>* facet_permutation) {
+    void mesh_reorder(Mesh& M, std::vector<index_t>* facet_permutation) {
 
         // Step 1: reorder vertices
         {
-            vector<index_t> sorted_indices;
+            std::vector<index_t> sorted_indices;
             trivial_indices(M.nb_vertices(), sorted_indices);
             SpatialSort<VertexCoord, false>::run(
                 VertexCoord{M.points.data()},
@@ -239,7 +237,7 @@ namespace geo {
 
         // Step 2: reorder facets
         if(M.nb_facets() != 0) {
-            vector<index_t> sorted_indices;
+            std::vector<index_t> sorted_indices;
             trivial_indices(M.nb_facets(), sorted_indices);
             SpatialSort<FacetCoord, false>::run(
                 FacetCoord{M},
@@ -255,7 +253,7 @@ namespace geo {
 
 
     void compute_BRIO_order(
-        index_t nb_vertices, const double* vertices, vector<index_t>& sorted_indices
+        index_t nb_vertices, const double* vertices, std::vector<index_t>& sorted_indices
     ) {
         trivial_indices(nb_vertices, sorted_indices);
 

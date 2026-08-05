@@ -6,26 +6,26 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/MeshImprovement.h>
+#include "MeshImprovement.h"
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/EdgeSplitting.h>
-#include <floattetwild/EdgeCollapsing.h>
-#include <floattetwild/EdgeSwapping.h>
-#include <floattetwild/VertexSmoothing.h>
-#include <floattetwild/CSGTreeParser.hpp>
+#include "LocalOperations.h"
+#include "EdgeSplitting.h"
+#include "EdgeCollapsing.h"
+#include "EdgeSwapping.h"
+#include "VertexSmoothing.h"
+#include "CSGTreeParser.hpp"
 
-#include <floattetwild/TriangleInsertion.h>
-#include <floattetwild/Statistics.h>
+#include "TriangleInsertion.h"
+#include "Statistics.h"
 
-#include <floattetwild/Logger.hpp>
+#include "Logger.hpp"
 
-#include <floattetwild/Timer.h>
-#include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/geo_kd_tree.h>
-#include <floattetwild/Predicates.hpp>
-#include <floattetwild/MeshCleanup.hpp>
-#include <floattetwild/FastWindingNumber.h>
+#include "Timer.h"
+#include <map>
+#include "geo/geo_kd_tree.h"
+#include "Predicates.hpp"
+#include "MeshCleanup.hpp"
+#include "FastWindingNumber.h"
 
 namespace floatTetWild {
 namespace {
@@ -53,12 +53,10 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
 // times. Nothing here reuses a hierarchy, so the two are one call.
 MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C,
                          bool invert_faces) {
-    using FastWindingNumber::Vec3f;
-
-    std::vector<Vec3f> points(V.rows());
+    std::vector<float> points(V.rows() * 3);
     for (int i = 0; i < V.rows(); i++) {
         for (int j = 0; j < 3; j++)
-            points[i][j] = V(i, j);
+            points[3 * i + j] = V(i, j);
     }
     std::vector<int> faces(F.size());
     for (int f = 0; f < F.rows(); f++) {
@@ -66,10 +64,10 @@ MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C
         faces[3 * f + 1] = F(f, invert_faces ? 2 : 1);
         faces[3 * f + 2] = F(f, invert_faces ? 1 : 2);
     }
-    std::vector<Vec3f> queries(C.rows());
+    std::vector<float> queries(C.rows() * 3);
     for (int i = 0; i < C.rows(); i++) {
         for (int j = 0; j < 3; j++)
-            queries[i][j] = C(i, j);
+            queries[3 * i + j] = C(i, j);
     }
 
     const std::vector<float> angles = FastWindingNumber::solid_angles(points, faces, queries);
@@ -412,8 +410,7 @@ int get_max_p(const Mesh &mesh)
     const Scalar B = 3;
     const int p_ref = 1;
 
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
+    const std::vector<std::array<int, 2>> edges = get_all_edges(mesh);
     Scalar h_ref = 0;
     for(const auto &e : edges){
         const Vector3 edge = (mesh.tet_vertices[e[0]].pos - mesh.tet_vertices[e[1]].pos)*scaling;
@@ -949,11 +946,10 @@ void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_s
 
     MatrixXd V;
     MatrixXi F;
-    MatrixXi _1, _2;
-    remove_duplicate_vertices(V_sf, F_sf, -1, V, _1, _2, F);
+    remove_duplicate_vertices(V_sf, F_sf, -1, V, F);
     V_sf = V;
     F_sf.resize(0, 3);
-    bfs_orient(F, F_sf, _1);
+    bfs_orient(F, F_sf);
 }
 
 void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree){
@@ -989,20 +985,17 @@ void floatTetWild::correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& 
 }
 
 void floatTetWild::boolean_operation(Mesh&                                     mesh,
-                                    const CSGTree&                            csg_tree_with_ids,
+                                    const CSGTree&                            csg_tree,
                                     const std::vector<std::vector<Vector3>>&  Vs,
                                     const std::vector<std::vector<Vector3i>>& Fs)
 {
     const MatrixXd C = tet_barycenters(mesh);
 
-    const int max_id = CSGTreeParser::get_max_id(csg_tree_with_ids);
+    // Mesh ids run dense from 0, so the operand list is one winding number field per mesh.
+    const int max_id = int(Vs.size()) - 1;
     std::vector<MatrixXd> w(max_id + 1);
-
-    // An empty operand list means the operands are the tracked surfaces of the mesh itself.
-    for (int i = 0; i <= max_id; ++i) {
-        w[i] = Vs.empty() ? tracked_surface_wn(mesh, C, i)
-                          : winding_numbers(to_matrix(Vs[i]), to_matrix(Fs[i]), C, false);
-    }
+    for (int i = 0; i <= max_id; ++i)
+        w[i] = winding_numbers(to_matrix(Vs[i]), to_matrix(Fs[i]), C, false);
 
     // A tet survives if the tree says so, and is tagged with the highest-numbered operand it is
     // inside, which is what separate_components writes out.
@@ -1011,7 +1004,7 @@ void floatTetWild::boolean_operation(Mesh&                                     m
         if(t.is_removed)
             continue;
 
-        t.is_removed = !CSGTreeParser::keep_tet(csg_tree_with_ids, cnt, w);
+        t.is_removed = !CSGTreeParser::keep_tet(csg_tree, cnt, w);
         int tid = 0;
         for (int id = 0; id <= max_id; ++id) {
             if (w[id][cnt] > 0.5)
@@ -1213,10 +1206,10 @@ void floatTetWild::get_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
     b_faces.reserve(faces.size());
     for (const auto &f : faces) {
         b_faces.push_back({{f[0], f[1], f[2]}});
-        if (!is_inverted(tet_vertices[tets[f[3]][f[4]]],
-                         tet_vertices[f[0]],
-                         tet_vertices[f[1]],
-                         tet_vertices[f[2]]))
+        if (!is_inverted(tet_vertices[tets[f[3]][f[4]]].pos,
+                         tet_vertices[f[0]].pos,
+                         tet_vertices[f[1]].pos,
+                         tet_vertices[f[2]].pos))
             std::swap(b_faces.back()[1], b_faces.back()[2]);
     }
 

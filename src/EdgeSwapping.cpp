@@ -6,8 +6,8 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/EdgeSwapping.h>
-#include <floattetwild/LocalOperations.h>
+#include "EdgeSwapping.h"
+#include "LocalOperations.h"
 
 namespace floatTetWild {
 namespace {
@@ -32,30 +32,22 @@ struct FaceMarks
         }
     }
 
-    // Copies the recorded marks onto face j of t, or clears them when that face was not recorded.
-    void apply(MeshTet& t, int j) const
-    {
-        const auto it = std::find(fs.begin(), fs.end(), sorted_face(t, j));
-        if (it == fs.end()) {
-            clear_face_marks(t, j);
-            return;
-        }
-        const size_t k     = it - fs.begin();
-        t.is_surface_fs[j] = is_sf[k];
-        t.surface_tags[j]  = tags[k];
-        t.is_bbox_fs[j]    = is_bx[k];
-    }
-
     // Puts the marks back on every face of t. kept(v) says whether the face opposite corner v
-    // survived the swap. A face that did not is new, so it is cleared instead.
+    // survived the swap. A face that did not, or was never recorded, is new, so it is cleared.
     template<typename Kept>
     void reapply(MeshTet& t, Kept&& kept) const
     {
         for (int j = 0; j < 4; j++) {
-            if (kept(t[j]))
-                apply(t, j);
-            else
+            const auto it = kept(t[j]) ? std::find(fs.begin(), fs.end(), sorted_face(t, j))
+                                       : fs.end();
+            if (it == fs.end()) {
                 clear_face_marks(t, j);
+                continue;
+            }
+            const size_t k     = it - fs.begin();
+            t.is_surface_fs[j] = is_sf[k];
+            t.surface_tags[j]  = tags[k];
+            t.is_bbox_fs[j]    = is_bx[k];
         }
     }
 };
@@ -402,14 +394,10 @@ void floatTetWild::edge_swapping(Mesh& mesh) {
         return true;
     };
 
-    std::vector<std::array<int, 2>> edges;
-    get_all_edges(mesh, edges);
-
     LongestFirstQueue es_queue;
-    for (auto &e:edges) {
+    for (auto &e : get_all_edges(mesh)) {
         es_queue.push({e, get_edge_length_2(mesh, e[0], e[1])});
     }
-    edges.clear();
 
     while (!es_queue.empty()) {
         std::array<int, 2> v_ids = es_queue.top().v_ids;

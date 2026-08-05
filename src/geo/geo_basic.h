@@ -9,12 +9,8 @@
 
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
-#include <cmath>
 #include <iostream>
-#include <limits>
 #include <random>
-#include <vector>
 
 namespace floatTetWild {
 namespace geo {
@@ -25,8 +21,7 @@ namespace geo {
         POSITIVE = 1
     };
 
-    template <class T>
-    inline Sign geo_sgn(const T& x) {
+    inline Sign geo_sgn(double x) {
         return (x > 0) ? POSITIVE : (
             (x < 0) ? NEGATIVE : ZERO
         );
@@ -41,8 +36,7 @@ namespace geo {
         return std::uniform_int_distribution<int32_t>(0, RAND_MAX)(engine);
     }
 
-    template <class T>
-    inline T geo_sqr(T x) {
+    inline double geo_sqr(double x) {
         return x * x;
     }
 
@@ -69,42 +63,3 @@ namespace geo {
         }                                                                     \
     }
 
-#ifdef GEO_DEBUG
-#define geo_debug_assert(x) geo_assert(x)
-#else
-#define geo_debug_assert(x)
-#endif
-
-namespace floatTetWild {
-namespace geo {
-
-    // std::vector with an index_t-typed size(), so that the vendored geogram code that assigns
-    // size() to an index_t compiles without narrowing casts everywhere.
-    template <class T>
-    class vector : public ::std::vector<T> {
-        typedef ::std::vector<T> baseclass;
-
-    public:
-        vector() : baseclass() {
-        }
-
-        explicit vector(index_t size) : baseclass(size) {
-        }
-
-        index_t size() const {
-            return index_t(baseclass::size());
-        }
-
-        T& operator[] (index_t i) {
-            geo_debug_assert(i < size());
-            return baseclass::operator[] (i);
-        }
-
-        const T& operator[] (index_t i) const {
-            geo_debug_assert(i < size());
-            return baseclass::operator[] (i);
-        }
-    };
-
-}
-}

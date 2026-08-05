@@ -281,32 +281,7 @@ namespace {
         const expansion& a43 = expansion_diff(p4[2], p0[2]);
         const expansion& a44 = expansion_sq_dist(p4, p0).negate();
 
-        // This commented-out version does not reuse
-        // the 2x2 minors.
-/*
-  const expansion& Delta1 = expansion_det3x3(
-  a21, a22, a23,
-  a31, a32, a33,
-  a41, a42, a43
-  );
-  const expansion& Delta2 = expansion_det3x3(
-  a11, a12, a13,
-  a31, a32, a33,
-  a41, a42, a43
-  );
-  const expansion& Delta3 = expansion_det3x3(
-  a11, a12, a13,
-  a21, a22, a23,
-  a41, a42, a43
-  );
-  const expansion& Delta4 = expansion_det3x3(
-  a11, a12, a13,
-  a21, a22, a23,
-  a31, a32, a33
-  );
-*/
-
-        // Optimized version that reuses the 2x2 minors
+        // The four cofactors, sharing the 2x2 minors.
 
         const expansion& m12 = expansion_det2x2(a12,a13,a22,a23);
         const expansion& m13 = expansion_det2x2(a12,a13,a32,a33);
@@ -463,24 +438,5 @@ namespace geo {
             return result;
         }
 
-        bool points_are_colinear_3d(
-            const double* p1,
-            const double* p2,
-            const double* p3
-        ) {
-            // Colinearity is tested by using four coplanarity
-            // tests with four points that are not coplanar.
-            // TODO: use PCK::aligned_3d() instead (to be tested)
-            static const double q000[3] = {0.0, 0.0, 0.0};
-            static const double q001[3] = {0.0, 0.0, 1.0};
-            static const double q010[3] = {0.0, 1.0, 0.0};
-            static const double q100[3] = {1.0, 0.0, 0.0};
-            return
-                PCK::orient_3d(p1, p2, p3, q000) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q001) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q010) == ZERO &&
-                PCK::orient_3d(p1, p2, p3, q100) == ZERO
-                ;
-        }
     }
 } }

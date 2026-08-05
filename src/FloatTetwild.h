@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include <floattetwild/AABBWrapper.h>
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/Types.hpp>
-#include <floattetwild/geo_mesh.h>
+#include "AABBWrapper.h"
+#include "Mesh.hpp"
+#include "Types.hpp"
+#include "geo/geo_mesh.h"
 
 #include <vector>
 

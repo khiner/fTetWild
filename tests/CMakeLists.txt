@@ -18,10 +18,6 @@ set(test_sources
 
 add_executable(unit_tests ${test_sources})
 
-foreach(source IN ITEMS ${test_sources})
-    source_group("tests" FILES "${source}")
-endforeach()
-
 target_link_libraries(unit_tests PUBLIC FloatTetwild Catch2::Catch2WithMain warnings::all)
 
 # Register tests

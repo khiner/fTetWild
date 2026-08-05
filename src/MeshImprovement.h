@@ -9,10 +9,10 @@
 #ifndef FLOATTETWILD_MESHIMPROVEMENT_H
 #define FLOATTETWILD_MESHIMPROVEMENT_H
 
-#include <floattetwild/Mesh.hpp>
-#include <floattetwild/AABBWrapper.h>
-#include <floattetwild/CSGTreeParser.hpp>
-#include <floattetwild/Types.hpp>
+#include "Mesh.hpp"
+#include "AABBWrapper.h"
+#include "CSGTreeParser.hpp"
+#include "Types.hpp"
 
 namespace floatTetWild {
     void optimization(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, const std::vector<int> &input_tags, std::vector<bool> &is_face_inserted,
@@ -23,7 +23,7 @@ namespace floatTetWild {
     void boolean_operation(Mesh& mesh, int op);
     // Vs and Fs are the loaded csg operand meshes, one entry per id in the tree. Empty means
     // use the tracked surfaces instead. The caller loads them so the library reads no files.
-    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree_with_ids,
+    void boolean_operation(Mesh& mesh, const CSGTree& csg_tree,
                            const std::vector<std::vector<Vector3>>& Vs,
                            const std::vector<std::vector<Vector3i>>& Fs);
     void filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <floattetwild/Types.hpp>
+#include "Types.hpp"
 
 #include <climits>
 

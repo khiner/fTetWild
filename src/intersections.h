@@ -9,19 +9,17 @@
 #ifndef FLOATTETWILD_INTERSECTIONS_H
 #define FLOATTETWILD_INTERSECTIONS_H
 
-#include <floattetwild/Types.hpp>
+#include "Types.hpp"
 
 #include <initializer_list>
 
 namespace floatTetWild {
-    // What is_tri_tri_cutted_hint is asked about, and what it answers. The three edge cases are
-    // 0..2 so that they double as the local edge index.
+    // The kind of cut is_tri_tri_cut is asked about. The three edge cases are 0..2 so that they
+    // double as the local edge index.
     constexpr int CUT_EDGE_0 = 0;
-    constexpr int CUT_EDGE_1 = 1;
     constexpr int CUT_EDGE_2 = 2;
     constexpr int CUT_FACE = 3;
     constexpr int CUT_COPLANAR = 4;
-    constexpr int CUT_EMPTY = -1;
 
     Scalar p_seg_squared_dist_3d(const Vector3 &p, const Vector3 &a, const Vector3 &b);
 
@@ -39,8 +37,8 @@ namespace floatTetWild {
 
     bool is_crossing(int s1, int s2);
 
-    int is_tri_tri_cutted_hint(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3,//cutting tri
-                               const Vector3 &q1, const Vector3 &q2, const Vector3 &q3, int hint);//face of tet
+    bool is_tri_tri_cut(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3,//cutting tri
+                        const Vector3 &q1, const Vector3 &q2, const Vector3 &q3, int hint);//face of tet
 
     // The corner-wise minimum and maximum of the given points.
     void get_bbox(std::initializer_list<Vector3> ps, Vector3& min, Vector3& max);

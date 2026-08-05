@@ -9,20 +9,21 @@
 #include <algorithm>
 #include <random>
 
-#include <floattetwild/TriangleInsertion.h>
+#include "TriangleInsertion.h"
 
-#include <floattetwild/geo_geometry.h>
+#include "CutMesh.h"
+#include "geo/geo_geometry.h"
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/intersections.h>
-#include <floattetwild/Logger.hpp>
-#include <floattetwild/Predicates.hpp>
-#include <floattetwild/auto_table.hpp>
+#include "LocalOperations.h"
+#include "intersections.h"
+#include "Logger.hpp"
+#include "Predicates.hpp"
+#include "auto_table.hpp"
 
-#include <floattetwild/ParallelFor.hpp>
+#include "ParallelFor.hpp"
 
 #include <bitset>
-#include <floattetwild/EdgeCollapsing.h>
+#include "EdgeCollapsing.h"
 
 namespace floatTetWild {
 namespace {
@@ -143,18 +144,17 @@ void match_surface_fs(const Mesh&                                   mesh,
     }
 }
 
-void sort_input_faces(const std::vector<Vector3i>& input_faces,
-                      const Mesh&                  mesh,
-                      std::vector<int>&            sorted_f_ids)
+std::vector<int> sort_input_faces(const std::vector<Vector3i>& input_faces, const Mesh& mesh)
 {
-    sorted_f_ids.resize(input_faces.size());
+    std::vector<int> sorted_f_ids(input_faces.size());
     for (int i = 0; i < input_faces.size(); i++)
         sorted_f_ids[i] = i;
 
-    if (mesh.params.not_sort_input)
-        return;
-    std::mt19937 g(42);  // fixed seed, so the same input gives the same insertion order
-    std::shuffle(sorted_f_ids.begin(), sorted_f_ids.end(), g);
+    if (!mesh.params.not_sort_input) {
+        std::mt19937 g(42);  // fixed seed, so the same input gives the same insertion order
+        std::shuffle(sorted_f_ids.begin(), sorted_f_ids.end(), g);
+    }
+    return sorted_f_ids;
 }
 
 // What subdivide_tets() produces and push_new_tets() consumes: the rebuilt tets, the input faces
@@ -261,7 +261,7 @@ void find_cutting_tets(int                           f_id,
             const Vector3& tp2 = tet_pos(mesh, t_id, (j + 2) % 4);
             const Vector3& tp3 = tet_pos(mesh, t_id, (j + 3) % 4);
             const auto cuts = [&](int hint) {
-                return is_tri_tri_cutted_hint(vs[0], vs[1], vs[2], tp1, tp2, tp3, hint) == hint;
+                return is_tri_tri_cut(vs[0], vs[1], vs[2], tp1, tp2, tp3, hint);
             };
 
             // The face lies in the plane, or straddles it, so the whole face is on the cut.
@@ -431,7 +431,7 @@ bool subdivide_tets(
 
         auto check_config = [&](int                                   diag_config_id,
                                 std::vector<std::pair<int, Vector3>>& centroids) {
-            const std::vector<Vector4i>& config = CutTable::get_tet_conf(config_id, diag_config_id);
+            const std::vector<Vector4i>& config = CutTable::get_tet_confs(config_id)[diag_config_id];
             Scalar                       min_q  = -666;
             int                          cnt    = 0;
             std::map<int, int>           map_lv_to_c;
@@ -496,9 +496,9 @@ bool subdivide_tets(
             points.push_back(centroids[i].second);
         }
 
-        const auto& config            = CutTable::get_tet_conf(config_id, diag_config_id);
-        const auto& new_is_surface_fs = CutTable::get_surface_conf(config_id, diag_config_id);
-        const auto& new_local_f_ids   = CutTable::get_face_id_conf(config_id, diag_config_id);
+        const auto& config            = CutTable::get_tet_confs(config_id)[diag_config_id];
+        const auto& new_is_surface_fs = CutTable::get_surface_confs(config_id)[diag_config_id];
+        const auto& new_local_f_ids   = CutTable::get_face_id_confs(config_id)[diag_config_id];
         for (int i = 0; i < config.size(); i++) {
             const auto& lt = config[i];
             sub.tets.push_back(MeshTet(map_lv_to_v_id[lt[0]],
@@ -624,7 +624,6 @@ void simplify_subdivision_result(
         return true;
     };
 
-    std::vector<int> tet_tss;  // the timestamps collapse_an_edge keeps, unused here
     while (!ec_queue.empty()) {
         std::array<int, 2> v_ids      = ec_queue.top().v_ids;
         Scalar             old_weight = ec_queue.top().weight;
@@ -648,7 +647,7 @@ void simplify_subdivision_result(
             mesh.tets[t_id].quality = get_quality(mesh, t_id);
 
         if (collapse_an_edge(
-              mesh, v_ids[0], v_ids[1], tree, new_edges, 0, tet_tss, false)) {
+              mesh, v_ids[0], v_ids[1], tree, new_edges, 0, nullptr)) {
             for (const auto& e : new_edges) {
                 if (all_v_ids.count(e[0]) && all_v_ids.count(e[1]))
                     push_free_ends(e[0], e[1]);
@@ -1006,8 +1005,7 @@ void insert_boundary_edges(
   std::vector<std::array<int, 3>>&                              known_not_surface_fs)
 {
     auto mark_known_surface_fs = [&](const std::array<int, 3>& f, int tag) {
-        std::vector<int> n_t_ids;
-        get_face_tets(mesh, f[0], f[1], f[2], n_t_ids);
+        const std::vector<int> n_t_ids = get_face_tets(mesh, f[0], f[1], f[2]);
         if (n_t_ids.size() != 2)
             return;
 
@@ -1453,10 +1451,7 @@ void floatTetWild::insert_triangles(const std::vector<Vector3>&  input_vertices,
     logger().info(
       "matched #f = {}, uninserted #f = {}", cnt_matched, is_face_inserted.size() - cnt_matched);
 
-    std::vector<int> sorted_f_ids;
-    sort_input_faces(input_faces, mesh, sorted_f_ids);
-
-    for (int f_id : sorted_f_ids) {
+    for (int f_id : sort_input_faces(input_faces, mesh)) {
         if (is_face_inserted[f_id])
             continue;
         if (insert_one_triangle(f_id,

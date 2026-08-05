@@ -6,9 +6,9 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/intersections.h>
+#include "intersections.h"
 
-#include <floattetwild/Predicates.hpp>
+#include "Predicates.hpp"
 
 namespace floatTetWild {
 namespace {
@@ -185,14 +185,12 @@ bool floatTetWild::is_crossing(int s1, int s2) {
         || (s2 == Predicates::ORI_POSITIVE && s1 == Predicates::ORI_NEGATIVE);
 }
 
-int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, const Vector3& p3,
-                                         const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint) {
+bool floatTetWild::is_tri_tri_cut(const Vector3& p1, const Vector3& p2, const Vector3& p3,
+                                  const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint) {
     if(hint == CUT_COPLANAR){
         int axis = get_t(p1, p2, p3);
 
-        if(is_tri_tri_cutted_2d({{to_2d(p1, axis), to_2d(p2, axis), to_2d(p3, axis)}}, {{to_2d(q1, axis), to_2d(q2, axis), to_2d(q3, axis)}}))
-            return CUT_COPLANAR;
-        return CUT_EMPTY;
+        return is_tri_tri_cutted_2d({{to_2d(p1, axis), to_2d(p2, axis), to_2d(p3, axis)}}, {{to_2d(q1, axis), to_2d(q2, axis), to_2d(q3, axis)}});
     }
 
     std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
@@ -200,17 +198,14 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
                                               q1.data(), q2.data(), q3.data(),
                                               &s[0], &t[0]);
     if (result != 1) {
-        return CUT_EMPTY;
+        return false;
     }
 
+    // An intersection segment of zero length is a touch, not a cut.
     if (std::abs(s[0] - t[0]) <= SCALAR_ZERO && std::abs(s[1] - t[1]) <= SCALAR_ZERO && std::abs(s[2] - t[2]) <= SCALAR_ZERO)
-        return CUT_EMPTY;
+        return false;
 
-    // The caller only asks about one kind of cut at a time, so an edge hint that got this far is
-    // confirmed and anything else is a face cut.
-    if (hint == CUT_EDGE_0 || hint == CUT_EDGE_1 || hint == CUT_EDGE_2)
-        return hint;
-    return CUT_FACE;
+    return true;
 }
 
 void floatTetWild::get_bbox(std::initializer_list<Vector3> ps, Vector3& min, Vector3& max) {

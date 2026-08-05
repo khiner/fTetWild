@@ -6,12 +6,12 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/Simplification.h>
-#include <floattetwild/Logger.hpp>
+#include "LocalOperations.h"
+#include "Simplification.h"
+#include "Logger.hpp"
 
-#include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/MeshCleanup.hpp>
+#include "ParallelFor.hpp"
+#include "MeshCleanup.hpp"
 
 #include <numeric>
 #include <random>
@@ -120,9 +120,7 @@ void remove_duplicates(std::vector<Vector3>&  input_vertices,
     MatrixXs V_tmp = to_matrix(input_vertices), V_in;
     MatrixXi F_tmp = to_matrix(input_faces), F_in;
 
-    MatrixXi IV, _;
-    remove_duplicate_vertices(
-      V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, IV, _, F_in);
+    remove_duplicate_vertices(V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, F_in);
     for (int i = 0; i < F_in.rows(); i++) {
         int j_min = 0;
         for (int j = 1; j < 3; j++) {
@@ -137,7 +135,7 @@ void remove_duplicates(std::vector<Vector3>&  input_vertices,
         F_in.row(i) = Vector3i(v0_id, v1_id, v2_id);
     }
     F_tmp.resize(0, 0);
-    MatrixXi IF;
+    MatrixXi IF, _;
     unique_rows(F_in, F_tmp, IF, _);
     F_in = F_tmp;
     // The faces were reordered and deduplicated, so their tags follow them.

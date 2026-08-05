@@ -6,11 +6,11 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include <floattetwild/LocalOperations.h>
-#include <floattetwild/Predicates.hpp>
+#include "LocalOperations.h"
+#include "Predicates.hpp"
 
-#include <floattetwild/ParallelFor.hpp>
-#include <floattetwild/geo_multi_precision.h>
+#include "ParallelFor.hpp"
+#include "geo/geo_multi_precision.h"
 
 namespace floatTetWild {
 bool        use_old_energy       = false;
@@ -20,25 +20,24 @@ using floatTetWild::Scalar;
 
 int floatTetWild::get_opp_t_id(const Mesh& mesh, int t_id, int j)
 {
-    std::vector<int> pair;
-    get_face_tets(mesh,
-                  mesh.tets[t_id][(j + 1) % 4],
-                  mesh.tets[t_id][(j + 2) % 4],
-                  mesh.tets[t_id][(j + 3) % 4],
-                  pair);
+    const std::vector<int> pair = get_face_tets(mesh,
+                                                mesh.tets[t_id][(j + 1) % 4],
+                                                mesh.tets[t_id][(j + 2) % 4],
+                                                mesh.tets[t_id][(j + 3) % 4]);
     if (pair.size() == 2)
         return pair[0] == t_id ? pair[1] : pair[0];
     return OPP_T_ID_BOUNDARY;
 }
 
-void floatTetWild::get_all_edges(const Mesh& mesh, std::vector<std::array<int, 2>>& edges)
+std::vector<std::array<int, 2>> floatTetWild::get_all_edges(const Mesh& mesh)
 {
-    edges = parallel_collect<std::array<int, 2>>(
+    auto edges = parallel_collect<std::array<int, 2>>(
       0, mesh.tets.size(), [&](size_t i, std::vector<std::array<int, 2>>& out) {
           if (!mesh.tets[i].is_removed)
               push_tet_edges(mesh.tets[i], out);
       });
     vector_unique(edges);
+    return edges;
 }
 
 Scalar floatTetWild::get_edge_length_2(const Mesh& mesh, int v1_id, int v2_id)
@@ -125,29 +124,6 @@ bool floatTetWild::is_valid_edge(const Mesh& mesh, int v1_id, int v2_id)
     return !mesh.tet_vertices[v1_id].is_removed && !mesh.tet_vertices[v2_id].is_removed;
 }
 
-bool floatTetWild::is_isolate_surface_point(const Mesh& mesh, int v_id)
-{
-    for (int t_id : mesh.tet_vertices[v_id].conn_tets) {
-        for (int j = 0; j < 4; j++) {
-            if (mesh.tets[t_id][j] != v_id && mesh.tets[t_id].is_surface_fs[j] != NOT_SURFACE)
-                return false;
-        }
-    }
-
-    return true;
-}
-
-bool floatTetWild::is_point_out_boundary_envelope(const Mesh&        mesh,
-                                                  const Vector3&     p,
-                                                  const AABBWrapper& tree)
-{
-    if (mesh.is_input_all_inserted)
-        return false;
-
-    geo::index_t prev_facet;
-    return tree.is_out_tmp_b_envelope(p, mesh.params.eps_2, prev_facet);
-}
-
 Scalar floatTetWild::get_quality(const Mesh& mesh, const MeshTet& t)
 {
     return get_quality(mesh.tet_vertices[t[0]].pos,
@@ -196,14 +172,6 @@ bool floatTetWild::is_inverted(const Mesh& mesh, int t_id, int j, const Vector3&
     for (int k = 0; k < 4; k++)
         ps[k] = k == j ? &new_p : &tet_pos(mesh, t_id, k);
     return is_inverted(*ps[0], *ps[1], *ps[2], *ps[3]);
-}
-
-bool floatTetWild::is_inverted(const MeshVertex& v0,
-                               const MeshVertex& v1,
-                               const MeshVertex& v2,
-                               const MeshVertex& v3)
-{
-    return is_inverted(v0.pos, v1.pos, v2.pos, v3.pos);
 }
 
 bool floatTetWild::is_inverted(const Vector3& v0,
@@ -501,7 +469,8 @@ void floatTetWild::set_intersection(const std::unordered_set<int>& s1,
     }
 }
 
-// The conn_tets lists these run over are unsorted, so both take sorted copies.
+// The conn_tets lists these run over are unsorted, so both take sorted copies. Unlike the
+// unordered_set overload above, this one appends to v rather than clearing it first.
 void floatTetWild::set_intersection(const std::vector<int>& s11,
                                     const std::vector<int>& s22,
                                     std::vector<int>&       v)
@@ -513,18 +482,16 @@ void floatTetWild::set_intersection(const std::vector<int>& s11,
     std::set_intersection(s1.begin(), s1.end(), s2.begin(), s2.end(), std::back_inserter(v));
 }
 
-void floatTetWild::get_face_tets(const Mesh&       mesh,
-                                 int               v1_id,
-                                 int               v2_id,
-                                 int               v3_id,
-                                 std::vector<int>& t_ids)
+std::vector<int> floatTetWild::get_face_tets(const Mesh& mesh, int v1_id, int v2_id, int v3_id)
 {
     std::vector<int> s3 = mesh.tet_vertices[v3_id].conn_tets;
     std::sort(s3.begin(), s3.end());
+    std::vector<int> t_ids;
     set_intersection(mesh.tet_vertices[v1_id].conn_tets, mesh.tet_vertices[v2_id].conn_tets, t_ids);
     auto it =
       std::set_intersection(t_ids.begin(), t_ids.end(), s3.begin(), s3.end(), t_ids.begin());
     t_ids.resize(it - t_ids.begin());
+    return t_ids;
 }
 
 namespace floatTetWild {
