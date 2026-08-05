@@ -621,12 +621,12 @@ Scalar AMIPS_energy_exact(const std::array<Scalar, 12>& T)
     if (det.sign() == geo::ZERO)
         return std::numeric_limits<double>::infinity();
 
-    const expansion& d01  = expansion_sq_dist(p0, p1, 3);
-    const expansion& d02  = expansion_sq_dist(p0, p2, 3);
-    const expansion& d03  = expansion_sq_dist(p0, p3, 3);
-    const expansion& d12  = expansion_sq_dist(p1, p2, 3);
-    const expansion& d13  = expansion_sq_dist(p1, p3, 3);
-    const expansion& d23  = expansion_sq_dist(p2, p3, 3);
+    const expansion& d01  = expansion_sq_dist(p0, p1);
+    const expansion& d02  = expansion_sq_dist(p0, p2);
+    const expansion& d03  = expansion_sq_dist(p0, p3);
+    const expansion& d12  = expansion_sq_dist(p1, p2);
+    const expansion& d13  = expansion_sq_dist(p1, p3);
+    const expansion& d23  = expansion_sq_dist(p2, p3);
     const expansion& sum4 = expansion_sum4(d01, d02, d03, d12);
     const expansion& P    = expansion_sum3(sum4, d13, d23);
 

@@ -4,7 +4,7 @@
 // Copied rather than reimplemented: create_first_tetrahedron scans raw indices and SOS breaks ties by point address, so insertion order decides the mesh
 
 #include "geo_delaunay_3d.h"
-#include "geo_geometry_nd.h"
+#include "geo_geometry.h"
 #include "geo_mesh_reorder.h"
 
 // TODO: optimizations:
@@ -13,23 +13,14 @@
 namespace floatTetWild {
 namespace geo {
 
-    char Delaunay3d::halfedge_facet_[4][4] = {
+    const index_t Delaunay3d::halfedge_facet_[4][4] = {
         {4, 2, 3, 1},
         {3, 4, 0, 2},
         {1, 3, 4, 0},
         {2, 0, 1, 4}
     };
 
-    // tet facet vertex is such that the tetrahedron
-    // formed with:
-    //  vertex lv
-    //  tet_facet_vertex[lv][0]
-    //  tet_facet_vertex[lv][1]
-    //  tet_facet_vertex[lv][2]
-    // has the same orientation as the original tetrahedron for
-    // any vertex lv.
-
-    char Delaunay3d::tet_facet_vertex_[4][3] = {
+    const index_t Delaunay3d::tet_facet_vertex_[4][3] = {
         {1, 2, 3},
         {0, 3, 2},
         {3, 0, 1},
@@ -43,9 +34,6 @@ namespace geo {
     Delaunay3d::Delaunay3d() {
         first_free_ = END_OF_LIST;
         cur_stamp_ = 0;
-    }
-
-    Delaunay3d::~Delaunay3d() {
     }
 
     void Delaunay3d::set_vertices(index_t nb_vertices, const double* vertices) {
@@ -106,7 +94,7 @@ namespace geo {
         index_t nb_tets = 0;
 
         {
-            for(index_t t = 0; t < max_t(); ++t) {
+            for(index_t t = 0; t < nb_cells(); ++t) {
                 if(tet_is_real(t)) {
                     if(t != nb_tets) {
                         std::memcpy(
@@ -147,7 +135,7 @@ namespace geo {
 
         // If no hint specified, find a tetrahedron randomly
         while(hint == NO_TETRAHEDRON) {
-            hint = index_t(random_int32()) % max_t();
+            hint = index_t(random_int32()) % nb_cells();
             if(tet_is_free(hint)) {
                 hint = NO_TETRAHEDRON;
             }
@@ -172,10 +160,10 @@ namespace geo {
     still_walking:
         {
             const double* pv[4];
-            pv[0] = vertex_ptr(finite_tet_vertex(t,0));
-            pv[1] = vertex_ptr(finite_tet_vertex(t,1));
-            pv[2] = vertex_ptr(finite_tet_vertex(t,2));
-            pv[3] = vertex_ptr(finite_tet_vertex(t,3));
+            pv[0] = vertex_ptr(tet_vertex(t,0));
+            pv[1] = vertex_ptr(tet_vertex(t,1));
+            pv[2] = vertex_ptr(tet_vertex(t,2));
+            pv[3] = vertex_ptr(tet_vertex(t,3));
 
             for(index_t f = 0; f < 4; ++f) {
 
@@ -258,7 +246,7 @@ namespace geo {
 
         // If no hint specified, find a tetrahedron randomly
         while(hint == NO_TETRAHEDRON) {
-            hint = index_t(random_int32()) % max_t();
+            hint = index_t(random_int32()) % nb_cells();
             if(tet_is_free(hint)) {
                 hint = NO_TETRAHEDRON;
             }
@@ -288,10 +276,10 @@ namespace geo {
     still_walking:
         {
             const double* pv[4];
-            pv[0] = vertex_ptr(finite_tet_vertex(t,0));
-            pv[1] = vertex_ptr(finite_tet_vertex(t,1));
-            pv[2] = vertex_ptr(finite_tet_vertex(t,2));
-            pv[3] = vertex_ptr(finite_tet_vertex(t,3));
+            pv[0] = vertex_ptr(tet_vertex(t,0));
+            pv[1] = vertex_ptr(tet_vertex(t,1));
+            pv[2] = vertex_ptr(tet_vertex(t,2));
+            pv[3] = vertex_ptr(tet_vertex(t,3));
 
             // Start from a random facet
             index_t f0 = index_t(random_int32()) % 4;
@@ -373,9 +361,9 @@ namespace geo {
 
         first = last = END_OF_LIST;
 
-        //  Generate a unique stamp from current vertex index,
-        // used for marking tetrahedra.
-        set_tet_mark_stamp(v);
+        //  Generate a unique stamp from current vertex index, used for marking tetrahedra.
+        // Storage is shared with list chaining, so the stamp carries NOT_IN_LIST_BIT.
+        cur_stamp_ = (v | NOT_IN_LIST_BIT);
 
         // Pointer to the coordinates of the point to be inserted
         const double* p = vertex_ptr(v);
@@ -460,9 +448,9 @@ namespace geo {
                 ) {
                     cavity_.new_facet(
                         t, lf,
-                        tet_vertex(t, tet_facet_vertex(lf,0)),
-                        tet_vertex(t, tet_facet_vertex(lf,1)),
-                        tet_vertex(t, tet_facet_vertex(lf,2))
+                        tet_vertex(t, tet_facet_vertex_[lf][0]),
+                        tet_vertex(t, tet_facet_vertex_[lf][1]),
+                        tet_vertex(t, tet_facet_vertex_[lf][2])
                     );
                     continue;
                 }
@@ -485,9 +473,9 @@ namespace geo {
 
                 cavity_.new_facet(
                     t, lf,
-                    tet_vertex(t, tet_facet_vertex(lf,0)),
-                    tet_vertex(t, tet_facet_vertex(lf,1)),
-                    tet_vertex(t, tet_facet_vertex(lf,2))
+                    tet_vertex(t, tet_facet_vertex_[lf][0]),
+                    tet_vertex(t, tet_facet_vertex_[lf][1]),
+                    tet_vertex(t, tet_facet_vertex_[lf][2])
                 );
 
             }
@@ -731,9 +719,9 @@ namespace geo {
         index_t t[4];
         for(index_t f = 0; f < 4; ++f) {
             // In reverse order since it is an adjacent tetrahedron
-            index_t v1 = tet_vertex(t0, tet_facet_vertex(f,2));
-            index_t v2 = tet_vertex(t0, tet_facet_vertex(f,1));
-            index_t v3 = tet_vertex(t0, tet_facet_vertex(f,0));
+            index_t v1 = tet_vertex(t0, tet_facet_vertex_[f][2]);
+            index_t v2 = tet_vertex(t0, tet_facet_vertex_[f][1]);
+            index_t v3 = tet_vertex(t0, tet_facet_vertex_[f][0]);
             t[f] = new_tetrahedron(VERTEX_AT_INFINITY, v1, v2, v3);
         }
 
@@ -747,9 +735,9 @@ namespace geo {
         // faces
         for(index_t f = 0; f < 4; ++f) {
             // In reverse order since it is an adjacent tetrahedron
-            index_t lv1 = tet_facet_vertex(f,2);
-            index_t lv2 = tet_facet_vertex(f,1);
-            index_t lv3 = tet_facet_vertex(f,0);
+            index_t lv1 = tet_facet_vertex_[f][2];
+            index_t lv2 = tet_facet_vertex_[f][1];
+            index_t lv3 = tet_facet_vertex_[f][0];
             set_tet_adjacent(t[f], 1, t[lv1]);
             set_tet_adjacent(t[f], 2, t[lv2]);
             set_tet_adjacent(t[f], 3, t[lv3]);

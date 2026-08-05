@@ -21,18 +21,12 @@
 namespace floatTetWild {
 namespace geo {
 
-    /**
-     * \brief Integer constants that represent the sign of a value
-     */
     enum Sign {
         NEGATIVE = -1,
         ZERO = 0,
         POSITIVE = 1
     };
 
-    /**
-     * \brief Gets the sign of a value
-     */
     template <class T>
     inline Sign geo_sgn(const T& x) {
         return (x > 0) ? POSITIVE : (
@@ -40,38 +34,26 @@ namespace geo {
         );
     }
 
-    /**
-     * \brief Returns a 32 bits integer between 0 and RAND_MAX.
-     * \details geogram keeps one default-seeded std::mt19937_64 for the whole process and never
-     *  reseeds it, so the stream depends only on the order in which callers draw from it.
-     *  Delaunay3d is the only caller here, and it draws to pick a starting tetrahedron for point
-     *  location, so keeping the same stream keeps the same walk.
-     */
+    // A 32 bit integer between 0 and RAND_MAX. geogram keeps one default-seeded std::mt19937_64
+    // for the whole process and never reseeds it, so the stream depends only on the order in
+    // which callers draw from it. Delaunay3d is the only caller here, and it draws to pick a
+    // starting tetrahedron for point location, so keeping the same stream keeps the same walk.
     inline int32_t random_int32() {
         static std::mt19937_64 engine;
         return std::uniform_int_distribution<int32_t>(0, RAND_MAX)(engine);
     }
 
-    /**
-     * \brief Gets the square value of a value
-     */
     template <class T>
     inline T geo_sqr(T x) {
         return x * x;
     }
 
-    /** \brief The type for storing and manipulating indices. */
+    // The types for storing and manipulating indices, and for coordinate indices, and the dummy
+    // index value.
     typedef uint32_t index_t;
-
-    /** \brief The type for storing coordinate indices. */
     typedef uint8_t coord_index_t;
-
-    /** \brief The dummy index value. */
     static const index_t NO_INDEX = index_t(-1);
 
-    /**
-     * \brief Prints an assertion failure and aborts.
-     */
     [[noreturn]] inline void geo_assertion_failed(
         const char* condition, const char* file, int line
     ) {
@@ -98,10 +80,8 @@ namespace geo {
 namespace floatTetWild {
 namespace geo {
 
-    /**
-     * \brief std::vector with an index_t-typed size(), so that the vendored geogram code that
-     *  assigns size() to an index_t compiles without narrowing casts everywhere.
-     */
+    // std::vector with an index_t-typed size(), so that the vendored geogram code that assigns
+    // size() to an index_t compiles without narrowing casts everywhere.
     template <class T>
     class vector : public ::std::vector<T> {
         typedef ::std::vector<T> baseclass;

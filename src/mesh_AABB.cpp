@@ -1,86 +1,37 @@
-/*
- *  Copyright (c) 2012-2014, Bruno Levy
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- *
- *  * Redistributions of source code must retain the above copyright notice,
- *  this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright notice,
- *  this list of conditions and the following disclaimer in the documentation
- *  and/or other materials provided with the distribution.
- *  * Neither the name of the ALICE Project-Team nor the names of its
- *  contributors may be used to endorse or promote products derived from this
- *  software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- *  If you modify this software, you should include a notice giving the
- *  name of the person performing the modification, the date of modification,
- *  and the reason for such modification.
- *
- *  Contact: Bruno Levy
- *
- *     Bruno.Levy@inria.fr
- *     http://www.loria.fr/~levy
- *
- *     ALICE Project
- *     LORIA, INRIA Lorraine,
- *     Campus Scientifique, BP 239
- *     54506 VANDOEUVRE LES NANCY CEDEX
- *     FRANCE
- *
- */
+// Vendored from geogram (https://github.com/BrunoLevy/geogram), Bruno Levy, INRIA.
+// Original licence: BSD 3-clause, see geo/LICENSE.geogram.
+// Source: geogram/mesh/mesh_AABB.cpp
+// Copied rather than reimplemented: the traversal order decides which of two equidistant facets a
+// query lands on, and the mesher's envelope tests carry that facet forward as a hint.
 
 #include <floattetwild/mesh_AABB.h>
 #include <floattetwild/geo_mesh.h>
-#include <floattetwild/geo_geometry_nd.h>
+#include <floattetwild/geo_geometry.h>
 
 namespace {
 
     using namespace floatTetWild::geo;
 
-    /**
-     * \brief Computes the axis-aligned bounding box of a mesh facet.
-     * \param[in] M the mesh
-     * \param[out] B the bounding box of the facet
-     * \param[in] f the index of the facet in mesh \p M
-     */
     void get_facet_bbox(
         const Mesh& M, Box& B, index_t f
     ) {
         const double* p = M.point_ptr(M.facet_vertex(f, 0));
-        for(coord_index_t coord = 0; coord < 3; ++coord) {
+        for(index_t coord = 0; coord < 3; ++coord) {
             B.xyz_min[coord] = p[coord];
             B.xyz_max[coord] = p[coord];
         }
         for(index_t lv = 1; lv < 3; ++lv) {
             p = M.point_ptr(M.facet_vertex(f, lv));
-            for(coord_index_t coord = 0; coord < 3; ++coord) {
+            for(index_t coord = 0; coord < 3; ++coord) {
                 B.xyz_min[coord] = std::min(B.xyz_min[coord], p[coord]);
                 B.xyz_max[coord] = std::max(B.xyz_max[coord], p[coord]);
             }
         }
     }
 
-    /**
-     * \brief Computes the maximum node index in a subtree
-     * \param[in] node_index node index of the root of the subtree
-     * \param[in] b first facet index in the subtree
-     * \param[in] e one position past the last facet index in the subtree
-     * \return the maximum node index in the subtree rooted at \p node_index
-     */
+    // The tree has no combinatorics of its own: the children of node n are 2n and 2n+1, and the
+    // facets [b,e) under it are split down the middle. So the array of boxes has to be as long as
+    // the largest node index the recursion below reaches.
     index_t max_node_index(index_t node_index, index_t b, index_t e) {
         geo_debug_assert(e > b);
         if(b + 1 == e) {
@@ -95,33 +46,15 @@ namespace {
         );
     }
 
-    /**
-     * \brief Computes the hierarchy of bounding boxes recursively.
-     * \details This function is generic and can be used to compute
-     *  a bbox hierarchy of arbitrary elements.
-     * \param[in] M the mesh
-     * \param[in] bboxes the array of bounding boxes
-     * \param[in] node_index the index of the root of the subtree
-     * \param[in] b first element index in the subtree
-     * \param[in] e one position past the last element index in the subtree
-     * \param[in] get_bbox a function that computes the bbox of an element
-     * \tparam GET_BBOX a function (or a functor) with the following arguments:
-     *  - mesh: a const reference to the mesh
-     *  - box: a reference where the computed bounding box of the element
-     *   will be stored
-     *  - element: the index of the element
-     */
-    template <class GET_BBOX>
     void init_bboxes_recursive(
         const Mesh& M, vector<Box>& bboxes,
         index_t node_index,
-        index_t b, index_t e,
-        const GET_BBOX& get_bbox
+        index_t b, index_t e
     ) {
         geo_debug_assert(node_index < bboxes.size());
         geo_debug_assert(b != e);
         if(b + 1 == e) {
-            get_bbox(M, bboxes[node_index], b);
+            get_facet_bbox(M, bboxes[node_index], b);
             return;
         }
         index_t m = b + (e - b) / 2;
@@ -129,48 +62,33 @@ namespace {
         index_t childr = 2 * node_index + 1;
         geo_debug_assert(childl < bboxes.size());
         geo_debug_assert(childr < bboxes.size());
-        init_bboxes_recursive(M, bboxes, childl, b, m, get_bbox);
-        init_bboxes_recursive(M, bboxes, childr, m, e, get_bbox);
-        geo_debug_assert(childl < bboxes.size());
-        geo_debug_assert(childr < bboxes.size());
+        init_bboxes_recursive(M, bboxes, childl, b, m);
+        init_bboxes_recursive(M, bboxes, childr, m, e);
         bbox_union(bboxes[node_index], bboxes[childl], bboxes[childr]);
     }
 
-    /**
-     * \brief Computes the squared distance between a point and a Box.
-     * \param[in] p the point
-     * \param[in] B the box
-     * \return the squared distance between \p p and \p B
-     * \pre p is inside B
-     */
+    // \pre p is inside B
     double inner_point_box_squared_distance(
         const vec3& p,
         const Box& B
     ) {
-        geo_debug_assert(B.contains(p));
         double result = geo_sqr(p[0] - B.xyz_min[0]);
         result = std::min(result, geo_sqr(p[0] - B.xyz_max[0]));
-        for(coord_index_t c = 1; c < 3; ++c) {
+        for(index_t c = 1; c < 3; ++c) {
             result = std::min(result, geo_sqr(p[c] - B.xyz_min[c]));
             result = std::min(result, geo_sqr(p[c] - B.xyz_max[c]));
         }
         return result;
     }
 
-    /**
-     * \brief Computes the squared distance between a point and a Box
-     *  with negative sign if the point is inside the Box.
-     * \param[in] p the point
-     * \param[in] B the box
-     * \return the signed squared distance between \p p and \p B
-     */
+    // Negative when the point is inside the box.
     double point_box_signed_squared_distance(
         const vec3& p,
         const Box& B
     ) {
         bool inside = true;
         double result = 0.0;
-        for(coord_index_t c = 0; c < 3; c++) {
+        for(index_t c = 0; c < 3; c++) {
             if(p[c] < B.xyz_min[c]) {
                 inside = false;
                 result += geo_sqr(p[c] - B.xyz_min[c]);
@@ -185,30 +103,21 @@ namespace {
         return result;
     }
 
-    /**
-     * \brief Computes the squared distance between a point and the
-     *  center of a box.
-     * \param[in] p the point
-     * \param[in] B the box
-     * \return the squared distance between \p p and the center of \p B
-     */
     double point_box_center_squared_distance(
         const vec3& p, const Box& B
     ) {
         double result = 0.0;
-        for(coord_index_t c = 0; c < 3; ++c) {
+        for(index_t c = 0; c < 3; ++c) {
             double d = p[c] - 0.5 * (B.xyz_min[c] + B.xyz_max[c]);
             result += geo_sqr(d);
         }
         return result;
     }
 
-    /**
-     * \brief The recursive traversal behind both nearest facet queries.
-     * \details With \p Envelope set the walk stops as soon as the facet found so far is within
-     *  \p sq_epsilon, and never descends into a box that is already outside it. Without it,
-     *  \p sq_epsilon is unused and the walk finds the nearest facet outright.
-     */
+    // The recursive traversal behind both nearest facet queries. With \p Envelope set the walk
+    // stops as soon as the facet found so far is within \p sq_epsilon, and never descends into a
+    // box that is already outside it. Without it, \p sq_epsilon is unused and the walk finds the
+    // nearest facet outright.
     template <bool Envelope>
     void nearest_recursive(
         const Mesh& M, const vector<Box>& bboxes,
@@ -278,21 +187,13 @@ namespace floatTetWild {
                 1, 0, mesh_.nb_facets()
             ) + 1 // <-- this is because size == max_index + 1 !!!
         );
-        init_bboxes_recursive(
-            mesh_, bboxes_, 1, 0, mesh_.nb_facets(), get_facet_bbox
-        );
+        init_bboxes_recursive(mesh_, bboxes_, 1, 0, mesh_.nb_facets());
     }
 
     void MeshFacetsAABBWithEps::get_nearest_facet_hint(
         const vec3& p,
         index_t& nearest_f, vec3& nearest_point, double& sq_dist
     ) const {
-
-        // Find a good initial value for nearest_f by traversing
-        // the boxes and selecting the child such that the center
-        // of its bounding box is nearer to the query point.
-        // For a large mesh (20M facets) this gains up to 10%
-        // performance as compared to picking nearest_f randomly.
         index_t b = 0;
         index_t e = mesh_.nb_facets();
         index_t n = 1;
@@ -317,28 +218,31 @@ namespace floatTetWild {
         sq_dist = Geom::distance2(p, nearest_point);
     }
 
-    void MeshFacetsAABBWithEps::nearest_facet_recursive(
-        const vec3& p,
-        index_t& nearest_f, vec3& nearest_point, double& sq_dist,
-        index_t n, index_t b, index_t e
+    index_t MeshFacetsAABBWithEps::nearest_facet(
+        const vec3& p, vec3& nearest_point, double& sq_dist
     ) const {
+        index_t nearest_f;
+        get_nearest_facet_hint(p, nearest_f, nearest_point, sq_dist);
         nearest_recursive<false>(
-            mesh_, bboxes_, p, 0, nearest_f, nearest_point, sq_dist, n, b, e
+            mesh_, bboxes_, p, 0,
+            nearest_f, nearest_point, sq_dist, 1, 0, mesh_.nb_facets()
         );
+        return nearest_f;
     }
 
-    void MeshFacetsAABBWithEps::facet_in_envelope_recursive(
+    void MeshFacetsAABBWithEps::facet_in_envelope_with_hint(
         const vec3& p, double sq_epsilon,
-        index_t& nearest_f, vec3& nearest_point, double& sq_dist,
-        index_t n, index_t b, index_t e
+        index_t& nearest_f, vec3& nearest_point, double& sq_dist
     ) const {
+        if(nearest_f == NO_FACET) {
+            get_nearest_facet_hint(p, nearest_f, nearest_point, sq_dist);
+        }
         nearest_recursive<true>(
-            mesh_, bboxes_, p, sq_epsilon, nearest_f, nearest_point, sq_dist, n, b, e
+            mesh_, bboxes_, p, sq_epsilon,
+            nearest_f, nearest_point, sq_dist, 1, 0, mesh_.nb_facets()
         );
     }
-
 
 /****************************************************************************/
 
 }
-

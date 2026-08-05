@@ -21,12 +21,8 @@ namespace {
 
     using Iterator = vector<index_t>::iterator;
 
-    /**
-     * \brief Splits a sequence into two ordered halves.
-     * \details Partitions the sequence into two halves with the same number of elements, such
-     *  that the elements of the first half are smaller than those of the second.
-     * \return an iterator to the middle of the sequence that separates the two halves
-     */
+    // Partitions the sequence into two halves with the same number of elements, such that the
+    // elements of the first are smaller than those of the second, and returns the middle.
     template <class CMP>
     inline Iterator reorder_split(Iterator begin, Iterator end, CMP cmp) {
         if(begin >= end) {
@@ -39,7 +35,7 @@ namespace {
 
     /************************************************************************/
 
-    /** \brief The coordinate a vertex sorts by: its own. */
+    // The coordinate a vertex sorts by: its own.
     struct VertexCoord {
         const double* points;
 
@@ -48,7 +44,7 @@ namespace {
         }
     };
 
-    /** \brief The coordinate a facet sorts by: the centre of its three vertices. */
+    // The coordinate a facet sorts by: the centre of its three vertices.
     struct FacetCoord {
         const Mesh& mesh;
 
@@ -62,13 +58,9 @@ namespace {
         }
     };
 
-    /**
-     * \brief Compares two elements along one coordinate.
-     * \tparam COORD the coordinate to compare
-     * \tparam UP whether to use direct or reverse order, ignored unless DIRECTED
-     * \tparam DIRECTED true for the Hilbert order, which reverses along some axes, false for the
-     *  Morton order, which does not
-     */
+    // Compares two elements along coordinate COORD. UP picks direct or reverse order and is
+    // ignored unless DIRECTED, which is true for the Hilbert order, that reverses along some
+    // axes, and false for the Morton order, that does not.
     template <class COORD_OF, int COORD, bool UP, bool DIRECTED>
     struct Compare {
         const COORD_OF& coord_of;
@@ -82,12 +74,8 @@ namespace {
 
     /************************************************************************/
 
-    /**
-     * \brief Sorts elements in Hilbert or Morton order in 3d.
-     * \details The implementation is inspired by:
-     *  - Christophe Delage and Olivier Devillers. Spatial Sorting.
-     *   In CGAL User and Reference Manual. CGAL Editorial Board, 3.9 edition, 2011
-     */
+    // Sorts elements in Hilbert or Morton order in 3d, after Delage and Devillers, "Spatial
+    // Sorting", CGAL User and Reference Manual, 3.9 edition, 2011.
     template <class COORD_OF, bool DIRECTED>
     struct SpatialSort {
 
@@ -96,12 +84,8 @@ namespace {
             return {coord_of};
         }
 
-        /**
-         * \brief Low-level recursive spatial sorting function.
-         * \tparam COORDX the first coordinate, can be 0, 1 or 2. The second and third are
-         *  COORDX+1 and COORDX+2 modulo 3.
-         * \tparam UPX , UPY , UPZ whether ordering along each coordinate is direct or inverse
-         */
+        // The recursion. COORDX is the first coordinate, 0, 1 or 2, and the second and third
+        // are COORDX+1 and COORDX+2 modulo 3. UPX, UPY and UPZ are the direction along each.
         template <int COORDX, bool UPX, bool UPY, bool UPZ>
         static void sort(const COORD_OF& c, Iterator begin, Iterator end) {
             const int COORDY = (COORDX + 1) % 3, COORDZ = (COORDY + 1) % 3;
@@ -126,12 +110,10 @@ namespace {
             sort<COORDZ, !UPZ, !UPX,  UPY>(c, m7, m8);
         }
 
-        /**
-         * \brief Sorts a sequence of element indices spatially, in place.
-         * \details The top of the recursion, spread over threads. It is the body of sort() with
-         *  COORDX 0 and every direction direct, written out because a lambda cannot take a
-         *  template parameter of the enclosing function as a template argument on every compiler.
-         */
+        // Sorts a sequence of element indices spatially, in place. The top of the recursion,
+        // spread over threads. It is the body of sort() with COORDX 0 and every direction
+        // direct, written out because a lambda cannot take a template parameter of the enclosing
+        // function as a template argument on every compiler.
         static void run(const COORD_OF& c, Iterator b, Iterator e) {
             geo_debug_assert(e >= b);
 
@@ -173,9 +155,7 @@ namespace {
 
     /************************************************************************/
 
-    /**
-     * \brief The identity permutation over \p n elements, for a sort to rearrange.
-     */
+    // The identity permutation over \p n elements, for a sort to rearrange.
     void trivial_indices(index_t n, vector<index_t>& sorted_indices) {
         sorted_indices.resize(n);
         for(index_t i = 0; i < n; ++i) {
@@ -183,19 +163,16 @@ namespace {
         }
     }
 
-    /**
-     * \brief Implementation of compute_BRIO_order().
-     * \param[in] vertices pointer to the coordinates of the vertices, three per vertex
-     * \param[in] b , e the range of indices to sort
-     */
+    // Implementation of compute_BRIO_order(), over the [b,e) range of indices into \p vertices,
+    // which holds three coordinates per vertex.
     void compute_BRIO_order_recursive(
         const double* vertices, Iterator b, Iterator e
     ) {
         geo_debug_assert(e > b);
 
-        /** \brief Minimum size of interval to be sorted. */
+        // Minimum size of interval to be sorted, and the splitting ratio between the current
+        // interval and the rest.
         static const index_t threshold = 64;
-        /** \brief Splitting ratio between the current interval and the rest to be sorted. */
         static const double ratio = 0.125;
 
         Iterator m = b;

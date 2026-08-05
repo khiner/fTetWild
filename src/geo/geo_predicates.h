@@ -13,58 +13,27 @@
 namespace floatTetWild {
 namespace geo {
 
-    /**
-     * \brief PCK (Predicate Construction Kit) implements a set of
-     *  geometric predicates. PCK uses arithmetic filters (Meyer and Pion),
-     *  expansion arithmetics (Shewchuk) and simulation of simplicity
-     *  (Edelsbrunner).
-     */
+    // The Predicate Construction Kit: geometric predicates built from arithmetic filters (Meyer
+    // and Pion), expansion arithmetic (Shewchuk) and simulation of simplicity (Edelsbrunner).
     namespace PCK {
 
-        /**
-         * \brief Tests whether a point is in the circumscribed sphere of
-         *  four other points.
-         * \details If the tetrahedron \p p0, \p p1, \p p2, \p p3 is oriented
-         *  negatively, then the result is inversed. Symbolic perturbation
-         *  is applied whenever the five points are cospherical.
-         * \param[in] p0 , p1 , p2 , p3 vertices of the tetrahedron
-         * \param[in] p4 point to be tested
-         * \retval POSITIVE whenever \p p4 is in the circumscribed sphere
-         *  of \p p0, \p p1, \p p2, \p p3
-         * \retval NEGATIVE whenever \p p4 is outside the circumscribed sphere
-         *  of \p p0, \p p1, \p p2, \p p3
-         */
+        // POSITIVE when \p p4 is inside the sphere circumscribed to the tetrahedron
+        // \p p0, \p p1, \p p2, \p p3, NEGATIVE when it is outside, inverted when the
+        // tetrahedron is oriented negatively. Symbolic perturbation breaks ties whenever the five
+        // points are cospherical.
         Sign in_sphere_3d_SOS(
             const double* p0, const double* p1,
             const double* p2, const double* p3, const double* p4
         );
 
-        /**
-         * \brief Computes the orientation predicate in 3d.
-         * \details Computes the sign of the signed volume of
-         *  the tetrahedron p0, p1, p2, p3.
-         * \param[in] p0 , p1 , p2 , p3 vertices of the tetrahedron
-         * \retval POSITIVE if the tetrahedron is oriented positively
-         * \retval ZERO if the tetrahedron is flat
-         * \retval NEGATIVE if the tetrahedron is oriented negatively
-         */
+        // The sign of the signed volume of the tetrahedron \p p0, \p p1, \p p2, \p p3, so ZERO
+        // when it is flat.
         Sign orient_3d(
             const double* p0, const double* p1,
             const double* p2, const double* p3
         );
 
-        /**
-         * \brief Computes the (approximate) orientation predicate in 3d.
-         * \details Computes the sign of the (approximate) signed volume of
-         *  the tetrahedron p0, p1, p2, p3.
-         * \param[in] p0 first vertex of the tetrahedron
-         * \param[in] p1 second vertex of the tetrahedron
-         * \param[in] p2 third vertex of the tetrahedron
-         * \param[in] p3 fourth vertex of the tetrahedron
-         * \retval POSITIVE if the tetrahedron is oriented positively
-         * \retval ZERO if the tetrahedron is flat
-         * \retval NEGATIVE if the tetrahedron is oriented negatively
-         */
+        // The same, from the plain floating point determinant.
         inline Sign orient_3d_inexact(
             const double* p0, const double* p1,
             const double* p2, const double* p3
@@ -90,21 +59,12 @@ namespace geo {
             return geo_sgn(Delta);
         }
 
-        /**
-         * \brief Tests whether two 3d points are identical.
-         * \retval true if \p p1 and \p p2 have exactly the same coordinates
-         * \retval false otherwise
-         */
+        // Whether \p p1 and \p p2 have exactly the same coordinates.
         bool points_are_identical_3d(
             const double* p1,
             const double* p2
         );
 
-        /**
-         * \brief Tests whether three 3d points are colinear.
-         * \retval true if \p p1, \p p2 and \p p3 are colinear
-         * \retval false otherwise
-         */
         bool points_are_colinear_3d(
             const double* p1,
             const double* p2,

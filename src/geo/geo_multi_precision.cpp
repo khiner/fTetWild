@@ -5,198 +5,20 @@
 
 #include "geo_multi_precision.h"
 
-// This makes sure the compiler will not optimize y = a*x+b
-// with fused multiply-add, this would break the exact
-// predicates.
-#ifdef GEO_COMPILER_MSVC
-#pragma fp_contract(off)
-#endif
-
 namespace {
 
     using namespace floatTetWild::geo;
 
-    /************************************************************************/
+    // The helpers below are Shewchuk's, in his naming: two_one means a length 2 expansion and a
+    // double, and the trailing numbers on the outputs run from high magnitude to low.
 
-    /**
-     * \brief An optimized memory allocator for objects of
-     *  small size.
-     * \details It is used by the high-level class expansion_nt
-     *  that allocates expansion objects on the heap. PCK predicates
-     *  do not use it (they use the more efficient low-level API
-     *  that allocates expansion objects on the stack).
-     */
-    class Pools {
-
-    public:
-
-        /**
-         * \brief Creates a new Pools object
-         */
-        Pools() : pools_(1024,nullptr) {
-            chunks_.reserve(1024);
-        }
-
-        /**
-         * \brief Pools destructor.
-         */
-        ~Pools() {
-            for(index_t i=0; i<chunks_.size(); ++i) {
-                delete[] chunks_[i];
-            }
-        }
-
-        /**
-         * \brief Allocates an element.
-         * \param[in] size size in bytes of the element to be allocated
-         * \return a pointer to the allocated element
-         * \note elements allocated with fast_malloc() should be deallocated
-         *  with fast_free()
-         */
-        void* malloc(size_t size) {
-            if(size >= pools_.size()) {
-                return ::malloc(size);
-            }
-            if(pools_[size] == nullptr) {
-                new_chunk(size);
-            }
-            unsigned char* result = pools_[size];
-            pools_[size] = next(pools_[size]);
-            return result;
-        }
-
-        /**
-         * \brief Deallocates an element.
-         * \param[in] ptr a pointer to the element to be deallocated
-         * \param[in] size number of bytes of the element, as specified
-         *   in the call to fast_malloc() that allocated it
-         */
-        void free(void* ptr, size_t size) {
-            if(size >= pools_.size()) {
-                ::free(ptr);
-                return;
-            }
-            set_next(static_cast<unsigned char*>(ptr), pools_[size]);
-            pools_[size] = static_cast<unsigned char*>(ptr);
-        }
-
-    protected:
-        /**
-         * \brief Number of elements in each individual chunk
-         *  allocation.
-         */
-        static const index_t NB_ITEMS_PER_CHUNK = 512;
-
-        /**
-         * \brief Allocates a new chunk of elements and prepends
-         *  it to the free list for allocations of the specified
-         *  size.
-         * \param[in] item_size size of the elements to be allocated.
-         */
-        void new_chunk(size_t item_size) {
-            // Allocate chunk
-            unsigned char* chunk =
-                new unsigned char[item_size * NB_ITEMS_PER_CHUNK];
-            // Chain items in chunk
-            for(index_t i=0; i<NB_ITEMS_PER_CHUNK-1; ++i) {
-                unsigned char* cur_item  = item(chunk, item_size, i);
-                unsigned char* next_item = item(chunk, item_size, i+1);
-                set_next(cur_item, next_item);
-            }
-            // Last item's next is pool's first
-            set_next(
-                item(chunk, item_size,NB_ITEMS_PER_CHUNK-1),
-                pools_[item_size]
-            );
-            // Set pool's first to first in chunk
-            pools_[item_size] = chunk;
-            chunks_.push_back(chunk);
-        }
-
-    private:
-
-        /**
-         * \brief Gets a pointer to the next item
-         * \param[in] item a pointer to an item
-         * \return a pointer to the next item or
-         *  nullptr if we reached the end of the free list
-         */
-        unsigned char* next(unsigned char* item) const {
-            return *reinterpret_cast<unsigned char**>(item);
-        }
-
-        /**
-         * \brief Sets the pointer to the next item
-         * \param[in] item a pointer to an item
-         * \param[in] next a pointer to the next item
-         */
-        void set_next(
-            unsigned char* item, unsigned char* next
-        ) const {
-            *reinterpret_cast<unsigned char**>(item) = next;
-        }
-
-        /**
-         * \brief Gets a pointer to an item by chunk, item_size
-         *   and index
-         * \pre index < NB_ITEMS_IN_CHUNK
-         * \param[in] chunk a pointer to the chunk
-         * \param[in] item_size size of the items in chunk
-         * \param[in] index index of the item in chunk
-         * \return a pointer to the item
-         */
-        unsigned char* item(
-            unsigned char* chunk, size_t item_size, index_t index
-        ) const {
-            geo_debug_assert(index < NB_ITEMS_PER_CHUNK);
-            return chunk + (item_size * size_t(index));
-        }
-
-        /**
-         * \brief The free lists of the pools. Index corresponds
-         *  to element size in bytes.
-         */
-        std::vector<unsigned char*> pools_;
-
-        /**
-         * \brief Pointers to all the allocated chunks.
-         * \details Used by the destructor to release all the
-         *   allocated memory on exit.
-         */
-        std::vector<unsigned char*> chunks_;
-
-    };
-
-    static Pools pools_;
-
-    /************************************************************************/
-
-    /**
-     * \brief Computes the sum of two doubles into a length 2 expansion.
-     * \details By Jonathan Shewchuk.
-     * \param[in] a first argument
-     * \param[in] b second argument
-     * \param[out] x high-magnitude component of the result
-     * \param[out] y low-magnitude component of the result
-     * \pre |\p a| > |\p b|
-     */
+    // Like two_sum, but only correct when |a| > |b|.
     inline void fast_two_sum(double a, double b, double& x, double& y) {
         x = a + b;
         double bvirt = x - a;
         y = b - bvirt;
     }
 
-    /**
-     * \brief Computes the sum of a length 2 expansion and a double
-     *  into a length 3 expansion.
-     * \param[in] a1 high-magnitude component of first argument
-     * \param[in] a0 low-magnitude component of first argument
-     * \param[in] b second argument
-     * \param[in] x2 high-magnitude component of the result
-     * \param[in] x1 component of the result
-     * \param[in] x0 low-magnitude component of the result
-     * \details By Jonathan Shewchuk.
-     */
     inline void two_one_sum(
         double a1, double a0, double b, double& x2, double& x1, double& x0
     ) {
@@ -205,19 +27,6 @@ namespace {
         two_sum(a1, _i, x2, x1);
     }
 
-    /**
-     * \brief Computes the sum of a length 2 expansion and a double
-     *  into a length 3 expansion.
-     * \param[in] a1 high-magnitude component of first argument
-     * \param[in] a0 low-magnitude component of first argument
-     * \param[in] b1 high-magnitude component of second argument
-     * \param[in] b0 high-magnitude component of second argument
-     * \param[in] x3 high-magnitude component of the result
-     * \param[in] x2 component of the result
-     * \param[in] x1 component of the result
-     * \param[in] x0 low-magnitude component of the result
-     * \details By Jonathan Shewchuk.
-     */
     inline void two_two_sum(
         double a1, double a0, double b1, double b0,
         double& x3, double& x2, double& x1, double& x0
@@ -227,69 +36,8 @@ namespace {
         two_one_sum(_j, _0, b1, x3, x2, x1);
     }
 
-#ifndef FP_FAST_FMA
-
-    /**
-     * \brief Computes the product between two doubles where
-     *  the second one have already been split.
-     * \param[in] a first argument
-     * \param[in] b second argument
-     * \param[in] bhi high-magnitude part of second argument
-     * \param[in] blo low-magnitude part of second argument
-     * \param[out] x high-magnitude component of the result
-     * \param[out] y low-magnitude component of the result
-     * \details By Jonathan Shewchuk.
-     */
-    inline void two_product_presplit(
-        double a, double b, double bhi, double blo, double& x, double& y
-    ) {
-        x = a * b;
-        double ahi;
-        double alo;
-        split(a, ahi, alo);
-        double err1 = x - (ahi * bhi);
-        double err2 = err1 - (alo * bhi);
-        double err3 = err2 - (ahi * blo);
-        y = (alo * blo) - err3;
-    }
-
-    /**
-     * \brief Computes the product between two doubles
-     *  where both have already been split.
-     * \param[in] a first argument
-     * \param[in] ahi high-magnitude part of first argument
-     * \param[in] alo low-magnitude part of first argument
-     * \param[in] b second argument
-     * \param[in] bhi high-magnitude part of second argument
-     * \param[in] blo low-magnitude part of second argument
-     * \param[out] x high-magnitude component of the result
-     * \param[out] y low-magnitude component of the result
-     * \details By Jonathan Shewchuk.
-     */
-    inline void two_product_2presplit(
-        double a, double ahi, double alo,
-        double b, double bhi, double blo,
-        double& x, double& y
-    ) {
-        x = a * b;
-        double err1 = x - (ahi * bhi);
-        double err2 = err1 - (alo * bhi);
-        double err3 = err2 - (ahi * blo);
-        y = (alo * blo) - err3;
-    }
-
-#endif
-
-    /**
-     * \brief Computes the square of an expansion of length 2.
-     * \param[in] a1 high-magnitude component of the argument
-     * \param[in] a0 low-magnitude component of the argument
-     * \param[out] x an array of six doubles to store the result.
-     * \details By Jonathan Shewchuk.
-     * An expansion of length two can be squared more quickly than finding the
-     *  product of two different expansions of length two, and the result is
-     *  guaranteed to have no more than six (rather than eight) components.
-     */
+    // The square of a length 2 expansion, into the six doubles at \p x. Squaring is quicker than
+    // multiplying two different length 2 expansions, and needs six components rather than eight.
     inline void two_square(
         double a1, double a0,
         double* x
@@ -304,13 +52,15 @@ namespace {
         two_two_sum(_j, _1, _l, _2, x[5], x[4], x[3], x[2]);
     }
 
-    /**
-     * \brief Computes the product of two expansions of length 2.
-     * \param[in] a first argument (array of 2 doubles)
-     * \param[in] b second argument (array of 2 doubles)
-     * \param[out] x an array of 8 doubles to store the result
-     * \details By Jonathan Shewchuk.
-     */
+    // (a - b)^2, exactly, in the six components of \p e.
+    inline void assign_sq_diff(expansion& e, double a, double b) {
+        double d0, d1;
+        two_diff(a, b, d1, d0);
+        two_square(d1, d0, &e[0]);
+        e.set_length(6);
+    }
+
+    // The product of two length 2 expansions, into the eight doubles at \p x.
     void two_two_product(
         const double* a,
         const double* b,
@@ -319,14 +69,6 @@ namespace {
         double _0, _1, _2;
         double _i, _j, _k, _l, _m, _n;
 
-        // If the target processor supports the FMA (Fused Multiply Add)
-        // instruction, then the product of two doubles into a length-2
-        // expansion can be implemented as follows. Thanks to Marc Glisse
-        // for the information.
-        // Note: under gcc, automatic generations of fma() for a*b+c needs
-        // to be deactivated, using -ffp-contract=off, else it may break
-        // other functions such as fast_expansion_sum_zeroelim().
-#ifdef FP_FAST_FMA
         two_product(a[0],b[0],_i,x[0]);
         two_product(a[1],b[0],_j,_0);
         two_sum(_i, _0, _k, _1);
@@ -347,43 +89,6 @@ namespace {
         two_sum(_1, _k, _i, x[4]);
         two_sum(_2, _i, _k, x[5]);
         two_sum(_m, _k, x[7], x[6]);
-#else
-        double a0hi, a0lo;
-        split(a[0], a0hi, a0lo);
-        double bhi, blo;
-        split(b[0], bhi, blo);
-        two_product_2presplit(
-            a[0], a0hi, a0lo, b[0], bhi, blo, _i, x[0]
-        );
-        double a1hi, a1lo;
-        split(a[1], a1hi, a1lo);
-        two_product_2presplit(
-            a[1], a1hi, a1lo, b[0], bhi, blo, _j, _0
-        );
-        two_sum(_i, _0, _k, _1);
-        fast_two_sum(_j, _k, _l, _2);
-        split(b[1], bhi, blo);
-        two_product_2presplit(
-            a[0], a0hi, a0lo, b[1], bhi, blo, _i, _0
-        );
-        two_sum(_1, _0, _k, x[1]);
-        two_sum(_2, _k, _j, _1);
-        two_sum(_l, _j, _m, _2);
-        two_product_2presplit(
-            a[1], a1hi, a1lo, b[1], bhi, blo, _j, _0
-        );
-        two_sum(_i, _0, _n, _0);
-        two_sum(_1, _0, _i, x[2]);
-        two_sum(_2, _i, _k, _1);
-        two_sum(_m, _k, _l, _2);
-        two_sum(_j, _n, _k, _0);
-        two_sum(_1, _0, _j, x[3]);
-        two_sum(_2, _j, _i, _1);
-        two_sum(_l, _i, _m, _2);
-        two_sum(_1, _k, _i, x[4]);
-        two_sum(_2, _i, _k, x[5]);
-        two_sum(_m, _k, x[7], x[6]);
-#endif
     }
 
 }
@@ -400,27 +105,12 @@ namespace geo {
         double product0;
         index_t eindex, hindex;
 
-        // If the target processor supports the FMA (Fused Multiply Add)
-        // instruction, then the product of two doubles into a length-2
-        // expansion can be implemented as follows. Thanks to Marc Glisse
-        // for the information.
-        // Note: under gcc, automatic generations of fma() for a*b+c needs
-        // to be deactivated, using -ffp-contract=off, else it may break
-        // other functions such as fast_expansion_sum_zeroelim().
-#ifndef FP_FAST_FMA
-        double bhi, blo;
-#endif
         index_t elen = e.length();
 
         // Sanity check: e and h cannot be the same.
         geo_debug_assert(&e != &h);
 
-#ifdef FP_FAST_FMA
         two_product(e[0], b, Q, hh);
-#else
-        split(b, bhi, blo);
-        two_product_presplit(e[0], b, bhi, blo, Q, hh);
-#endif
 
         hindex = 0;
         if(hh != 0) {
@@ -428,11 +118,7 @@ namespace geo {
         }
         for(eindex = 1; eindex < elen; eindex++) {
             double enow = e[eindex];
-#ifdef FP_FAST_FMA
             two_product(enow, b,  product1, product0);
-#else
-            two_product_presplit(enow, b, bhi, blo, product1, product0);
-#endif
             two_sum(Q, product0, sum, hh);
             if(hh != 0) {
                 h[hindex++] = hh;
@@ -596,72 +282,22 @@ namespace geo {
         h.set_length(hindex);
     }
 
-} }
+    /************************************************************************/
 
-/****************************************************************************/
-
-namespace floatTetWild {
-namespace geo {
-
-    double expansion_splitter_;
-    double expansion_epsilon_;
-
-    void expansion::initialize() {
-        // Taken from Jonathan Shewchuk's exactinit.
-        double half;
-        double check, lastcheck;
-        int every_other;
-
-        every_other = 1;
-        half = 0.5;
-        expansion_epsilon_ = 1.0;
-        expansion_splitter_ = 1.0;
-        check = 1.0;
-        // Repeatedly divide `epsilon' by two until it is too small to add to
-        // one without causing roundoff.  (Also check if the sum is equal to
-        // the previous sum, for machines that round up instead of using exact
-        // rounding.  Not that this library will work on such machines anyway.
-        do {
-            lastcheck = check;
-            expansion_epsilon_ *= half;
-            if(every_other) {
-                expansion_splitter_ *= 2.0;
-            }
-            every_other = !every_other;
-            check = 1.0 + expansion_epsilon_;
-        } while((check != 1.0) && (check != lastcheck));
-        expansion_splitter_ += 1.0;
-    }
-
-    static std::atomic_flag expansions_lock = ATOMIC_FLAG_INIT;
-
-    static void lock_expansions() {
-        while(expansions_lock.test_and_set(std::memory_order_acquire)) {
-            // Spin.
-        }
-    }
-
+    // Reached only by the intermediates of assign_product() that are too big for the stack.
+    // geogram pooled these behind a global lock, for a high-level expansion_nt that allocated
+    // every value on the heap and that nothing here uses.
     expansion* expansion::new_expansion_on_heap(index_t capa) {
-        lock_expansions();
-        unsigned char* addr = static_cast<unsigned char*>(
-            pools_.malloc(expansion::bytes(capa))
-        );
-        expansions_lock.clear(std::memory_order_release);
-        expansion* result = new(addr)expansion(capa);
-        return result;
+        return new(new unsigned char[expansion::bytes(capa)])expansion(capa);
     }
 
     void expansion::delete_expansion_on_heap(expansion* e) {
-        lock_expansions();
-        pools_.free(e, expansion::bytes(e->capacity()));
-        expansions_lock.clear(std::memory_order_release);
+        delete[] reinterpret_cast<unsigned char*>(e);
     }
 
     // ====== Initialization from expansion and double ===============
 
     expansion& expansion::assign_product(const expansion& a, double b) {
-        // TODO: implement special case where the double argument
-        // is a power of two.
         geo_debug_assert(capacity() >= product_capacity(a, b));
         scale_expansion_zeroelim(a, b, *this);
         return *this;
@@ -885,28 +521,18 @@ namespace geo {
 
     // =============  geometric operations ==================================
 
-    expansion& expansion::assign_sq_dist(
-        const double* p1, const double* p2, coord_index_t dim
-    ) {
-        geo_debug_assert(capacity() >= sq_dist_capacity(dim));
-        geo_debug_assert(dim > 0);
-        if(dim == 1) {
-            double d0, d1;
-            two_diff(p1[0], p2[0], d1, d0);
-            two_square(d1, d0, x_);
-            set_length(6);
-        } else {
-            // "Distillation" (see Shewchuk's paper) is computed recursively,
-            // by splitting the list of expansions to sum into two halves.
-            coord_index_t dim1 = dim / 2;
-            coord_index_t dim2 = coord_index_t(dim - dim1);
-            const double* p1_2 = p1 + dim1;
-            const double* p2_2 = p2 + dim1;
-            expansion& d1 = expansion_sq_dist(p1, p2, dim1);
-            expansion& d2 = expansion_sq_dist(p1_2, p2_2, dim2);
-            this->assign_sum(d1, d2);
-        }
-        return *this;
+    expansion& expansion::assign_sq_dist(const double* p1, const double* p2) {
+        geo_debug_assert(capacity() >= sq_dist_capacity());
+        // The distillation tree geogram builds by halving the dimension, written out: the y and z
+        // terms are summed first, then the x term is added to that.
+        expansion& dx = *new_expansion_on_stack(6);
+        expansion& dy = *new_expansion_on_stack(6);
+        expansion& dz = *new_expansion_on_stack(6);
+        assign_sq_diff(dx, p1[0], p2[0]);
+        assign_sq_diff(dy, p1[1], p2[1]);
+        assign_sq_diff(dz, p1[2], p2[2]);
+        expansion& dyz = expansion_sum(dy, dz);
+        return this->assign_sum(dx, dyz);
     }
 
     /************************************************************************/

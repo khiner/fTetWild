@@ -12,12 +12,9 @@
 
 #include <algorithm>
 
-// This makes sure the compiler will not optimize y = a*x+b
-// with fused multiply-add, this would break the exact
-// predicates.
-#ifdef GEO_COMPILER_MSVC
-#pragma fp_contract(off)
-#endif
+// The filters below rely on the compiler not contracting y = a*x+b into a fused multiply-add,
+// which would break them. Under gcc that needs -ffp-contract=off, and under MSVC
+// #pragma fp_contract(off).
 
 #define FPG_UNCERTAIN_VALUE 0
 
@@ -27,70 +24,24 @@ namespace {
 
     using namespace floatTetWild::geo;
 
-    /**
-     * \brief Gets the maximum of 4 double precision numbers.
-     * \param[in] x1 , x2 , x3 , x4 the four numbers.
-     * \return the maximum.
-     */
+    // geogram writes these two with SSE2 intrinsics under __SSE2__, and the plain expressions
+    // otherwise. It never included the intrinsics header, so only the plain path was ever
+    // compiled here, and min and max of doubles are exact either way.
     inline double max4(double x1, double x2, double x3, double x4) {
-#ifdef __SSE2__
-        double result;
-        __m128d X1 =_mm_load_sd(&x1);
-        __m128d X2 =_mm_load_sd(&x2);
-        __m128d X3 =_mm_load_sd(&x3);
-        __m128d X4 =_mm_load_sd(&x4);
-        X1 = _mm_max_sd(X1,X2);
-        X3 = _mm_max_sd(X3,X4);
-        X1 = _mm_max_sd(X1,X3);
-        _mm_store_sd(&result, X1);
-        return result;
-#else
         return std::max(std::max(x1,x2),std::max(x3,x4));
-#endif
     }
 
-    /**
-     * \brief Gets the minimum and maximum of 3 double precision numbers.
-     * \param[in] x1 , x2 , x3 the three numbers.
-     * \param[out] m the minimum
-     * \param[out] M the maximum
-     */
     inline void get_minmax3(
         double& m, double& M, double x1, double x2, double x3
     ) {
-#ifdef __SSE2__
-        __m128d X1 =_mm_load_sd(&x1);
-        __m128d X2 =_mm_load_sd(&x2);
-        __m128d X3 =_mm_load_sd(&x3);
-        __m128d MIN12 = _mm_min_sd(X1,X2);
-        __m128d MAX12 = _mm_max_sd(X1,X2);
-        X1 = _mm_min_sd(MIN12, X3);
-        X3 = _mm_max_sd(MAX12, X3);
-        _mm_store_sd(&m, X1);
-        _mm_store_sd(&M, X3);
-#else
         m = std::min(std::min(x1,x2), x3);
         M = std::max(std::max(x1,x2), x3);
-#endif
     }
 
-    /**
-     * \brief Arithmetic filter for the in_sphere_3d_SOS() predicate.
-     * \details This filter was optimized by hand by Sylvain Pion
-     *  (may be faster than FPG/PCK-generated filter).
-     * Since it is used massively by Delaunay_3d, using the
-     *   optimized version may be worth it.
-     * \param[in] p first vertex of the tetrahedron
-     * \param[in] q second vertex of the tetrahedron
-     * \param[in] r third vertex of the tetrahedron
-     * \param[in] s fourth vertex of the tetrahedron
-     * \param[in] t point to be tested
-     * \retval +1 if \p t was determined to be outside
-     *   the circumsphere of \p p,\p q,\p r,\p s
-     * \retval -1 if \p t was determined to be inside
-     *   the circumsphere of  \p p,\p q,\p r,\p s
-     * \retval 0 if the position of \p t could be be determined
-     */
+    // Arithmetic filter for in_sphere_3d_SOS(): +1 when \p t was determined to be outside the
+    // circumsphere of \p p, \p q, \p r, \p s, -1 when inside, and FPG_UNCERTAIN_VALUE when the
+    // filter could not tell. Optimized by hand by Sylvain Pion, which may beat the FPG/PCK
+    // generated filter, and Delaunay_3d uses it massively enough for that to be worth it.
     inline int in_sphere_3d_filter_optim(
         const double* p, const double* q,
         const double* r, const double* s, const double* t
@@ -168,12 +119,9 @@ namespace {
 
     // ================= side4 =========================================
 
-    /**
-     * \brief Exact implementation of the side4_3d_SOS() predicate
-     *  using low-level exact arithmetics API (expansion class).
-     * \details Symbolic perturbation is always applied. geogram could be asked to return zero
-     *  instead, through a parameter no caller here sets.
-     */
+    // The exact side4_3d_SOS() predicate, over the expansion class. Symbolic perturbation is
+    // always applied. geogram could be asked to return zero instead, through a parameter no
+    // caller here sets.
     Sign side4_3d_exact_SOS(
         const double* p0, const double* p1, const double* p2, const double* p3,
         const double* p4
@@ -182,22 +130,22 @@ namespace {
         const expansion& a11 = expansion_diff(p1[0], p0[0]);
         const expansion& a12 = expansion_diff(p1[1], p0[1]);
         const expansion& a13 = expansion_diff(p1[2], p0[2]);
-        const expansion& a14 = expansion_sq_dist(p1, p0, 3).negate();
+        const expansion& a14 = expansion_sq_dist(p1, p0).negate();
 
         const expansion& a21 = expansion_diff(p2[0], p0[0]);
         const expansion& a22 = expansion_diff(p2[1], p0[1]);
         const expansion& a23 = expansion_diff(p2[2], p0[2]);
-        const expansion& a24 = expansion_sq_dist(p2, p0, 3).negate();
+        const expansion& a24 = expansion_sq_dist(p2, p0).negate();
 
         const expansion& a31 = expansion_diff(p3[0], p0[0]);
         const expansion& a32 = expansion_diff(p3[1], p0[1]);
         const expansion& a33 = expansion_diff(p3[2], p0[2]);
-        const expansion& a34 = expansion_sq_dist(p3, p0, 3).negate();
+        const expansion& a34 = expansion_sq_dist(p3, p0).negate();
 
         const expansion& a41 = expansion_diff(p4[0], p0[0]);
         const expansion& a42 = expansion_diff(p4[1], p0[1]);
         const expansion& a43 = expansion_diff(p4[2], p0[2]);
-        const expansion& a44 = expansion_sq_dist(p4, p0, 3).negate();
+        const expansion& a44 = expansion_sq_dist(p4, p0).negate();
 
         // This commented-out version does not reuse
         // the 2x2 minors.
@@ -410,19 +358,6 @@ namespace geo {
                 PCK::orient_3d(p1, p2, p3, q010) == ZERO &&
                 PCK::orient_3d(p1, p2, p3, q100) == ZERO
                 ;
-        }
-
-        namespace {
-            // geogram made callers do this through GEO::initialize(). Here the predicates are
-            // reached from library entry points that no caller has to set up, so run it during
-            // static initialization instead. expansion::initialize() only writes two static
-            // doubles, so it does not depend on any other translation unit's statics.
-            struct Initializer {
-                Initializer() {
-                    expansion::initialize();
-                }
-            };
-            Initializer initializer;
         }
     }
 } }

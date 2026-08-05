@@ -21,14 +21,10 @@ namespace geo {
     static const index_t NO_VERTEX = index_t(-1);
     static const index_t NO_FACET = index_t(-1);
 
-    /**
-     * \brief A triangle surface mesh.
-     */
+    // A triangle surface mesh: three coordinates per vertex, then three vertex indices per facet
+    // in order around it.
     struct Mesh {
-        /** \brief Three coordinates per vertex. */
         std::vector<double> points;
-
-        /** \brief Three vertex indices per facet, in order around it. */
         std::vector<index_t> corners;
 
         index_t nb_vertices() const {
@@ -71,20 +67,14 @@ namespace geo {
             return point(facet_vertex(f, lv));
         }
 
-        /**
-         * \brief Creates a contiguous chunk of vertices at the origin.
-         * \return the index of the first one
-         */
+        // Creates a contiguous chunk of vertices at the origin, and returns the first index.
         index_t create_vertices(index_t nb) {
             index_t first = nb_vertices();
             points.resize(size_t(first + nb) * 3, 0.0);
             return first;
         }
 
-        /**
-         * \brief Creates a contiguous chunk of triangles with no vertices set yet.
-         * \return the index of the first one
-         */
+        // The same for triangles, with no vertices set yet.
         index_t create_triangles(index_t nb) {
             index_t first = nb_facets();
             corners.resize(size_t(first + nb) * 3, NO_VERTEX);
@@ -98,22 +88,15 @@ namespace geo {
             corners.shrink_to_fit();
         }
 
-        /**
-         * \brief Reorders the vertices so that vertex \p k becomes the vertex that was at
-         *  \p permutation[k], and sends the facet corners after them.
-         */
+        // Reorders the vertices so that vertex \p k becomes the vertex that was at
+        // \p permutation[k], and sends the facet corners after them.
         void permute_vertices(const vector<index_t>& permutation);
 
-        /**
-         * \brief Reorders the facets so that facet \p k becomes the facet that was at
-         *  \p permutation[k].
-         */
+        // The same for the facets.
         void permute_facets(const vector<index_t>& permutation);
     };
 
-    /**
-     * \brief Returns the length of the diagonal of the bounding box of \p M.
-     */
+    // The length of the diagonal of the bounding box of \p M.
     double bbox_diagonal(const Mesh& M);
 }
 }

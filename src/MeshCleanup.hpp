@@ -67,10 +67,10 @@ namespace detail
   //  C  #C by n matrix of unique rows of A
   //  IA  #C index vector so that C = A(IA,:);
   //  IC  #A index vector so that A = C(IC,:);
-  template <typename T, typename U>
+  template <typename T>
   inline void unique_rows(
     const MatrixX<T>& A,
-    MatrixX<U>& C,
+    MatrixX<T>& C,
     MatrixXi& IA,
     MatrixXi& IC)
   {
@@ -114,7 +114,7 @@ namespace detail
     for(int i = 0;i<n_unique;i++)
     {
       IA(i,0) = IM(vIA[i],0);
-      for(int j = 0;j<A.cols();j++) C(i,j) = U(A(IA(i,0),j));
+      for(int j = 0;j<A.cols();j++) C(i,j) = A(IA(i,0),j);
     }
   }
 
@@ -131,12 +131,12 @@ namespace detail
   //  SVI #SV by 1 list of indices so SV = V(SVI,:)
   //  SVJ #V by 1 list of indices so V = SV(SVJ,:)
   //  SF  #F by dim list of face indices into SV
-  template <typename T, typename U>
+  template <typename T>
   inline void remove_duplicate_vertices(
     const MatrixX<T>& V,
     const MatrixXi& F,
     const double epsilon,
-    MatrixX<U>& SV,
+    MatrixX<T>& SV,
     MatrixXi& SVI,
     MatrixXi& SVJ,
     MatrixXi& SF)
@@ -157,7 +157,7 @@ namespace detail
       SV.resize(SVI.rows(),V.cols());
       for(int i = 0;i<SVI.rows();i++)
         for(int j = 0;j<V.cols();j++)
-          SV(i,j) = U(V(SVI(i),j));
+          SV(i,j) = V(SVI(i),j);
     }else
     {
       unique_rows(V,SV,SVI,SVJ);

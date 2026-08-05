@@ -11,7 +11,7 @@
 
 #include <floattetwild/TriangleInsertion.h>
 
-#include <floattetwild/geo_geometry_nd.h>
+#include <floattetwild/geo_geometry.h>
 
 #include <floattetwild/LocalOperations.h>
 #include <floattetwild/intersections.h>

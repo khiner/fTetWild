@@ -4,7 +4,7 @@
 // Copied rather than reimplemented: balanced kd-tree; nth_element splitting again, so ties follow the incoming order
 
 #include "geo_kd_tree.h"
-#include "geo_geometry_nd.h"
+#include "geo_geometry.h"
 #include "geo_parallel.h"
 
 namespace floatTetWild {
@@ -73,7 +73,7 @@ namespace geo {
         if((e - b) <= MAX_LEAF_SIZE) {
             for(index_t i = b; i < e; ++i) {
                 double sq_dist = Geom::distance2(
-                    query_point, point_ptr(point_index_[i]), DIMENSION
+                    query_point, point_ptr(point_index_[i])
                 );
                 if(sq_dist < best_sq_dist) {
                     best_sq_dist = sq_dist;
