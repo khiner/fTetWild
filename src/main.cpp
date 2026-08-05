@@ -10,6 +10,13 @@
 
 #include <thread>
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <sys/resource.h>
+#endif
+
 #include "AABBWrapper.h"
 #include "FloatTetwild.h"
 #include "LocalOperations.h"
@@ -22,17 +29,59 @@
 #include "Logger.hpp"
 
 #include "Timer.h"
-#include "writeOBJ.h"
 #include "ParallelFor.hpp"
 
 #include "geo/geo_mesh.h"
 
 using namespace floatTetWild;
 
-// Peak resident set size in bytes, from getRSS.c. Only the summary line below asks.
-extern "C" size_t getPeakRSS();
-
 namespace {
+
+// Peak resident set size (physical memory use) in bytes, or zero if the value cannot be
+// determined on this OS. Only the stats csv summary line below asks.
+//
+// From getCurrentAndPeakRSS by David Robert Nadeau, http://NadeauSoftware.com/, Creative Commons
+// Attribution 3.0 Unported License, http://creativecommons.org/licenses/by/3.0/deed.en_US. Only
+// getPeakRSS() is kept, and only for the platforms this project builds on. The original also had
+// getCurrentRSS(), and branches for AIX and Solaris reading /proc/self/psinfo.
+size_t getPeakRSS()
+{
+#if defined(_WIN32)
+    PROCESS_MEMORY_COUNTERS info;
+    GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
+    return (size_t)info.PeakWorkingSetSize;
+#else
+    struct rusage rusage;
+    getrusage(RUSAGE_SELF, &rusage);
+#if defined(__APPLE__) && defined(__MACH__)
+    return (size_t)rusage.ru_maxrss;
+#else
+    return (size_t)(rusage.ru_maxrss * 1024L);
+#endif
+#endif
+}
+
+// Write a mesh in an ascii obj file: V is #V by 3 vertex positions, F is #F by 3 indices into V.
+// From libigl's igl/writeOBJ.h, Copyright (C) 2013 Alec Jacobson, MPL 2.0.
+void writeOBJ(const std::string& path, const MatrixXd& V, const MatrixXi& F)
+{
+    std::ofstream s(path);
+    if (!s.is_open()) {
+        fprintf(stderr, "IOError: writeOBJ() could not open %s\n", path.c_str());
+        return;
+    }
+    // Eigen wrote each block through IOFormat(FullPrecision, DontAlignCols, " ", "\n", prefix,
+    // "", "", "\n"): a prefixed, space-separated row per line, and for an empty block nothing at
+    // all but the trailing newline. FullPrecision resolved to digits10 significant digits, which
+    // is what the vertices go out at; the indices are integers and ignore it.
+    s.precision(std::numeric_limits<double>::digits10);
+    if (V.rows() == 0) s << "\n";
+    for (int i = 0; i < V.rows(); i++)
+        s << "v " << V(i, 0) << " " << V(i, 1) << " " << V(i, 2) << "\n";
+    if (F.rows() == 0) s << "\n";
+    for (int i = 0; i < F.rows(); i++)
+        s << "f " << F(i, 0) + 1 << " " << F(i, 1) + 1 << " " << F(i, 2) + 1 << "\n";
+}
 
 // Every recorded state as a row, then a summary row with id -1: the time the stages up to the
 // winding number took together, the last state's counts and energies, and the peak memory.
@@ -155,6 +204,9 @@ int main(int argc, char** argv)
       std::min(max_threads, std::max(1u, std::thread::hardware_concurrency()));
     floatTetWild::set_num_threads(num_threads);
 
+    // The log file is opt-in: without --log, log_path is empty and logging goes to the console
+    // only. It cannot default to output_path, which init would truncate — that path is the
+    // output mesh when -o names one, and the *input* mesh when -o is omitted.
     Logger::init(!is_quiet, log_path);
     log_level = std::max(0, std::min(6, log_level));
     logger().set_level(log_level);
@@ -162,8 +214,6 @@ int main(int argc, char** argv)
 
     if (output_path.empty())
         output_path = input_path;
-    if (log_path.empty())
-        log_path = output_path;
 
     // Everything but the main mesh is named after the output path plus the postfix.
     const std::string out_prefix = output_path + "_" + postfix;
@@ -251,7 +301,7 @@ int main(int argc, char** argv)
     // used to fall inside this window and is now inside tetrahedralization.
     timer.start();
 
-    MatrixXs Vt;
+    MatrixXd Vt;
     MatrixXi Ft;
     // Leaves the surface it wrote in Vt and Ft, which the winding number below reuses.
     const auto write_tracked_surface = [&](const std::string& name, int c_id = 0) {
@@ -324,7 +374,8 @@ int main(int argc, char** argv)
     write_mesh(output_mesh_name, mesh, colors, !nobinary, !csg_file.empty());
     writeOBJ(out_prefix + "_sf.obj", V_sf, F_sf);
 
-    std::ofstream fout(log_path + "_" + postfix + ".csv");
+    // The stats csv sits next to the log file when --log was given, else next to the output.
+    std::ofstream fout((log_path.empty() ? output_path : log_path) + "_" + postfix + ".csv");
     if (fout.good())
         write_stats_csv(fout, stats());
     fout.close();

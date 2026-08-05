@@ -4,25 +4,17 @@ set(SOURCES
 	FloatTetwild.cpp
 	Simplification.h
 	Simplification.cpp
-	FloatTetDelaunay.h
-	FloatTetDelaunay.cpp
 	TriangleInsertion.h
 	TriangleInsertion.cpp
-	CutMesh.h
-	CutMesh.cpp
 	MeshImprovement.h
 	MeshImprovement.cpp
 
 	# The local operations the optimization loop runs.
 	LocalOperations.h
 	LocalOperations.cpp
-	EdgeSplitting.h
 	EdgeSplitting.cpp
-	EdgeCollapsing.h
 	EdgeCollapsing.cpp
-	EdgeSwapping.h
 	EdgeSwapping.cpp
-	VertexSmoothing.h
 	VertexSmoothing.cpp
 
 	# Supporting pieces.
@@ -57,9 +49,6 @@ set(VENDORED_SOURCES
 	# Guigue-Devillers triangle-triangle overlap, from the JGT paper. No licence stated upstream.
 	triangle_triangle_intersection.cpp
 
-	# Peak RSS, CC BY 3.0. Read by the stats csv summary row in main.cpp.
-	getRSS.c
-
 	# libigl, MPL 2.0, the same licence as fTetWild.
 	MeshCleanup.hpp
 	MeshCleanup.cpp
@@ -71,12 +60,10 @@ set(VENDORED_SOURCES
 
 target_sources(FloatTetwild PRIVATE ${SOURCES} ${VENDORED_SOURCES})
 
-# File I/O is not part of the core library: the binary owns it. writeOBJ.h is vendored libigl,
-# MPL 2.0, reached only from main.cpp.
+# File I/O is not part of the core library: the binary owns it.
 set(IO_SOURCES
 	MeshIO.hpp
 	MeshIO.cpp
-	writeOBJ.h
 )
 if(TARGET FloatTetwild_bin)
 	target_sources(FloatTetwild_bin PRIVATE ${IO_SOURCES})
@@ -87,7 +74,6 @@ endif()
 if(NOT MSVC)
 	set_source_files_properties(
 		${CMAKE_CURRENT_SOURCE_DIR}/predicates.c
-		${CMAKE_CURRENT_SOURCE_DIR}/getRSS.c
 		${CMAKE_CURRENT_SOURCE_DIR}/geo/geo_mesh_reorder.cpp
 		TARGET_DIRECTORY FloatTetwild PROPERTIES COMPILE_OPTIONS
 		"-Wno-cast-qual;-Wno-deprecated-non-prototype;-Wno-strict-prototypes;-Wno-switch-default;-Wno-unused-function")

@@ -132,6 +132,14 @@ Scalar floatTetWild::get_quality(const Mesh& mesh, const MeshTet& t)
                        mesh.tet_vertices[t[3]].pos);
 }
 
+Scalar floatTetWild::get_quality(const Mesh& mesh, int t_id, int j, const Vector3& p)
+{
+    return get_quality(p,
+                       tet_pos(mesh, t_id, (j + 1) % 4),
+                       tet_pos(mesh, t_id, (j + 2) % 4),
+                       tet_pos(mesh, t_id, (j + 3) % 4));
+}
+
 Scalar floatTetWild::get_quality(const Mesh& mesh, int t_id)
 {
     return get_quality(mesh, mesh.tets[t_id]);
@@ -229,7 +237,7 @@ bool floatTetWild::is_out_boundary_envelope(const Mesh&        mesh,
     return tree.is_out_tmp_b_envelope(ps, mesh.params.eps_2 / 100, prev_facet);
 }
 
-bool floatTetWild::is_out_envelope(Mesh&              mesh,
+bool floatTetWild::is_out_envelope(const Mesh&        mesh,
                                    int                v_id,
                                    const Vector3&     new_pos,
                                    const AABBWrapper& tree)

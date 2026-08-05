@@ -9,12 +9,22 @@
 #include "geo_predicates.h"
 
 #include <cstring>
+#include <random>
 #include <stack>
 
 namespace floatTetWild {
 namespace geo {
 
     namespace {
+
+        // A 32 bit integer between 0 and RAND_MAX. geogram keeps one default-seeded
+        // std::mt19937_64 for the whole process and never reseeds it, so the stream depends only
+        // on the order in which callers draw from it. Both draws below pick a starting point for
+        // point location, so keeping the same stream keeps the same walk.
+        int32_t random_int32() {
+            static std::mt19937_64 engine;
+            return std::uniform_int_distribution<int32_t>(0, RAND_MAX)(engine);
+        }
 
         // orient_3d from the plain floating point determinant, for the inexact walk.
         inline Sign orient_3d_inexact(
@@ -111,7 +121,7 @@ namespace geo {
             void clear() {
                 nb_f_ = 0;
                 OK_ = true;
-                ::memset(h2t_, END_OF_LIST, sizeof(h2t_));
+                std::memset(h2t_, END_OF_LIST, sizeof(h2t_));
             }
 
             // Records that facet \p boundary_f of tetrahedron \p tglobal, with vertices \p v0,
@@ -270,11 +280,6 @@ namespace geo {
                 return (cell_next_[t] & NOT_IN_LIST_BIT) == 0;
             }
 
-            // \pre tet_is_in_list(t)
-            index_t tet_next(index_t t) const {
-                return cell_next_[t];
-            }
-
             // Prepends \p t to the list running from \p first to \p last, both END_OF_LIST when
             // it is empty.
             void add_tet_to_list(index_t t, index_t& first, index_t& last) {
@@ -337,7 +342,7 @@ namespace geo {
                     result = nb_cells() - 1;
                 } else {
                     result = first_free_;
-                    first_free_ = tet_next(first_free_);
+                    first_free_ = cell_next_[first_free_];
                     cell_next_[result] = NOT_IN_LIST;
                 }
 
@@ -479,11 +484,19 @@ namespace geo {
                 return hint;
             }
 
-            // The same walk as locate() with inexact predicates, stopping after \p max_iter
-            // tetrahedra. Its result is a hint for locate(), which is what makes locate() faster
-            // than walking exactly the whole way ("structural filtering").
-            index_t locate_inexact(
-                const double* p, index_t hint, index_t max_iter
+            // One walk towards the tetrahedron that contains \p p, in two variants that only
+            // locate() below runs.
+            //
+            // EXACT uses the exact orientation predicate, records the orientation of p against
+            // the four facets into \p orient, and starts each tet's facet scan at a random facet
+            // (one random_int32() draw per tet visited, part of the process-wide stream that
+            // decides the triangulation on cospherical input). Not EXACT is the "structural
+            // filtering" prepass: inexact predicates, facets scanned in order, no draws and no
+            // orient, giving up after \p max_iter tetrahedra since there exist configurations in
+            // which the inexact walk loops forever.
+            template <bool EXACT>
+            index_t walk(
+                const double* p, index_t hint, index_t max_iter, Sign* orient
             ) const {
 
                 hint = walkable_hint(hint);
@@ -499,7 +512,9 @@ namespace geo {
                     pv[2] = vertex_ptr(tet_vertex(t,2));
                     pv[3] = vertex_ptr(tet_vertex(t,3));
 
-                    for(index_t f = 0; f < 4; ++f) {
+                    const index_t f0 = EXACT ? index_t(random_int32()) % 4 : 0;
+                    for(index_t df = 0; df < 4; ++df) {
+                        const index_t f = (f0 + df) % 4;
 
                         index_t t_next = tet_adjacent(t,f);
 
@@ -516,15 +531,25 @@ namespace geo {
                         // the next candidate (or exit the loop if they
                         // are exhausted).
                         if(t_next == t_pred) {
+                            if(EXACT) {
+                                orient[f] = POSITIVE;
+                            }
                             continue ;
                         }
 
                         //   To test the orientation of p w.r.t. the facet f of
                         // t, we replace vertex number f with p in t (same
                         // convention as in CGAL).
+                        // This is equivalent to tet_facet_point_orient3d(t,f,p)
+                        // (but less costly, saves a couple of lookups)
                         const double* pv_bkp = pv[f];
                         pv[f] = p;
-                        Sign ori = orient_3d_inexact(pv[0], pv[1], pv[2], pv[3]);
+                        const Sign ori = EXACT
+                            ? PCK::orient_3d(pv[0], pv[1], pv[2], pv[3])
+                            : orient_3d_inexact(pv[0], pv[1], pv[2], pv[3]);
+                        if(EXACT) {
+                            orient[f] = ori;
+                        }
 
                         //   If the orientation is not negative, then we cannot
                         // walk towards t_next, and examine the next candidate
@@ -540,6 +565,11 @@ namespace geo {
                         // thus t_next is a tet in conflict and we are
                         // done.
                         if(tet_is_virtual(t_next)) {
+                            if(EXACT) {
+                                for(index_t lf = 0; lf < 4; ++lf) {
+                                    orient[lf] = POSITIVE;
+                                }
+                            }
                             return t_next;
                         }
 
@@ -547,7 +577,7 @@ namespace geo {
                         // successor, thus we are still walking.
                         t_pred = t;
                         t = t_next;
-                        if(--max_iter != 0) {
+                        if(EXACT || --max_iter != 0) {
                             goto still_walking;
                         }
                     }
@@ -568,98 +598,11 @@ namespace geo {
             index_t locate(
                 const double* p, index_t hint, Sign* orient
             ) const {
-
-                //   Try improving the hint by using the
-                // inexact locate function. This gains
-                // (a little bit) performance (a few
-                // percent in total Delaunay computation
-                // time), but it is better than nothing...
-                //   Note: there is a maximum number of tets
-                // traversed by locate_inexact()  (2500)
-                // since there exists configurations in which
-                // locate_inexact() loops forever !
-                hint = locate_inexact(p, hint, 2500);
-
-                hint = walkable_hint(hint);
-
-                index_t t = hint;
-                index_t t_pred = NO_INDEX;
-
-            still_walking:
-                {
-                    const double* pv[4];
-                    pv[0] = vertex_ptr(tet_vertex(t,0));
-                    pv[1] = vertex_ptr(tet_vertex(t,1));
-                    pv[2] = vertex_ptr(tet_vertex(t,2));
-                    pv[3] = vertex_ptr(tet_vertex(t,3));
-
-                    // Start from a random facet
-                    index_t f0 = index_t(random_int32()) % 4;
-                    for(index_t df = 0; df < 4; ++df) {
-                        index_t f = (f0 + df) % 4;
-
-                        index_t t_next = tet_adjacent(t,f);
-
-                        //  If the opposite tet is -1, then it means that
-                        // we are trying to locate() within a tetrahedralization
-                        // from which the infinite tets were removed.
-                        if(t_next == NO_INDEX) {
-                            return NO_INDEX;
-                        }
-
-                        //   If the candidate next tetrahedron is the
-                        // one we came from, then we know already that
-                        // the orientation is positive, thus we examine
-                        // the next candidate (or exit the loop if they
-                        // are exhausted).
-                        if(t_next == t_pred) {
-                            orient[f] = POSITIVE ;
-                            continue ;
-                        }
-
-                        //   To test the orientation of p w.r.t. the facet f of
-                        // t, we replace vertex number f with p in t (same
-                        // convention as in CGAL).
-                        // This is equivalent to tet_facet_point_orient3d(t,f,p)
-                        // (but less costly, saves a couple of lookups)
-                        const double* pv_bkp = pv[f];
-                        pv[f] = p;
-                        orient[f] = PCK::orient_3d(pv[0], pv[1], pv[2], pv[3]);
-
-                        //   If the orientation is not negative, then we cannot
-                        // walk towards t_next, and examine the next candidate
-                        // (or exit the loop if they are exhausted).
-                        if(orient[f] != NEGATIVE) {
-                            pv[f] = pv_bkp;
-                            continue;
-                        }
-
-                        //  If the opposite tet is a virtual tet, then
-                        // the point has a positive orientation relative
-                        // to the facet on the border of the convex hull,
-                        // thus t_next is a tet in conflict and we are
-                        // done.
-                        if(tet_is_virtual(t_next)) {
-                            for(index_t lf = 0; lf < 4; ++lf) {
-                                orient[lf] = POSITIVE;
-                            }
-                            return t_next;
-                        }
-
-                        //   If we reach this point, then t_next is a valid
-                        // successor, thus we are still walking.
-                        t_pred = t;
-                        t = t_next;
-                        goto still_walking;
-                    }
-                }
-
-                //   If we reach this point, we did not find a valid successor
-                // for walking (a face for which p has negative orientation),
-                // thus we reached the tet for which p has all positive
-                // face orientations (i.e. the tet that contains p).
-
-                return t;
+                //   Try improving the hint by using the inexact walk first. This gains a little
+                // performance (a few percent in total Delaunay computation time), but it is
+                // better than nothing...
+                hint = walk<false>(p, hint, 2500, nullptr);
+                return walk<true>(p, hint, 0, orient);
             }
 
             // Hands facet \p lf of \p t, which is on the boundary of the conflict zone, to the
@@ -730,7 +673,7 @@ namespace geo {
             // \p orient locate() returned alongside. \p t_bndry and \p f_bndry come back as a
             // tetrahedron adjacent to the boundary of the conflict zone and the facet it is
             // adjacent along. The conflict tetrahedra are chained from \p first to \p last
-            // through tet_next(). The chain is empty when \p v already exists in the
+            // through cell_next_. The chain is empty when \p v already exists in the
             // triangulation.
             void find_conflict_zone(
                 index_t v,
@@ -866,17 +809,18 @@ namespace geo {
 
             // The star of tetrahedra around \p v filling the conflict zone, built by walking the
             // border: starting from facet \p t1fbord of \p t1 and recursing until the zone is
-            // filled. \p t1fprev is the facet of \p t1 that it was reached from, or NO_INDEX for
-            // the first one. Used when the Cavity overflowed its arrays.
+            // filled. Used when the Cavity overflowed its arrays.
             index_t stellate_conflict_zone_iterative(
-                index_t v, index_t t1, index_t t1fbord, index_t t1fprev = NO_INDEX
+                index_t v, index_t t1, index_t t1fbord
             ) {
                 //   This function is de-recursified because some degenerate
                 // inputs can cause stack overflow (system stack is limited to
                 // a few megs). For instance, it can happen when a large number
                 // of points are on the same sphere exactly.
 
-                S2_.push_back({t1, uint8_t(t1fbord), uint8_t(t1fprev), 0, 0, 0});
+                // The first frame's t1fprev, the facet t1 was reached from, is 255: no facet,
+                // uint8_t(NO_INDEX).
+                S2_.push_back({t1, uint8_t(t1fbord), uint8_t(255), 0, 0, 0});
 
                 index_t new_t;   // the newly created tetrahedron.
 
@@ -890,6 +834,8 @@ namespace geo {
                                  // the conflict zone.
 
                 index_t t2ft1;   // the facet of t2 that is incident to t1.
+
+                index_t t1fprev; // the facet of t1 it was reached from, 255 for the first.
 
             entry_point:
                 t1 = S2_.back().t1;

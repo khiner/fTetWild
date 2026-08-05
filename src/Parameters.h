@@ -10,8 +10,6 @@
 
 #include "Types.hpp"
 
-#include "Logger.hpp"
-
 namespace floatTetWild {
     struct Parameters {
         bool not_sort_input = false;
@@ -19,7 +17,6 @@ namespace floatTetWild {
 
         // Fractions of the bounding box diagonal, except ideal_edge_length_abs, which is an
         // absolute length and wins over ideal_edge_length_rel when it is set.
-        Scalar box_scale = 1 / 15.0;
         Scalar eps_rel = 1e-3;
         Scalar ideal_edge_length_rel = 1 / 20.0;
         Scalar min_edge_len_rel = -1;
@@ -42,8 +39,6 @@ namespace floatTetWild {
         Scalar eps_2;
         Scalar dd;
 
-        Scalar split_threshold;
-        Scalar collapse_threshold;
         Scalar split_threshold_2;
         Scalar collapse_threshold_2;
 
@@ -52,62 +47,5 @@ namespace floatTetWild {
         Scalar eps_simplification;
         Scalar eps_2_simplification;
         Scalar dd_simplification;
-
-        void init(Scalar bbox_diag_l) {
-            if (stage > 5)
-                stage = 5;
-
-            bbox_diag_length = bbox_diag_l;
-
-            if (ideal_edge_length_abs > 0.0) {
-                ideal_edge_length = ideal_edge_length_abs;
-                ideal_edge_length_rel = ideal_edge_length / bbox_diag_length;
-            }
-            else {
-                ideal_edge_length = bbox_diag_length * ideal_edge_length_rel;
-            }
-
-            eps_input = bbox_diag_length * eps_rel;
-            dd = eps_input;
-            dd /= 1.5;
-
-            // The sampled envelope check is conservative by the sampling error bound, the
-            // circumradius dd/sqrt(3) of the triangle the samples sit on, so that budget comes
-            // out of the epsilon the user asked for.
-            double eps_usable = eps_input - dd / std::sqrt(3);
-            eps_delta = eps_usable * 0.1;
-            eps = eps_usable - eps_delta * (stage - 1);
-
-            eps_2 = eps * eps;
-
-            eps_coplanar = eps * 0.2;
-            if (eps_coplanar > bbox_diag_length * 1e-6)
-                eps_coplanar = bbox_diag_length * 1e-6;
-            eps_2_coplanar = eps_coplanar * eps_coplanar;
-
-            eps_simplification = eps * 0.8;
-            eps_2_simplification = eps_simplification * eps_simplification;
-            dd_simplification = dd / eps * eps_simplification;
-
-            if (min_edge_len_rel < 0)
-                min_edge_len_rel = eps_rel;
-
-            split_threshold = ideal_edge_length * (4 / 3.0);
-            collapse_threshold = ideal_edge_length * (4 / 5.0);
-            split_threshold_2 = split_threshold * split_threshold;
-            collapse_threshold_2 = collapse_threshold * collapse_threshold;
-
-            logger().debug("bbox_diag_length = {}", bbox_diag_length);
-            logger().debug("ideal_edge_length = {}", ideal_edge_length);
-
-            logger().debug("stage = {}", stage);
-            logger().debug("eps_input = {}", eps_input);
-            logger().debug("eps = {}", eps);
-            logger().debug("eps_simplification = {}", eps_simplification);
-            logger().debug("eps_coplanar = {}", eps_coplanar);
-
-            logger().debug("dd = {}", dd);
-            logger().debug("dd_simplification = {}", dd_simplification);
-        }
     };
 }  // namespace floatTetWild

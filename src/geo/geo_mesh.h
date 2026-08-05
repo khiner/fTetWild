@@ -20,8 +20,6 @@
 namespace floatTetWild {
 namespace geo {
 
-    static const index_t NO_FACET = index_t(-1);
-
     // A triangle surface mesh: three coordinates per vertex, then three vertex indices per facet
     // in order around it.
     struct Mesh {

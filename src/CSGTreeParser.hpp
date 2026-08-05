@@ -52,7 +52,7 @@ bool parse(std::istream& in, CSGTree& tree, std::string& error);
 // tree left to right, and a name used twice keeps the id it was given first.
 std::vector<std::string> assign_mesh_ids(CSGTree& tree);
 
-bool keep_tet(const CSGTree& csg_tree, const int t_id, const std::vector<MatrixXd>& w);
+bool keep_tet(const CSGTree& csg_tree, int t_id, const std::vector<MatrixXd>& w);
 
 void merge(const std::vector<std::vector<Vector3>>&  Vs,
            const std::vector<std::vector<Vector3i>>& Fs,

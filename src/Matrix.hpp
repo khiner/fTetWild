@@ -4,8 +4,9 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
-// The slice of dense linear algebra the mesher uses: fixed 2/3/4-vectors, a 3x3 matrix with a
-// column-pivoting Householder QR solve, and a dynamic row-major matrix used as a list of rows.
+// The slice of dense linear algebra the mesher uses: fixed 2/3/4-vectors, a 3x3 matrix, and a
+// dynamic row-major matrix used as a list of rows. The vertex smoother's QR solve over Matrix3
+// lives with its one caller in VertexSmoothing.cpp.
 //
 // This replaces Eigen. Output has to stay byte identical, so the arithmetic is written to match
 // what Eigen 3.4 emitted for these shapes, and the two places that differ from the obvious spelling
@@ -22,8 +23,6 @@
 
 #include <cassert>
 #include <cmath>
-#include <limits>
-#include <utility>
 #include <vector>
 
 namespace floatTetWild {
@@ -221,25 +220,24 @@ inline Vector<T, N> operator/(const Vector<T, N>& a, typename matrix_detail::ide
     return r;
 }
 
-// 3x3 matrix. Row-major storage: nothing reads the buffer directly, and the solve below walks
-// columns explicitly either way.
+// 3x3 matrix of doubles. Row-major storage: nothing reads the buffer directly, and the QR solve
+// in VertexSmoothing.cpp walks columns explicitly either way.
 
-template <typename T>
-struct Matrix33
+struct Matrix3
 {
-    T m[9];
+    double m[9];
 
-    Matrix33() {}
+    Matrix3() {}
 
     void setZero()
     {
-        for (int i = 0; i < 9; i++) m[i] = T(0);
+        for (int i = 0; i < 9; i++) m[i] = 0.0;
     }
 
-    T&       operator()(int i, int j) { return m[i * 3 + j]; }
-    const T& operator()(int i, int j) const { return m[i * 3 + j]; }
+    double&       operator()(int i, int j) { return m[i * 3 + j]; }
+    const double& operator()(int i, int j) const { return m[i * 3 + j]; }
 
-    Matrix33& operator+=(const Matrix33& o)
+    Matrix3& operator+=(const Matrix3& o)
     {
         for (int i = 0; i < 9; i++) m[i] += o.m[i];
         return *this;
@@ -257,19 +255,18 @@ struct Matrix33
 // each other: writing a 3-vector result took one 2-wide packet plus a scalar tail, so rows 0 and 1
 // came out of the packet path, which multiply-adds one column of the matrix at a time, and row 2
 // came out of coeff(), which is a plain reduction over the row with no fused multiply-add.
-template <typename T>
-inline Vector<T, 3> operator*(const Matrix33<T>& a, const Vector<T, 3>& b)
+inline Vector<double, 3> operator*(const Matrix3& a, const Vector<double, 3>& b)
 {
-    Vector<T, 3> r;
+    Vector<double, 3> r;
     for (int i = 0; i < 2; i++) {
-        T s  = a(i, 0) * b[0];
-        s    = std::fma(a(i, 1), b[1], s);
-        s    = std::fma(a(i, 2), b[2], s);
-        r[i] = s;
+        double s = a(i, 0) * b[0];
+        s        = std::fma(a(i, 1), b[1], s);
+        s        = std::fma(a(i, 2), b[2], s);
+        r[i]     = s;
     }
-    const T tail = add_product(a(2, 1) * b[1], a(2, 2), b[2]);
-    const T head = a(2, 0) * b[0];
-    r[2]         = head + tail;
+    const double tail = add_product(a(2, 1) * b[1], a(2, 2), b[2]);
+    const double head = a(2, 0) * b[0];
+    r[2]              = head + tail;
     return r;
 }
 
@@ -353,15 +350,6 @@ struct MatrixX
     }
     void resize(int n) { resize(n, 1); }
 
-    // Row-major storage makes this a truncation or a zero-filled extension of the row list.
-    void conservativeResize(int r, int c)
-    {
-        assert(c == ncols || nrows == 0);
-        a.resize(size_t(r) * size_t(c));
-        nrows = r;
-        ncols = c;
-    }
-
     T&       operator()(int i, int j) { return a[size_t(i) * ncols + j]; }
     const T& operator()(int i, int j) const { return a[size_t(i) * ncols + j]; }
     // Linear access, for the n by 1 case.
@@ -372,201 +360,10 @@ struct MatrixX
     T&       operator[](int i) { return a[i]; }
     const T& operator[](int i) const { return a[i]; }
 
-    T maxCoeff() const
-    {
-        assert(!a.empty());
-        T m = a[0];
-        for (size_t i = 1; i < a.size(); i++) m = m < a[i] ? a[i] : m;
-        return m;
-    }
-
     T*       data() { return a.data(); }
     const T* data() const { return a.data(); }
 
     RowRef<T> row(int i) { return RowRef<T>(a.data() + size_t(i) * ncols, ncols); }
 };
-
-// Column-pivoting Householder QR for a 3x3 system, and the pieces it needs. This follows Eigen
-// 3.4's ColPivHouseholderQR::computeInPlace and _solve_impl step for step, including the pivot
-// threshold and the LAPACK norm downdate, because the vertex smoother's Newton step runs through
-// it and the mesh has to come out the same.
-
-namespace matrix_detail {
-
-template <typename T>
-inline T inner_product(const T* a, const T* b, int n)
-{
-    T s = a[0] * b[0];
-    for (int i = 1; i < n; i++) s = add_product(s, a[i], b[i]);
-    return s;
-}
-
-// Householder reflector for the column segment v[0..n-1], stored back in place: v[1..n-1] becomes
-// the essential part, beta is the new diagonal coefficient and tau the reflector coefficient.
-template <typename T>
-inline void make_householder_in_place(T* v, int stride, int n, T& tau, T& beta)
-{
-    T tail_sq_norm = T(0);
-    if (n > 1) {
-        const T x = v[stride];
-        tail_sq_norm = x * x;
-        for (int i = 2; i < n; i++) tail_sq_norm = add_product(tail_sq_norm, v[i * stride], v[i * stride]);
-    }
-    const T c0  = v[0];
-    const T tol = (std::numeric_limits<T>::min)();
-
-    if (n == 1 || tail_sq_norm <= tol) {
-        tau  = T(0);
-        beta = c0;
-        for (int i = 1; i < n; i++) v[i * stride] = T(0);
-    }
-    else {
-        beta = std::sqrt(add_product(tail_sq_norm, c0, c0));
-        if (c0 >= T(0)) beta = -beta;
-        const T d = c0 - beta;
-        for (int i = 1; i < n; i++) v[i * stride] /= d;
-        tau = (beta - c0) / beta;
-    }
-}
-
-// Applies the reflector whose coefficient is tau and whose essential part is `essential` to one
-// column, from row k down. Both the decomposition and the solve below need this, and the two have
-// to stay the same arithmetic.
-template <typename T>
-inline void apply_householder(T* col, int k, const T* essential, int essential_size, T tau)
-{
-    T tmp  = inner_product(essential, col + k + 1, essential_size);
-    tmp    = tmp + col[k];
-    col[k] = sub_product(col[k], tau, tmp);
-    for (int i = 0; i < essential_size; i++)
-        col[k + 1 + i] = sub_product(col[k + 1 + i], tau * essential[i], tmp);
-}
-
-}  // namespace matrix_detail
-
-template <typename T>
-Vector<T, 3> solve_col_piv_householder_qr(const Matrix33<T>& matrix, const Vector<T, 3>& rhs)
-{
-    using matrix_detail::apply_householder;
-    using matrix_detail::make_householder_in_place;
-
-    // Column-major, so that a column is a contiguous run and reads like Eigen's m_qr.col(k).
-    T qr[9];
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++) qr[j * 3 + i] = matrix(i, j);
-
-    T   h_coeffs[3];
-    T   norms_updated[3];
-    T   norms_direct[3];
-    int transpositions[3];
-
-    for (int k = 0; k < 3; k++) {
-        const T* c = qr + k * 3;
-        T        s = c[0] * c[0];
-        s          = add_product(s, c[1], c[1]);
-        s          = add_product(s, c[2], c[2]);
-        norms_direct[k]  = std::sqrt(s);
-        norms_updated[k] = norms_direct[k];
-    }
-
-    const T eps      = std::numeric_limits<T>::epsilon();
-    T       max_norm = norms_updated[0];
-    for (int k = 1; k < 3; k++)
-        if (norms_updated[k] > max_norm) max_norm = norms_updated[k];
-    const T threshold_helper       = (max_norm * eps) * (max_norm * eps) / T(3);
-    const T norm_downdate_threshold = std::sqrt(eps);
-
-    int nonzero_pivots = 3;
-
-    for (int k = 0; k < 3; k++) {
-        int biggest_col_index = k;
-        T   biggest           = norms_updated[k];
-        for (int i = k + 1; i < 3; i++) {
-            if (norms_updated[i] > biggest) {
-                biggest           = norms_updated[i];
-                biggest_col_index = i;
-            }
-        }
-        const T biggest_col_sq_norm = biggest * biggest;
-
-        // Bug 941 in Eigen: the decomposition runs to the end even once the pivots stop being
-        // meaningful, so that the original matrix is still reproduced.
-        if (nonzero_pivots == 3 && biggest_col_sq_norm < threshold_helper * T(3 - k))
-            nonzero_pivots = k;
-
-        transpositions[k] = biggest_col_index;
-        if (k != biggest_col_index) {
-            for (int i = 0; i < 3; i++) std::swap(qr[k * 3 + i], qr[biggest_col_index * 3 + i]);
-            std::swap(norms_updated[k], norms_updated[biggest_col_index]);
-            std::swap(norms_direct[k], norms_direct[biggest_col_index]);
-        }
-
-        T beta;
-        make_householder_in_place(qr + k * 3 + k, 1, 3 - k, h_coeffs[k], beta);
-        qr[k * 3 + k] = beta;
-
-        // Apply the reflector to the trailing columns.
-        const T tau = h_coeffs[k];
-        const int essential_size = 3 - k - 1;
-        if (essential_size > 0 && tau != T(0)) {
-            const T* essential = qr + k * 3 + k + 1;
-            for (int j = k + 1; j < 3; j++)
-                apply_householder(qr + j * 3, k, essential, essential_size, tau);
-        }
-
-        // LAPACK's stable norm downdate, xGEQP3 lines 278-297.
-        for (int j = k + 1; j < 3; j++) {
-            if (norms_updated[j] != T(0)) {
-                T temp = std::abs(qr[j * 3 + k]) / norms_updated[j];
-                temp   = (T(1) + temp) * (T(1) - temp);
-                temp   = temp < T(0) ? T(0) : temp;
-                const T ratio = norms_updated[j] / norms_direct[j];
-                const T temp2 = temp * (ratio * ratio);
-                if (temp2 <= norm_downdate_threshold) {
-                    T s = qr[j * 3 + k + 1] * qr[j * 3 + k + 1];
-                    for (int i = k + 2; i < 3; i++) s = add_product(s, qr[j * 3 + i], qr[j * 3 + i]);
-                    norms_direct[j]  = std::sqrt(s);
-                    norms_updated[j] = norms_direct[j];
-                }
-                else {
-                    norms_updated[j] *= std::sqrt(temp);
-                }
-            }
-        }
-    }
-
-    int permutation[3] = {0, 1, 2};
-    for (int k = 0; k < 3; k++) std::swap(permutation[k], permutation[transpositions[k]]);
-
-    Vector<T, 3> dst;
-    if (nonzero_pivots == 0) {
-        dst.setZero();
-        return dst;
-    }
-
-    T c[3] = {rhs[0], rhs[1], rhs[2]};
-
-    // c <- Q^T c, reflectors in increasing order.
-    for (int k = 0; k < nonzero_pivots; k++) {
-        const T   tau            = h_coeffs[k];
-        const int essential_size = 3 - k - 1;
-        if (essential_size == 0) {
-            c[k] *= T(1) - tau;
-        }
-        else if (tau != T(0))
-            apply_householder(c, k, qr + k * 3 + k + 1, essential_size, tau);
-    }
-
-    // Back substitution over the leading nonzero_pivots block.
-    for (int kk = 0; kk < nonzero_pivots; kk++) {
-        const int i = nonzero_pivots - kk - 1;
-        c[i] /= qr[i * 3 + i];
-        for (int j = 0; j < i; j++) c[j] = sub_product(c[j], c[i], qr[i * 3 + j]);
-    }
-
-    for (int i = 0; i < nonzero_pivots; i++) dst[permutation[i]] = c[i];
-    for (int i = nonzero_pivots; i < 3; i++) dst[permutation[i]] = T(0);
-    return dst;
-}
 
 }  // namespace floatTetWild

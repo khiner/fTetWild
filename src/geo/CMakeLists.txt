@@ -4,7 +4,6 @@
 # different order would still change the mesh. See LICENSE.geogram.
 set(SOURCES
 	geo_basic.h
-	geo_parallel.h
 	geo_geometry.h
 
 	geo_mesh.h

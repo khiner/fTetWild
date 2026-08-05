@@ -6,7 +6,6 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include "EdgeCollapsing.h"
 #include "LocalOperations.h"
 
 namespace floatTetWild {
@@ -218,8 +217,9 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
           tet_vertices[v2_id].pos,
           tree))  // todo: you should check/unmark is_on_boundary around here
         return false;
+    geo::index_t prev_facet;
     if (tet_vertices[v1_id].is_on_surface &&
-        tree.is_out_sf_envelope(tet_vertices[v2_id].pos, mesh.params.eps_2))
+        tree.is_out_sf_envelope(tet_vertices[v2_id].pos, mesh.params.eps_2, prev_facet))
         return false;
 
     std::vector<int> n12_t_ids;
@@ -254,10 +254,7 @@ bool floatTetWild::collapse_an_edge(Mesh&                            mesh,
     for (size_t i = 0; i < n1_t_ids.size(); i++) {
         const int t_id = n1_t_ids[i];
         const int j    = js_n1_t_ids[i];
-        Scalar new_q = get_quality(tet_vertices[v2_id].pos,
-                                   tet_pos(mesh, t_id, (j + 1) % 4),
-                                   tet_pos(mesh, t_id, (j + 2) % 4),
-                                   tet_pos(mesh, t_id, (j + 3) % 4));
+        Scalar new_q = get_quality(mesh, t_id, j, tet_vertices[v2_id].pos);
         if (new_q > old_max_quality)
             return false;
         new_qs.push_back(new_q);

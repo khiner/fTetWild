@@ -5,8 +5,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_PARALLELFOR_HPP
-#define FLOATTETWILD_PARALLELFOR_HPP
+#pragma once
 
 #include <cstddef>
 #include <functional>
@@ -73,5 +72,3 @@ std::vector<T> parallel_collect(size_t begin, size_t end, F&& f)
 }
 
 }  // namespace floatTetWild
-
-#endif  // FLOATTETWILD_PARALLELFOR_HPP

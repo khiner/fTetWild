@@ -232,13 +232,6 @@ struct Vec3
     }
     T length() const { return std::sqrt(length2()); }
 
-    T dot(const Vec3& r) const
-    {
-        T result(v[0] * r.v[0]);
-        for (int i = 1; i < 3; ++i)
-            result += v[i] * r.v[i];
-        return result;
-    }
 };
 
 template<typename T>
@@ -252,7 +245,12 @@ Vec3<T> operator*(T a, const Vec3<T>& b)
 
 template<typename T>
 T dot(const Vec3<T>& a, const Vec3<T>& b)
-{ return a.dot(b); }
+{
+    T result(a.v[0] * b.v[0]);
+    for (int i = 1; i < 3; ++i)
+        result += a.v[i] * b.v[i];
+    return result;
+}
 
 using Vec3f  = Vec3<float>;
 using Vec3x4 = Vec3<Float4>;
@@ -387,9 +385,6 @@ constexpr uint32_t NSpans      = 16;
 constexpr uint32_t NSplits     = NSpans - 1;
 constexpr uint32_t MinFraction = 16;
 
-int num_processors()
-{ return std::thread::hardware_concurrency(); }
-
 // An overestimate of the number of nodes needed. At worst we could have only 2 children in every
 // leaf, and above that a geometric series with r=1/N and a=(nboxes/2)/N.
 uint32_t node_estimate(uint32_t nboxes)
@@ -404,12 +399,10 @@ void compute_full_bounding_box(Box&            axes_minmax,
         axes_minmax.reset();
         return;
     }
-    uint32_t ntasks = 1;
-    if (nboxes >= 2 * 4096) {
-        const uint32_t nprocessors = num_processors();
-        ntasks = (nprocessors > 1) ? std::min(4 * nprocessors, nboxes / 4096) : 1;
-    }
-    if (ntasks == 1) {
+    // The serial and parallel paths are not numerically equivalent (see the NOTE below), so
+    // whether this machine parallelises is part of the output.
+    const bool run_parallel = nboxes >= 2 * 4096 && std::thread::hardware_concurrency() > 1;
+    if (!run_parallel) {
         Box box = boxes[indices[0]];
         for (uint32_t i = 1; i < nboxes; ++i)
             box.enlarge(boxes[indices[i]]);
@@ -747,18 +740,13 @@ void split(const Box& axes_minmax,
     // NOTE: the factor of 0.5 undoes the doubling in the box centres.
     const float        axis_index_scale          = (0.5f * NSpans) / axis_length;
     constexpr uint32_t BoxSpansParallelThreshold = 2048;
-    uint32_t           ntasks                    = 1;
-    if (nboxes >= BoxSpansParallelThreshold) {
-        const uint32_t nprocessors = num_processors();
-        ntasks = (nprocessors > 1)
-                   ? std::min(4 * nprocessors, nboxes / (BoxSpansParallelThreshold / 2))
-                   : 1;
-    }
+    const bool         run_parallel =
+      nboxes >= BoxSpansParallelThreshold && std::thread::hardware_concurrency() > 1;
     const auto span_of = [axis, axis_min_x2, axis_index_scale](const Box& box) {
         const int span = int((box_centre_x2(box, axis) - axis_min_x2) * axis_index_scale);
         return uint32_t(span <= 0 ? 0 : (span >= int(NSpans - 1) ? int(NSpans - 1) : span));
     };
-    if (ntasks == 1) {
+    if (!run_parallel) {
         for (uint32_t indexi = 0; indexi < nboxes; ++indexi) {
             const Box&     box        = boxes[indices[indexi]];
             const uint32_t span_index = span_of(box);

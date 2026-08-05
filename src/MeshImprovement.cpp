@@ -9,10 +9,6 @@
 #include "MeshImprovement.h"
 
 #include "LocalOperations.h"
-#include "EdgeSplitting.h"
-#include "EdgeCollapsing.h"
-#include "EdgeSwapping.h"
-#include "VertexSmoothing.h"
 #include "CSGTreeParser.hpp"
 
 #include "TriangleInsertion.h"
@@ -38,7 +34,7 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
         if (mesh.tets[i].is_removed)
             continue;
         for (int j = 0; j < 4; j++)
-            C.row(index) += tet_pos(mesh, i, j).cast<double>();
+            C.row(index) += tet_pos(mesh, i, j);
         C.row(index) /= 4.0;
         index++;
     }
@@ -51,7 +47,7 @@ MatrixXd tet_barycenters(const Mesh &mesh) {
 //
 // libigl also exposed the two halves of this, building the hierarchy once and querying it many
 // times. Nothing here reuses a hierarchy, so the two are one call.
-MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C,
+MatrixXd winding_numbers(const MatrixXd &V, const MatrixXi &F, const MatrixXd &C,
                          bool invert_faces) {
     std::vector<float> points(V.rows() * 3);
     for (int i = 0; i < V.rows(); i++) {
@@ -83,7 +79,7 @@ MatrixXd winding_numbers(const MatrixXs &V, const MatrixXi &F, const MatrixXd &C
 
 // The same, against the mesh's own tracked surface carrying tag c_id.
 MatrixXd tracked_surface_wn(Mesh &mesh, const MatrixXd &C, int c_id) {
-    MatrixXs V;
+    MatrixXd V;
     MatrixXi F;
     get_tracked_surface(mesh, V, F, c_id);
     return winding_numbers(V, F, C, false);
@@ -92,7 +88,7 @@ MatrixXd tracked_surface_wn(Mesh &mesh, const MatrixXd &C, int c_id) {
 // Which live tets have their barycentre inside the given surface, one entry per tet. A tet that
 // was already removed is false. When that left nothing inside, the faces are flipped and the whole
 // thing is redone, which is what an inside-out input needs.
-std::vector<bool> tets_inside_surface(const Mesh &mesh, const MatrixXs &V, const MatrixXi &F) {
+std::vector<bool> tets_inside_surface(const Mesh &mesh, const MatrixXd &V, const MatrixXi &F) {
     const MatrixXd C = tet_barycenters(mesh);
     for (int pass = 0; pass < 2; pass++) {
         const MatrixXd W = winding_numbers(V, F, C, pass == 1);
@@ -460,7 +456,7 @@ int get_max_p(const Mesh &mesh)
 }
 
 void mark_outside(Mesh& mesh){
-    MatrixXs V;
+    MatrixXd V;
     MatrixXi F;
     get_tracked_surface(mesh, V, F);
     const std::vector<bool> is_inside = tets_inside_surface(mesh, V, F);
@@ -471,10 +467,10 @@ void mark_outside(Mesh& mesh){
 void untangle(Mesh &mesh) {
     auto &tet_vertices = mesh.tet_vertices;
     auto &tets = mesh.tets;
-    static const Scalar zero_area = 1e2 * SCALAR_ZERO_2;
-    static const std::vector<std::array<int, 4>> face_pairs = {{{0, 1, 2, 3}},
-                                                               {{0, 2, 1, 3}},
-                                                               {{0, 3, 1, 2}}};
+    constexpr Scalar zero_area = 1e2 * SCALAR_ZERO_2;
+    static constexpr std::array<std::array<int, 4>, 3> face_pairs = {{{{0, 1, 2, 3}},
+                                                                      {{0, 2, 1, 3}},
+                                                                      {{0, 3, 1, 2}}}};
 
     for (int t_id = 0; t_id < tets.size(); t_id++) {
         auto &t = tets[t_id];
@@ -734,37 +730,29 @@ void init(Mesh &mesh) {
 }
 
 void run_passes(Mesh &mesh, AABBWrapper& tree, const std::array<int, 4> &ops){
-    // Smoothing is the only one that does not untangle first.
-    struct Pass {
-        const char *name;
-        int id;
-        bool untangle_first;
-        void (*run)(Mesh &, AABBWrapper &);
-    };
-    static const std::array<Pass, 4> passes = {{
-        {"edge splitting", StateInfo::splitting_id, true,
-         [](Mesh &m, AABBWrapper &t) { edge_splitting(m, t); }},
-        {"edge collapsing", StateInfo::collapsing_id, true,
-         [](Mesh &m, AABBWrapper &t) { edge_collapsing(m, t); }},
-        {"edge swapping", StateInfo::swapping_id, true,
-         [](Mesh &m, AABBWrapper &) { edge_swapping(m); }},
-        {"vertex smoothing", StateInfo::smoothing_id, false,
-         [](Mesh &m, AABBWrapper &t) { vertex_smoothing(m, t); }},
-    }};
+    static const char* const names[4] = {
+      "edge splitting", "edge collapsing", "edge swapping", "vertex smoothing"};
 
     Timer igl_timer;
     for (int p = 0; p < 4; p++) {
         for (int i = 0; i < ops[p]; i++) {
             igl_timer.start();
-            logger().info(passes[p].name);
-            if (passes[p].untangle_first)
+            logger().info(names[p]);
+            // Smoothing is the only one that does not untangle first.
+            if (p != 3)
                 untangle(mesh);
-            passes[p].run(mesh, tree);
+            switch (p) {
+                case 0: edge_splitting(mesh, tree); break;
+                case 1: edge_collapsing(mesh, tree); break;
+                case 2: edge_swapping(mesh); break;
+                default: vertex_smoothing(mesh, tree); break;
+            }
             const double time = igl_timer.getElapsedTimeInSec();
             Scalar max_energy, avg_energy;
             mesh.get_max_avg_energy(max_energy, avg_energy);
-            stats().push_back({passes[p].id, time, mesh.get_v_num(), mesh.get_t_num(),
-                               max_energy, avg_energy});
+            // StateInfo numbers the four passes contiguously from splitting_id, in this order.
+            stats().push_back({StateInfo::splitting_id + p, time, mesh.get_v_num(),
+                               mesh.get_t_num(), max_energy, avg_energy});
         }
     }
 }
@@ -904,7 +892,7 @@ void floatTetWild::optimization(const std::vector<Vector3> &input_vertices, cons
     }
 }
 
-void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXs &V_sf, MatrixXi &F_sf, int c_id) {
+void floatTetWild::get_tracked_surface(Mesh& mesh, MatrixXd &V_sf, MatrixXi &F_sf, int c_id) {
     auto &tet_vertices = mesh.tet_vertices;
 
     const auto is_tracked = [c_id](const MeshTet &t, int j) {
@@ -1037,7 +1025,7 @@ void floatTetWild::boolean_operation(Mesh& mesh, int op){
     }
 }
 
-void floatTetWild::filter_outside(Mesh& mesh, const MatrixXs& V, const MatrixXi& F) {
+void floatTetWild::filter_outside(Mesh& mesh, const MatrixXd& V, const MatrixXi& F) {
     const std::vector<bool> is_inside = tets_inside_surface(mesh, V, F);
     for (size_t t_id = 0; t_id < mesh.tets.size(); ++t_id) {
         if (!is_inside[t_id])
@@ -1153,7 +1141,7 @@ void floatTetWild::smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree) {
 
             double dis = (c - tet_vertices[v_id].pos).norm();
             Vector3 v = (c - tet_vertices[v_id].pos).normalized();
-            static const int N = 7;
+            constexpr int N = 7;
             Vector3 p;
             for (int n = 0; n < N; n++) {
                 p = tet_vertices[v_id].pos + dis / pow(2, n) * v;
@@ -1164,9 +1152,7 @@ void floatTetWild::smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree) {
                         is_valid = false;
                         break;
                     }
-                    if (get_quality(p, tet_pos(mesh, t_id, (j + 1) % 4),
-                                    tet_pos(mesh, t_id, (j + 2) % 4),
-                                    tet_pos(mesh, t_id, (j + 3) % 4)) > mesh.params.stop_energy) {
+                    if (get_quality(mesh, t_id, j, p) > mesh.params.stop_energy) {
                         is_valid = false;
                         break;
                     }
@@ -1273,7 +1259,9 @@ void floatTetWild::manifold_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F) {
         if (f_groups.size() < 2)
             continue;
 
-        V.conservativeResize(V.rows() + 1, V.cols());
+        // Append one zero-filled row, which row-major storage makes a plain extension.
+        V.a.resize(V.a.size() + V.ncols);
+        V.nrows++;
         V.row(V.rows() - 1) = V.row(v_id);
         for (int f_id: f_groups[0]) {
             for (int j = 0; j < 3; j++) {

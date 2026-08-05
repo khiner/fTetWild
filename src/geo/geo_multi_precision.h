@@ -45,10 +45,6 @@ namespace geo {
         return length_;
     }
 
-    index_t capacity() const {
-        return capacity_;
-    }
-
     void set_length(index_t new_length) {
         length_ = new_length;
     }
@@ -83,11 +79,6 @@ namespace geo {
     length_(0),
     capacity_(capa) {
     }
-
-    // Allocates an expansion in the calling function's frame. A macro rather than an inline
-    // function because alloca() cannot be called from one.
-#define new_expansion_on_stack(capa)                                    \
-    (new (alloca(expansion::bytes(capa)))expansion(capa))
 
     static expansion* new_expansion_on_heap(index_t capa);
 
@@ -240,8 +231,6 @@ namespace geo {
 
     expansion& operator= (const expansion& rhs) = delete;
 
-    private:
-
     // Above this capacity an intermediate goes on the heap rather than the stack. geogram drops
     // to 256 on Apple, where a default pthread stack is 512 KB. The thread pool here gives every
     // worker 64 MB, so fTetWild keeps 1024 on every platform.
@@ -250,6 +239,11 @@ namespace geo {
     index_t capacity_;
     double x_[2];  // x_ is in fact of size [capacity_]
     };
+
+    // Allocates an expansion in the calling function's frame. A macro rather than an inline
+    // function because alloca() cannot be called from one.
+#define new_expansion_on_stack(capa)                                    \
+    (new (alloca(expansion::bytes(capa)))expansion(capa))
 
     // Each of these allocates a result in the calling function's frame and fills it, so the
     // reference must not outlive the call. \p a and \p b are doubles or expansions where the

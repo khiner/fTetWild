@@ -103,11 +103,11 @@ Scalar get_angle_cos(const Vector3& p,
     return res;
 }
 
-bool is_out_envelope(const std::array<Vector3, 3>& vs,
+bool is_tri_out_envelope(const std::array<Vector3, 3>& vs,
                      const AABBWrapper&            tree,
                      const Parameters&             params)
 {
-    geo::index_t prev_facet = geo::NO_FACET;
+    geo::index_t prev_facet = geo::NO_INDEX;
     return sample_triangle_and_check_is_out(
       vs, params.dd_simplification, params.eps_2_simplification, tree, prev_facet);
 }
@@ -117,7 +117,7 @@ void remove_duplicates(std::vector<Vector3>&  input_vertices,
                        std::vector<int>&      input_tags,
                        const Parameters&      params)
 {
-    MatrixXs V_tmp = to_matrix(input_vertices), V_in;
+    MatrixXd V_tmp = to_matrix(input_vertices), V_in;
     MatrixXi F_tmp = to_matrix(input_faces), F_in;
 
     remove_duplicate_vertices(V_tmp, F_tmp, SCALAR_ZERO * params.bbox_diag_length, V_in, F_in);
@@ -257,7 +257,7 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
               {p,
                input_vertices[input_faces[f_id][(j + 1) % 3]],
                input_vertices[input_faces[f_id][(j + 2) % 3]]}};
-            if (is_out_envelope(tri, tree, params))
+            if (is_tri_out_envelope(tri, tree, params))
                 return false;
         }
 
@@ -389,11 +389,11 @@ void swapping(const std::vector<Vector3>&           input_vertices,
         if (std::min(cos_a0_new, cos_a1_new) <= std::min(cos_a0, cos_a1))
             continue;
 
-        if (is_out_envelope(
+        if (is_tri_out_envelope(
               {{input_vertices[v1_id], input_vertices[n_v_ids[0]], input_vertices[n_v_ids[1]]}},
               tree,
               params) ||
-            is_out_envelope(
+            is_tri_out_envelope(
               {{input_vertices[v2_id], input_vertices[n_v_ids[0]], input_vertices[n_v_ids[1]]}},
               tree,
               params)) {

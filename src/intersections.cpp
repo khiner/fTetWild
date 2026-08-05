@@ -10,14 +10,8 @@
 
 #include "Predicates.hpp"
 
-namespace floatTetWild {
-namespace {
-// Where the lines through seg1 and seg2 meet, as t1 along seg1 and t2 along seg2. False when the
-// two are parallel.
-//
-// Assumptions: the segments are not degenerate and not coplanar.
-bool line_line_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2,
-                               Scalar& t1, Scalar& t2) {
+bool floatTetWild::line_line_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2,
+                                             Scalar& t1, Scalar& t2) {
     const Scalar& x1 = seg1[0][0];
     const Scalar& y1 = seg1[0][1];
     const Scalar& x2 = seg1[1][0];
@@ -34,22 +28,6 @@ bool line_line_intersection_2d(const std::array<Vector2, 2> &seg1, const std::ar
     t1 = ((y3 - y4) * (x1 - x3) + (x4 - x3) * (y1 - y3)) / d;
     t2 = ((y1 - y2) * (x1 - x3) + (x2 - x1) * (y1 - y3)) / d;
     return true;
-}
-}  // namespace
-}  // namespace floatTetWild
-
-bool floatTetWild::seg_line_intersection_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 2> &line, Scalar& t_seg){
-    Scalar _;
-    if (!line_line_intersection_2d(seg, line, t_seg, _))
-        return false;
-    return t_seg >= 0 && t_seg <= 1;
-}
-
-bool floatTetWild::seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2, Scalar& t2){
-    Scalar t1;
-    if (!line_line_intersection_2d(seg1, seg2, t1, t2))
-        return false;
-    return t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1;
 }
 
 floatTetWild::Scalar floatTetWild::p_seg_squared_dist_3d(const Vector3 &v, const Vector3 &a, const Vector3 &b){
@@ -134,15 +112,15 @@ bool floatTetWild::is_tri_tri_cutted_2d(const std::array<Vector2, 3>& vs_tet, co
     return false;
 }
 
-void floatTetWild::count_orientations(const int* oris, int n, int& cnt_pos, int& cnt_neg) {
-    cnt_pos = 0;
-    cnt_neg = 0;
+floatTetWild::OriCounts floatTetWild::count_orientations(const int* oris, int n) {
+    OriCounts cnt = {0, 0};
     for (int i = 0; i < n; i++) {
         if (oris[i] == Predicates::ORI_POSITIVE)
-            cnt_pos++;
+            cnt.pos++;
         else if (oris[i] == Predicates::ORI_NEGATIVE)
-            cnt_neg++;
+            cnt.neg++;
     }
+    return cnt;
 }
 
 bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2, 3> &tri) {
@@ -150,9 +128,8 @@ bool floatTetWild::is_p_inside_tri_2d(const Vector2& p, const std::array<Vector2
     for (int i = 0; i < 3; i++)
         oris[i] = Predicates::orient_2d(tri[i], tri[(i + 1) % 3], p);
 
-    int cnt_pos, cnt_neg;
-    count_orientations(oris, 3, cnt_pos, cnt_neg);
-    return cnt_neg == 3 || cnt_pos == 3;  // strictly inside
+    const OriCounts cnt = count_orientations(oris, 3);
+    return cnt.neg == 3 || cnt.pos == 3;  // strictly inside
 }
 
 // The axis the triangle's normal leans on most, which is the one to drop when flattening to 2d.
@@ -186,8 +163,9 @@ bool floatTetWild::is_crossing(int s1, int s2) {
 }
 
 bool floatTetWild::is_tri_tri_cut(const Vector3& p1, const Vector3& p2, const Vector3& p3,
-                                  const Vector3& q1, const Vector3& q2, const Vector3& q3, int hint) {
-    if(hint == CUT_COPLANAR){
+                                  const Vector3& q1, const Vector3& q2, const Vector3& q3,
+                                  bool is_coplanar) {
+    if(is_coplanar){
         int axis = get_t(p1, p2, p3);
 
         return is_tri_tri_cutted_2d({{to_2d(p1, axis), to_2d(p2, axis), to_2d(p3, axis)}}, {{to_2d(q1, axis), to_2d(q2, axis), to_2d(q3, axis)}});
@@ -237,7 +215,6 @@ bool floatTetWild::is_point_inside_tet(const Vector3& p, const Vector3& p0t, con
                          Predicates::orient_3d(p0t, p1t, p, p3t),
                          Predicates::orient_3d(p0t, p1t, p2t, p)};
 
-    int cnt_pos, cnt_neg;
-    count_orientations(oris, 4, cnt_pos, cnt_neg);
-    return cnt_pos == 0 || cnt_neg == 0;
+    const OriCounts cnt = count_orientations(oris, 4);
+    return cnt.pos == 0 || cnt.neg == 0;
 }

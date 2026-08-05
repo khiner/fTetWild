@@ -20,16 +20,18 @@
 #pragma once
 
 #include "geo_basic.h"
-#include <algorithm>
+#include <vector>
 
 namespace floatTetWild {
 namespace geo {
 
+    // The type for coordinate indices: one byte, since splitting_coord_ stores one per node.
+    typedef uint8_t coord_index_t;
+
     // Nearest neighbour search over a perfectly balanced kd-tree. No combinatorics is stored: the
     // two children of node n are 2n+1 and 2n+2. It works well for regular to moderately irregular
     // pointsets.
-    class BalancedKdTree {
-    public:
+    struct BalancedKdTree {
         // The dimension of the points, and the stride between two of them.
         static constexpr coord_index_t DIMENSION = 3;
 
@@ -63,32 +65,12 @@ namespace geo {
 
         // The largest node index the subtree rooted at \p node_id reaches, which is what the
         // per-node arrays have to be sized for.
-        static index_t max_node_index(
-            index_t node_id, index_t b, index_t e
-        ) {
-            if(e - b <= MAX_LEAF_SIZE) {
-                return node_id;
-            }
-            index_t m = b + (e - b) / 2;
-            return std::max(
-                max_node_index(2 * node_id, b, m),
-                max_node_index(2 * node_id + 1, m, e)
-            );
-        }
+        static index_t max_node_index(index_t node_id, index_t b, index_t e);
 
         // The coordinate the [b,e) sequence will be split along.
         coord_index_t best_splitting_coord(index_t b, index_t e);
 
-        void create_kd_tree_recursive(
-            index_t node_index, index_t b, index_t e
-        ) {
-            if(e - b <= MAX_LEAF_SIZE) {
-                return;
-            }
-            index_t m = split_kd_node(node_index, b, e);
-            create_kd_tree_recursive(2 * node_index, b, m);
-            create_kd_tree_recursive(2 * node_index + 1, m, e);
-        }
+        void create_kd_tree_recursive(index_t node_index, index_t b, index_t e);
 
         // Computes and stores the splitting coordinate and value of \p node_index, which holds
         // the [b,e) sequence, and returns the m that splits it into [b,m) for the left child

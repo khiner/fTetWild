@@ -10,9 +10,9 @@
 // what separates a Hilbert curve from a Morton one. So those are the two parameters.
 
 #include "geo_mesh_reorder.h"
-#include "geo_parallel.h"
 
 #include <algorithm>
+#include <numeric>
 #include <random>
 
 namespace {
@@ -91,20 +91,6 @@ namespace {
         }
     };
 
-    // Compares two elements along coordinate COORD. UP picks direct or reverse order and is
-    // ignored unless DIRECTED, which is true for the Hilbert order, that reverses along some
-    // axes, and false for the Morton order, that does not.
-    template <class COORD_OF, int COORD, bool UP, bool DIRECTED>
-    struct Compare {
-        const COORD_OF& coord_of;
-
-        bool operator() (index_t i1, index_t i2) const {
-            return (UP || !DIRECTED)
-                ? coord_of(i1, COORD) < coord_of(i2, COORD)
-                : coord_of(i1, COORD) > coord_of(i2, COORD);
-        }
-    };
-
     /************************************************************************/
 
     // Sorts elements in Hilbert or Morton order in 3d, after Delage and Devillers, "Spatial
@@ -112,9 +98,16 @@ namespace {
     template <class COORD_OF, bool DIRECTED>
     struct SpatialSort {
 
+        // Compares two elements along coordinate COORD. UP picks direct or reverse order and is
+        // ignored unless DIRECTED, which is true for the Hilbert order, that reverses along some
+        // axes, and false for the Morton order, that does not.
         template <int COORD, bool UP>
-        static Compare<COORD_OF, COORD, UP, DIRECTED> cmp(const COORD_OF& coord_of) {
-            return {coord_of};
+        static auto cmp(const COORD_OF& coord_of) {
+            return [&coord_of](index_t i1, index_t i2) {
+                return (UP || !DIRECTED)
+                    ? coord_of(i1, COORD) < coord_of(i2, COORD)
+                    : coord_of(i1, COORD) > coord_of(i2, COORD);
+            };
         }
 
         // The recursion. COORDX is the first coordinate, 0, 1 or 2, and the second and third
@@ -190,9 +183,7 @@ namespace {
     // The identity permutation over \p n elements, for a sort to rearrange.
     void trivial_indices(index_t n, std::vector<index_t>& sorted_indices) {
         sorted_indices.resize(n);
-        for(index_t i = 0; i < n; ++i) {
-            sorted_indices[i] = i;
-        }
+        std::iota(sorted_indices.begin(), sorted_indices.end(), index_t(0));
     }
 
     // Implementation of compute_BRIO_order(), over the [b,e) range of indices into \p vertices,

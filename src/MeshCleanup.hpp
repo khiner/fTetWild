@@ -1,5 +1,5 @@
-// libigl's surface cleanup, in one unit. The templates stay here because Simplification and
-// MeshImprovement instantiate them; the rest of the cluster is file-local in MeshCleanup.cpp.
+// libigl's surface cleanup, in one unit. unique_rows stays here because Simplification and
+// MeshCleanup instantiate it at different types; the rest lives in MeshCleanup.cpp.
 //
 // From libigl (https://github.com/libigl/libigl), MPL 2.0, the same licence as fTetWild:
 // Copyright (C) 2013 Alec Jacobson <alecjacobson@gmail.com>  (round, sortrows,
@@ -14,7 +14,6 @@
 #include "Types.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -103,47 +102,12 @@ namespace floatTetWild
   // Outputs:
   //  SV  #SV by dim new list of vertex positions
   //  SF  #F by dim list of face indices into SV
-  template <typename T>
-  inline void remove_duplicate_vertices(
-    const MatrixX<T>& V,
+  void remove_duplicate_vertices(
+    const MatrixXd& V,
     const MatrixXi& F,
-    const double epsilon,
-    MatrixX<T>& SV,
-    MatrixXi& SF)
-  {
-    // SV = V(SVI,:) and V = SV(SVJ,:). libigl returned both; no caller read them.
-    MatrixXi SVI, SVJ;
-    if(epsilon > 0)
-    {
-      // The rounded copy only feeds unique_rows: SV is gathered from V, not from it.
-      // Rounding is http://stackoverflow.com/a/485549, which is what libigl used.
-      MatrixX<T> rounded(V.rows(), V.cols());
-      for(int i = 0;i<V.rows();i++)
-        for(int j = 0;j<V.cols();j++)
-        {
-          const T r = V(i,j) / T(epsilon);
-          rounded(i,j) = (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
-        }
-      MatrixX<T> unused;
-      unique_rows(rounded,unused,SVI,SVJ);
-      SV.resize(SVI.rows(),V.cols());
-      for(int i = 0;i<SVI.rows();i++)
-        for(int j = 0;j<V.cols();j++)
-          SV(i,j) = V(SVI(i),j);
-    }else
-    {
-      unique_rows(V,SV,SVI,SVJ);
-    }
-
-    SF.resize(F.rows(),F.cols());
-    for(int f = 0;f<F.rows();f++)
-    {
-      for(int c = 0;c<F.cols();c++)
-      {
-        SF(f,c) = SVJ(F(f,c));
-      }
-    }
-  }
+    double epsilon,
+    MatrixXd& SV,
+    MatrixXi& SF);
 
   // Consistently orient faces in orientable patches using BFS
   //

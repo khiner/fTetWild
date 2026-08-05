@@ -34,11 +34,6 @@ constexpr size_t ChunksPerThread = 4;
 // inline instead of re-entering the pool, which would deadlock on the completion count.
 thread_local bool in_parallel_region = false;
 
-struct Range
-{
-    size_t lo, hi;
-};
-
 using Body = std::function<void(size_t, size_t, size_t)>;
 
 class ThreadPool
@@ -64,12 +59,16 @@ class ThreadPool
     // The calling thread runs chunks too, so it counts towards the parallelism.
     size_t parallelism() const { return n_workers_ + 1; }
 
-    void run(const Body& body, const std::vector<Range>& chunks)
+    // Runs body over [begin, end) as k chunks. Chunk c is [begin + n*c/k, begin + n*(c+1)/k),
+    // so which indices land in which chunk depends only on the range and k, never on scheduling.
+    void run(const Body& body, size_t begin, size_t end, size_t k)
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             body_    = &body;
-            chunks_  = &chunks;
+            begin_   = begin;
+            n_       = end - begin;
+            k_       = k;
             next_    = 0;
             running_ = n_workers_;
             ++generation_;
@@ -80,8 +79,7 @@ class ThreadPool
 
         std::unique_lock<std::mutex> lock(mutex_);
         work_done_.wait(lock, [this] { return running_ == 0; });
-        body_   = nullptr;
-        chunks_ = nullptr;
+        body_ = nullptr;
     }
 
     void worker_loop()
@@ -113,15 +111,13 @@ class ThreadPool
         in_parallel_region       = true;
         for (;;) {
             size_t index;
-            Range  range;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                if (chunks_ == nullptr || next_ >= chunks_->size())
+                if (body_ == nullptr || next_ >= k_)
                     break;
                 index = next_++;
-                range = (*chunks_)[index];
             }
-            (*body_)(range.lo, range.hi, index);
+            (*body_)(begin_ + (n_ * index) / k_, begin_ + (n_ * (index + 1)) / k_, index);
         }
         in_parallel_region = was_in_region;
     }
@@ -129,15 +125,17 @@ class ThreadPool
     void spawn_worker();
     void join_workers();
 
-    const unsigned int        n_workers_;
-    std::mutex                mutex_;
-    std::condition_variable   work_ready_, work_done_;
-    const Body*               body_       = nullptr;
-    const std::vector<Range>* chunks_     = nullptr;
-    size_t                    next_       = 0;
-    unsigned int              running_    = 0;
-    uint64_t                  generation_ = 0;
-    bool                      stopping_   = false;
+    const unsigned int      n_workers_;
+    std::mutex              mutex_;
+    std::condition_variable work_ready_, work_done_;
+    const Body*             body_       = nullptr;
+    size_t                  begin_      = 0;
+    size_t                  n_          = 0;
+    size_t                  k_          = 0;
+    size_t                  next_       = 0;
+    unsigned int            running_    = 0;
+    uint64_t                generation_ = 0;
+    bool                    stopping_   = false;
 
 #ifndef _WIN32
     std::vector<pthread_t> workers_;
@@ -204,16 +202,6 @@ ThreadPool& get_pool()
     return *pool;
 }
 
-std::vector<Range> make_chunks(size_t begin, size_t end, size_t k)
-{
-    const size_t       n = end - begin;
-    std::vector<Range> chunks;
-    chunks.reserve(k);
-    for (size_t c = 0; c < k; ++c)
-        chunks.push_back({begin + (n * c) / k, begin + (n * (c + 1)) / k});
-    return chunks;
-}
-
 }  // namespace
 
 void set_num_threads(unsigned int n)
@@ -241,15 +229,14 @@ void detail::parallel_ranges(size_t begin, size_t end, const Body& body)
     const size_t k = chunk_count(begin, end);
     if (k == 0)
         return;
-    const std::vector<Range> chunks = make_chunks(begin, end, k);
     if (k == 1) {
         const bool was_in_region = in_parallel_region;
         in_parallel_region       = true;
-        body(chunks[0].lo, chunks[0].hi, 0);
+        body(begin, end, 0);
         in_parallel_region = was_in_region;
         return;
     }
-    get_pool().run(body, chunks);
+    get_pool().run(body, begin, end, k);
 }
 
 }  // namespace floatTetWild

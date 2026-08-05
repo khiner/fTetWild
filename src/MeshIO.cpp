@@ -17,6 +17,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -25,120 +27,6 @@
 
 namespace floatTetWild {
 namespace {
-
-// Writing a Gmsh 2.2 file, from PyMesh, Copyright (c) 2015 by Qingnan Zhou. Nodes are 3D and
-// elements are tets, which is all fTetWild writes. PyMesh also handled 2D nodes and triangle,
-// quad and hex elements. Coordinates and indices arrive flat, three and four per element.
-
-// Gmsh's element type for a 4-node tetrahedron.
-constexpr int    TetElementType = 4;
-constexpr size_t NodesPerTet    = 4;
-constexpr size_t Dim            = 3;
-
-void save_header(std::ofstream& fout, bool binary)
-{
-    fout << "$MeshFormat" << std::endl;
-    fout << "2.2 " << (binary ? 1 : 0) << " " << sizeof(Scalar) << std::endl;
-    if (binary) {
-        int one = 1;
-        fout.write((char*)&one, sizeof(int));
-    }
-    fout << "$EndMeshFormat" << std::endl;
-    fout.flush();
-}
-
-void save_nodes(std::ofstream& fout, bool binary, const MatrixXs& nodes)
-{
-    fout << "$Nodes" << std::endl;
-    fout << nodes.size() / Dim << std::endl;
-    for (size_t i = 0; i < size_t(nodes.size()); i += Dim) {
-        const Scalar* v        = &nodes[int(i)];
-        int           node_idx = int(i / Dim) + 1;
-
-        if (!binary) {
-            fout << node_idx << " " << v[0] << " " << v[1] << " " << v[2] << std::endl;
-        } else {
-            fout.write((char*)&node_idx, sizeof(int));
-            fout.write(reinterpret_cast<const char*>(v), sizeof(Scalar) * Dim);
-        }
-    }
-    fout << "$EndNodes" << std::endl;
-    fout.flush();
-}
-
-void save_elements(std::ofstream& fout, bool binary, const MatrixXi& elements,
-                   const MatrixXi& components)
-{
-    const size_t num_elements = elements.size() / NodesPerTet;
-
-    fout << "$Elements" << std::endl;
-    fout << num_elements << std::endl;
-
-    if (num_elements > 0) {
-        int elem_type = TetElementType;
-        int num_elems = int(num_elements);
-        int tags      = components.size() > 0 ? 2 : 0;
-        if (binary) {
-            fout.write((char*)&elem_type, sizeof(int));
-            fout.write((char*)&num_elems, sizeof(int));
-            fout.write((char*)&tags, sizeof(int));
-        }
-        for (size_t i = 0; i < size_t(elements.size()); i += NodesPerTet) {
-            int                          elem_num = int(i / NodesPerTet) + 1;
-            std::array<int, NodesPerTet> elem;
-            for (size_t j = 0; j < NodesPerTet; j++)
-                elem[j] = elements[int(i + j)] + 1;
-
-            if (!binary) {
-                fout << elem_num << " " << elem_type << " " << tags << " ";
-                if (components.size() > 0)
-                    fout << components[elem_num - 1] << " " << components[elem_num - 1] << " ";
-
-                for (size_t j = 0; j < NodesPerTet; j++)
-                    fout << elem[j] << " ";
-                fout << std::endl;
-            } else {
-                fout.write((char*)&elem_num, sizeof(int));
-                if (components.size() > 0) {
-                    std::array<int, 2> comps = {
-                      {components[elem_num - 1], components[elem_num - 1]}};
-                    fout.write((char*)comps.data(), sizeof(int) * 2);
-                }
-                fout.write((char*)elem.data(), sizeof(int) * NodesPerTet);
-            }
-        }
-    }
-    fout << "$EndElements" << std::endl;
-    fout.flush();
-}
-
-// One value per element.
-void save_field(std::ofstream& fout, bool binary,
-                const std::string& fieldname, const MatrixXs& field)
-{
-    const char* section = "ElementData";
-    fout << "$" << section << std::endl;
-    fout << "1" << std::endl;            // num string tags.
-    fout << "\"" << fieldname << "\"" << std::endl;
-    fout << "1" << std::endl;            // num real tags.
-    fout << "0.0" << std::endl;          // time value.
-    fout << "3" << std::endl;            // num int tags.
-    fout << "0" << std::endl;            // the time step
-    fout << "1" << std::endl;            // 1-component scalar field.
-    fout << field.size() << std::endl;   // number of nodes or elements
-
-    for (int i = 0; i < field.size(); i++) {
-        int idx = i + 1;
-        if (binary) {
-            fout.write((char*)&idx, sizeof(int));
-            fout.write(reinterpret_cast<const char*>(&field[i]), sizeof(Scalar));
-        } else {
-            fout << idx << " " << field[i] << std::endl;
-        }
-    }
-    fout << "$End" << section << std::endl;
-    fout.flush();
-}
 
 // Reading a surface mesh in one of the formats -i advertises, chosen by extension.
 //
@@ -155,18 +43,6 @@ void save_field(std::ofstream& fout, bool binary,
 // anti-Moebius, split non-manifold vertices and oriented normals. Those passes are gone: no
 // input the corpus or the tests exercise is polygonal, and none of them ran for triangle input
 // in the first place.
-
-std::string extension_of(const std::string& path)
-{
-    const size_t dot = path.find_last_of('.');
-    if (dot == std::string::npos)
-        return "";
-    std::string ext = path.substr(dot + 1);
-    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-        return char(std::tolower(c));
-    });
-    return ext;
-}
 
 void add_vertex(geo::Mesh& mesh, double x, double y, double z)
 {
@@ -551,8 +427,12 @@ bool load_surface_mesh(const std::string& path, geo::Mesh& mesh)
     // Drop any attributes too: the --csg path loads every operand into the same mesh object.
     mesh.clear();
 
-    const std::string extension = extension_of(path);
-    bool              ok        = false;
+    const size_t dot       = path.find_last_of('.');
+    std::string  extension = dot == std::string::npos ? "" : path.substr(dot + 1);
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
+        return char(std::tolower(c));
+    });
+    bool ok = false;
     if (extension == "stl") {
         uint32_t nb_triangles = 0;
         ok = stl_is_binary(path, nb_triangles) ? load_stl_binary(path, mesh, nb_triangles)
@@ -609,6 +489,9 @@ bool load_mesh(const std::string&     path,
     return true;
 }
 
+// Writing a Gmsh 2.2 file, following PyMesh, Copyright (c) 2015 by Qingnan Zhou. Nodes are 3D and
+// elements are tets, which is all fTetWild writes. PyMesh also handled 2D nodes and triangle,
+// quad and hex elements.
 void write_mesh(const std::string&         path,
                         const Mesh&                mesh,
                         const std::vector<Scalar>& color,
@@ -633,50 +516,103 @@ void write_mesh(const std::string&         path,
     }
     const int cnt_t = mesh.get_t_num();
 
-    MatrixXs V_flat(cnt_v * 3);
-    MatrixXi T_flat(cnt_t * 4);
-    MatrixXi C_flat;
-    if (separate_components)
-        C_flat.resize(cnt_t);
-
-    size_t index = 0;
-    for (size_t i = 0; i < mesh.tet_vertices.size(); ++i) {
-        if (mesh.tet_vertices[i].is_removed)
-            continue;
-        for (int j = 0; j < 3; j++)
-            V_flat[index * 3 + j] = mesh.tet_vertices[i].pos[j];
-        index++;
+    fout << "$MeshFormat" << std::endl;
+    fout << "2.2 " << (binary ? 1 : 0) << " " << sizeof(Scalar) << std::endl;
+    if (binary) {
+        int one = 1;
+        fout.write((char*)&one, sizeof(int));
     }
+    fout << "$EndMeshFormat" << std::endl;
+    fout.flush();
 
-    index = 0;
-    for (size_t i = 0; i < mesh.tets.size(); ++i) {
-        if (mesh.tets[i].is_removed)
+    fout << "$Nodes" << std::endl;
+    fout << cnt_v << std::endl;
+    int node_idx = 1;
+    for (const MeshVertex& v : mesh.tet_vertices) {
+        if (v.is_removed)
             continue;
-        // The saver wants the opposite orientation, so the last two corners are swapped.
-        T_flat[index * 4 + 0] = old_2_new[mesh.tets[i][0]];
-        T_flat[index * 4 + 1] = old_2_new[mesh.tets[i][1]];
-        T_flat[index * 4 + 2] = old_2_new[mesh.tets[i][3]];
-        T_flat[index * 4 + 3] = old_2_new[mesh.tets[i][2]];
-        if (separate_components)
-            C_flat[index] = mesh.tets[i].scalar;
-        index++;
+        if (!binary) {
+            fout << node_idx << " " << v.pos[0] << " " << v.pos[1] << " " << v.pos[2] << std::endl;
+        } else {
+            fout.write((char*)&node_idx, sizeof(int));
+            fout.write(reinterpret_cast<const char*>(v.pos.data()), sizeof(Scalar) * 3);
+        }
+        node_idx++;
     }
+    fout << "$EndNodes" << std::endl;
+    fout.flush();
 
-    save_header(fout, binary);
-    save_nodes(fout, binary, V_flat);
-    save_elements(fout, binary, T_flat, C_flat);
+    fout << "$Elements" << std::endl;
+    fout << cnt_t << std::endl;
+    if (cnt_t > 0) {
+        int elem_type = 4;  // Gmsh's element type for a 4-node tetrahedron
+        int num_elems = cnt_t;
+        int tags      = separate_components ? 2 : 0;
+        if (binary) {
+            fout.write((char*)&elem_type, sizeof(int));
+            fout.write((char*)&num_elems, sizeof(int));
+            fout.write((char*)&tags, sizeof(int));
+        }
+        int elem_num = 1;
+        for (const MeshTet& t : mesh.tets) {
+            if (t.is_removed)
+                continue;
+            // The msh reader wants the opposite orientation, so the last two corners are swapped,
+            // and its node indices count from 1.
+            const std::array<int, 4> elem = {{old_2_new[t[0]] + 1,
+                                              old_2_new[t[1]] + 1,
+                                              old_2_new[t[3]] + 1,
+                                              old_2_new[t[2]] + 1}};
+            const int                comp = int(t.scalar);  // the CSG component tag
 
-    // One colour per tet, when the caller passed any. msh also has a per-node form, which
-    // nothing writes any more.
+            if (!binary) {
+                fout << elem_num << " " << elem_type << " " << tags << " ";
+                if (separate_components)
+                    fout << comp << " " << comp << " ";
+                for (int j = 0; j < 4; j++)
+                    fout << elem[j] << " ";
+                fout << std::endl;
+            } else {
+                fout.write((char*)&elem_num, sizeof(int));
+                if (separate_components) {
+                    std::array<int, 2> comps = {{comp, comp}};
+                    fout.write((char*)comps.data(), sizeof(int) * 2);
+                }
+                fout.write(reinterpret_cast<const char*>(elem.data()), sizeof(int) * 4);
+            }
+            elem_num++;
+        }
+    }
+    fout << "$EndElements" << std::endl;
+    fout.flush();
+
+    // One value per tet, named "color", which is what the viewers the msh is written for expect.
+    // msh also has a per-node form, which nothing writes any more.
     if (color.size() == mesh.tets.size()) {
-        MatrixXs color_flat(cnt_t);
-        index = 0;
+        fout << "$ElementData" << std::endl;
+        fout << "1" << std::endl;          // num string tags.
+        fout << "\"color\"" << std::endl;
+        fout << "1" << std::endl;          // num real tags.
+        fout << "0.0" << std::endl;        // time value.
+        fout << "3" << std::endl;          // num int tags.
+        fout << "0" << std::endl;          // the time step
+        fout << "1" << std::endl;          // 1-component scalar field.
+        fout << cnt_t << std::endl;        // number of nodes or elements
+
+        int idx = 1;
         for (size_t i = 0; i < color.size(); i++) {
             if (mesh.tets[i].is_removed)
                 continue;
-            color_flat[index++] = color[i];
+            if (binary) {
+                fout.write((char*)&idx, sizeof(int));
+                fout.write(reinterpret_cast<const char*>(&color[i]), sizeof(Scalar));
+            } else {
+                fout << idx << " " << color[i] << std::endl;
+            }
+            idx++;
         }
-        save_field(fout, binary, "color", color_flat);
+        fout << "$EndElementData" << std::endl;
+        fout.flush();
     }
 
     logger().info(" took {}s", timer.getElapsedTimeInSec());

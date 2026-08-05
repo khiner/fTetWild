@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <queue>
 #include <vector>
 
@@ -111,13 +112,50 @@ void orientable_patches(const MatrixXi& F, MatrixXi& C, std::vector<std::vector<
 
 }  // namespace
 
+void remove_duplicate_vertices(
+  const MatrixXd& V,
+  const MatrixXi& F,
+  const double epsilon,
+  MatrixXd& SV,
+  MatrixXi& SF)
+{
+    // SV = V(SVI,:) and V = SV(SVJ,:). libigl returned both; no caller read them.
+    MatrixXi SVI, SVJ;
+    if (epsilon > 0) {
+        // The rounded copy only feeds unique_rows: SV is gathered from V, not from it.
+        // Rounding is http://stackoverflow.com/a/485549, which is what libigl used.
+        MatrixXd rounded(V.rows(), V.cols());
+        for (int i = 0; i < V.rows(); i++)
+            for (int j = 0; j < V.cols(); j++) {
+                const double r = V(i, j) / epsilon;
+                rounded(i, j)  = (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
+            }
+        MatrixXd unused;
+        unique_rows(rounded, unused, SVI, SVJ);
+        SV.resize(SVI.rows(), V.cols());
+        for (int i = 0; i < SVI.rows(); i++)
+            for (int j = 0; j < V.cols(); j++)
+                SV(i, j) = V(SVI(i), j);
+    }
+    else {
+        unique_rows(V, SV, SVI, SVJ);
+    }
+
+    SF.resize(F.rows(), F.cols());
+    for (int f = 0; f < F.rows(); f++) {
+        for (int c = 0; c < F.cols(); c++) {
+            SF(f, c) = SVJ(F(f, c));
+        }
+    }
+}
+
 void bfs_orient(const MatrixXi &F, MatrixXi &FF) {
     MatrixXi C;  // component id per face
     std::vector<std::vector<int>> A;
     orientable_patches(F, C, A);
 
     const int m = F.rows();
-    const int num_cc = C.maxCoeff() + 1;
+    const int num_cc = *std::max_element(C.a.begin(), C.a.end()) + 1;
     std::vector<int> seen(m, 0);
 
     const int ES[3][2] = {{1, 2},

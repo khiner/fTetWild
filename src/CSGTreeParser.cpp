@@ -10,6 +10,8 @@
 
 #include "FloatTetwild.h"
 
+#include <cassert>
+#include <cstring>
 #include <map>
 
 namespace floatTetWild {
@@ -21,8 +23,9 @@ namespace {
 class CsgReader
 {
   public:
-    explicit CsgReader(std::istream& in)
-        : text_((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>())
+    CsgReader(std::istream& in, std::string& error)
+        : text_((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()),
+          error_(error)
     {}
 
     bool parse(CSGTree& tree)
@@ -34,8 +37,6 @@ class CsgReader
             return fail("trailing content after the tree");
         return true;
     }
-
-    const std::string& error() const { return error_; }
 
   private:
     bool fail(const std::string& what)
@@ -274,7 +275,7 @@ class CsgReader
 
     const std::string text_;
     size_t            pos_ = 0;
-    std::string       error_;
+    std::string&      error_;
 };
 
 void assign_mesh_ids_aux(CSGTree&                    node,
@@ -303,11 +304,7 @@ void assign_mesh_ids_aux(CSGTree&                    node,
 
 bool CSGTreeParser::parse(std::istream& in, CSGTree& tree, std::string& error)
 {
-    CsgReader reader(in);
-    if (reader.parse(tree))
-        return true;
-    error = reader.error();
-    return false;
+    return CsgReader(in, error).parse(tree);
 }
 
 std::vector<std::string> CSGTreeParser::assign_mesh_ids(CSGTree& tree)

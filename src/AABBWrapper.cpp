@@ -5,29 +5,12 @@
 namespace floatTetWild {
 namespace {
 
-double bbox_diagonal(const geo::Mesh& M)
-{
-    double xyzmin[3];
-    double xyzmax[3];
-    for (geo::index_t c = 0; c < 3; ++c) {
-        xyzmin[c] = std::numeric_limits<double>::max();
-        xyzmax[c] = std::numeric_limits<double>::lowest();
-    }
-    for (geo::index_t v = 0; v < M.nb_vertices(); ++v) {
-        const double* p = M.point_ptr(v);
-        for (geo::index_t c = 0; c < 3; ++c) {
-            xyzmin[c] = std::min(xyzmin[c], p[c]);
-            xyzmax[c] = std::max(xyzmax[c], p[c]);
-        }
-    }
-    return ::sqrt(geo::geo_sqr(xyzmax[0] - xyzmin[0]) + geo::geo_sqr(xyzmax[1] - xyzmin[1]) +
-                  geo::geo_sqr(xyzmax[2] - xyzmin[2]));
-}
-
-// The envelope trees are built over segments, which geogram's AABB stores as degenerate triangles
-// with the first corner repeated. An empty edge list still needs a mesh to query, so it gets one
-// triangle collapsed to the origin.
-void build_segment_mesh(geo::Mesh& mesh, const std::vector<std::array<Vector3, 2>>& segments)
+// Builds the mesh for a set of segments, Morton-orders it, and builds its tree. geogram's AABB
+// stores a segment as a degenerate triangle with the first corner repeated. An empty edge list
+// still needs a mesh to query, so it gets one triangle collapsed to the origin.
+void build_segment_tree(geo::Mesh&                                 mesh,
+                        MeshFacetsAABBWithEps&                     tree,
+                        const std::vector<std::array<Vector3, 2>>& segments)
 {
     mesh.clear();
 
@@ -37,46 +20,51 @@ void build_segment_mesh(geo::Mesh& mesh, const std::vector<std::array<Vector3, 2
         mesh.create_triangles(1);
         for (int lv = 0; lv < 3; lv++)
             mesh.set_facet_vertex(0, lv, 0);
-        return;
-    }
+    } else {
+        mesh.create_vertices((int)segments.size() * 2);
+        for (int i = 0; i < segments.size(); i++) {
+            for (int j = 0; j < 2; j++) {
+                geo::vec3& p = mesh.point(i * 2 + j);
+                for (int k = 0; k < 3; k++)
+                    p[k] = segments[i][j][k];
+            }
+        }
 
-    mesh.create_vertices((int)segments.size() * 2);
-    for (int i = 0; i < segments.size(); i++) {
-        for (int j = 0; j < 2; j++) {
-            geo::vec3& p = mesh.point(i * 2 + j);
-            for (int k = 0; k < 3; k++)
-                p[k] = segments[i][j][k];
+        mesh.create_triangles((int)segments.size());
+        for (int i = 0; i < segments.size(); i++) {
+            mesh.set_facet_vertex(i, 0, i * 2);
+            mesh.set_facet_vertex(i, 1, i * 2);
+            mesh.set_facet_vertex(i, 2, i * 2 + 1);
         }
     }
 
-    mesh.create_triangles((int)segments.size());
-    for (int i = 0; i < segments.size(); i++) {
-        mesh.set_facet_vertex(i, 0, i * 2);
-        mesh.set_facet_vertex(i, 1, i * 2);
-        mesh.set_facet_vertex(i, 2, i * 2 + 1);
-    }
-}
-
-// Builds the mesh for a set of segments, Morton-orders it, and builds its tree.
-void build_segment_tree(geo::Mesh&                                mesh,
-                        std::unique_ptr<MeshFacetsAABBWithEps>&    tree,
-                        const std::vector<std::array<Vector3, 2>>& segments)
-{
-    build_segment_mesh(mesh, segments);
     mesh_reorder(mesh);
-    tree.reset(new MeshFacetsAABBWithEps(mesh));
+    tree = MeshFacetsAABBWithEps(mesh);
 }
 
 }  // namespace
 
 Scalar AABBWrapper::get_sf_diag() const
 {
-    return bbox_diagonal(sf_mesh);
+    double xyzmin[3];
+    double xyzmax[3];
+    for (geo::index_t c = 0; c < 3; ++c) {
+        xyzmin[c] = std::numeric_limits<double>::max();
+        xyzmax[c] = std::numeric_limits<double>::lowest();
+    }
+    for (geo::index_t v = 0; v < sf_mesh.nb_vertices(); ++v) {
+        const double* p = sf_mesh.point_ptr(v);
+        for (geo::index_t c = 0; c < 3; ++c) {
+            xyzmin[c] = std::min(xyzmin[c], p[c]);
+            xyzmax[c] = std::max(xyzmax[c], p[c]);
+        }
+    }
+    return ::sqrt(geo::geo_sqr(xyzmax[0] - xyzmin[0]) + geo::geo_sqr(xyzmax[1] - xyzmin[1]) +
+                  geo::geo_sqr(xyzmax[2] - xyzmin[2]));
 }
 
-void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertices,
-                                       const std::vector<Vector3i>& input_faces,
-                                       Mesh&                        mesh)
+bool AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertices,
+                                       const std::vector<Vector3i>& input_faces)
 {
     std::vector<std::pair<std::array<int, 2>, std::vector<int>>> _;
     std::vector<bool>                                           _1;
@@ -89,14 +77,14 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
                         _1,
                         b_edges);
 
-    mesh.is_closed = b_edges.empty();
-
     std::vector<std::array<Vector3, 2>> segments;
     segments.reserve(b_edges.size());
     for (const auto& e : b_edges)
         segments.push_back({{input_vertices[e[0]], input_vertices[e[1]]}});
 
     build_segment_tree(b_mesh, b_tree, segments);
+
+    return b_edges.empty();
 }
 
 void AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vector3>&            input_vertices,
@@ -302,13 +290,13 @@ namespace {
 }  // namespace
 
 MeshFacetsAABBWithEps::MeshFacetsAABBWithEps(const geo::Mesh& M)
- : mesh_(M) {
+ : mesh_(&M) {
     bboxes_.resize(
         max_node_index(
-            1, 0, mesh_.nb_facets()
+            1, 0, mesh_->nb_facets()
         ) + 1 // <-- this is because size == max_index + 1 !!!
     );
-    init_bboxes_recursive(mesh_, bboxes_, 1, 0, mesh_.nb_facets());
+    init_bboxes_recursive(*mesh_, bboxes_, 1, 0, mesh_->nb_facets());
 }
 
 void MeshFacetsAABBWithEps::get_nearest_facet_hint(
@@ -316,7 +304,7 @@ void MeshFacetsAABBWithEps::get_nearest_facet_hint(
     index_t& nearest_f, vec3& nearest_point, double& sq_dist
 ) const {
     index_t b = 0;
-    index_t e = mesh_.nb_facets();
+    index_t e = mesh_->nb_facets();
     index_t n = 1;
     while(e != b + 1) {
         index_t m = b + (e - b) / 2;
@@ -335,7 +323,7 @@ void MeshFacetsAABBWithEps::get_nearest_facet_hint(
     }
     nearest_f = b;
 
-    nearest_point = mesh_.facet_point(nearest_f, 0);
+    nearest_point = mesh_->facet_point(nearest_f, 0);
     sq_dist = Geom::distance2(p, nearest_point);
 }
 
@@ -345,8 +333,8 @@ index_t MeshFacetsAABBWithEps::nearest_facet(
     index_t nearest_f;
     get_nearest_facet_hint(p, nearest_f, nearest_point, sq_dist);
     nearest_recursive<false>(
-        mesh_, bboxes_, p, 0,
-        nearest_f, nearest_point, sq_dist, 1, 0, mesh_.nb_facets()
+        *mesh_, bboxes_, p, 0,
+        nearest_f, nearest_point, sq_dist, 1, 0, mesh_->nb_facets()
     );
     return nearest_f;
 }
@@ -359,17 +347,17 @@ void MeshFacetsAABBWithEps::facet_in_envelope_with_hint(
     // carrying: for the samples along one triangle it usually still answers the query, and
     // then there is no descent at all. Returning here rather than letting the walk below
     // return at once is what keeps that case free of calls.
-    if(nearest_f == NO_FACET) {
+    if(nearest_f == NO_INDEX) {
         get_nearest_facet_hint(p, nearest_f, nearest_point, sq_dist);
     } else {
-        get_point_facet_nearest_point(mesh_, p, nearest_f, nearest_point, sq_dist);
+        get_point_facet_nearest_point(*mesh_, p, nearest_f, nearest_point, sq_dist);
         if(sq_dist <= sq_epsilon) {
             return;
         }
     }
     nearest_recursive<true>(
-        mesh_, bboxes_, p, sq_epsilon,
-        nearest_f, nearest_point, sq_dist, 1, 0, mesh_.nb_facets()
+        *mesh_, bboxes_, p, sq_epsilon,
+        nearest_f, nearest_point, sq_dist, 1, 0, mesh_->nb_facets()
     );
 }
 

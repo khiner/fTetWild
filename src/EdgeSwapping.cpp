@@ -6,7 +6,6 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#include "EdgeSwapping.h"
 #include "LocalOperations.h"
 
 namespace floatTetWild {
@@ -19,16 +18,20 @@ struct FaceMarks
     std::vector<std::array<int, 3>> fs;
     std::vector<char>               is_sf, tags, is_bx;
 
-    // Records the faces of t that contain v1_id or v2_id: those are the ones a swap preserves.
-    void record(const MeshTet& t, int v1_id, int v2_id)
+    // Records the faces of the given tets that contain v1_id or v2_id: those are the ones a swap
+    // preserves.
+    FaceMarks(const Mesh& mesh, const std::vector<int>& old_t_ids, int v1_id, int v2_id)
     {
-        for (int j = 0; j < 4; j++) {
-            if (t[j] != v1_id && t[j] != v2_id)
-                continue;
-            fs.push_back(sorted_face(t, j));
-            is_sf.push_back(t.is_surface_fs[j]);
-            tags.push_back(t.surface_tags[j]);
-            is_bx.push_back(t.is_bbox_fs[j]);
+        for (int t_id : old_t_ids) {
+            const MeshTet& t = mesh.tets[t_id];
+            for (int j = 0; j < 4; j++) {
+                if (t[j] != v1_id && t[j] != v2_id)
+                    continue;
+                fs.push_back(sorted_face(t, j));
+                is_sf.push_back(t.is_surface_fs[j]);
+                tags.push_back(t.surface_tags[j]);
+                is_bx.push_back(t.is_bbox_fs[j]);
+            }
         }
     }
 
@@ -138,9 +141,7 @@ bool remove_an_edge_32(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
             return false;
     }
 
-    FaceMarks marks;
-    for (int t_id : old_t_ids)
-        marks.record(tets[t_id], v1_id, v2_id);
+    const FaceMarks marks(mesh, old_t_ids, v1_id, v2_id);
 
     tets[old_t_ids[0]].is_removed = true;
     tets[t_ids[0]] = new_tets[0];
@@ -225,9 +226,7 @@ bool remove_an_edge_44(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
     if (!is_valid)
         return false;
 
-    FaceMarks marks;
-    for (int t_id : old_t_ids)
-        marks.record(tets[t_id], v1_id, v2_id);
+    const FaceMarks marks(mesh, old_t_ids, v1_id, v2_id);
 
     for (int j = 0; j < new_tets.size(); j++) {
         // Which end of the edge this tet gave up, read off the old tet, which is still in place
@@ -327,9 +326,7 @@ bool remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>&
     if (selected_id < 0)
         return false;
 
-    FaceMarks marks;
-    for (int t_id : old_t_ids)
-        marks.record(tets[t_id], v1_id, v2_id);
+    const FaceMarks marks(mesh, old_t_ids, v1_id, v2_id);
 
     // Every slot below, the freshly claimed one included, is overwritten outright.
     std::vector<int> new_t_ids = old_t_ids;

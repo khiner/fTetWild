@@ -5,6 +5,8 @@
 
 #include "geo_multi_precision.h"
 
+#include <utility>
+
 namespace {
 
     using namespace floatTetWild::geo;
@@ -123,6 +125,8 @@ namespace {
 
 namespace floatTetWild {
 namespace geo {
+
+    namespace {
 
     // This and fast_expansion_combine_zeroelim below are adapted from Jonathan Shewchuk's code,
     // see either version of his paper for details. In each, \p h cannot be \p e or \p f, and zero
@@ -248,16 +252,6 @@ namespace geo {
         h.set_length(hindex);
     }
 
-    void fast_expansion_sum_zeroelim(
-        const expansion& e, const expansion& f, expansion& h
-    ) {
-        fast_expansion_combine_zeroelim<false>(e, f, h);
-    }
-
-    void fast_expansion_diff_zeroelim(
-        const expansion& e, const expansion& f, expansion& h
-    ) {
-        fast_expansion_combine_zeroelim<true>(e, f, h);
     }
 
     /************************************************************************/
@@ -285,7 +279,7 @@ namespace geo {
     expansion& expansion::assign_sum(
         const expansion& a, const expansion& b
     ) {
-        fast_expansion_sum_zeroelim(a, b, *this);
+        fast_expansion_combine_zeroelim<false>(a, b, *this);
         return *this;
     }
 
@@ -308,7 +302,7 @@ namespace geo {
     }
 
     expansion& expansion::assign_diff(const expansion& a, const expansion& b) {
-        fast_expansion_diff_zeroelim(a, b, *this);
+        fast_expansion_combine_zeroelim<true>(a, b, *this);
         return *this;
     }
 
@@ -417,7 +411,7 @@ namespace geo {
                                                              // number that is
                                                              // not a power of 2
 
-                index_t S_capa = capacity(); // same capacity as this,
+                index_t S_capa = capacity_;  // same capacity as this,
                                              // enough to store sum.
 
                 bool P_on_heap = (P_capa > MAX_CAPACITY_ON_STACK);

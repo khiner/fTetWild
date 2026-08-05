@@ -8,9 +8,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
-#include <iostream>
-#include <random>
+#include <thread>
 
 namespace floatTetWild {
 namespace geo {
@@ -27,31 +27,34 @@ namespace geo {
         );
     }
 
-    // A 32 bit integer between 0 and RAND_MAX. geogram keeps one default-seeded std::mt19937_64
-    // for the whole process and never reseeds it, so the stream depends only on the order in
-    // which callers draw from it. Delaunay3d is the only caller here, and it draws to pick a
-    // starting tetrahedron for point location, so keeping the same stream keeps the same walk.
-    inline int32_t random_int32() {
-        static std::mt19937_64 engine;
-        return std::uniform_int_distribution<int32_t>(0, RAND_MAX)(engine);
-    }
-
     inline double geo_sqr(double x) {
         return x * x;
     }
 
-    // The types for storing and manipulating indices, and for coordinate indices, and the dummy
-    // index value.
+    // The types for storing and manipulating indices, and the dummy index value.
     typedef uint32_t index_t;
-    typedef uint8_t coord_index_t;
     static const index_t NO_INDEX = index_t(-1);
 
     [[noreturn]] inline void geo_assertion_failed(
         const char* condition, const char* file, int line
     ) {
-        std::cerr << "Assertion failed: " << condition << '\n'
-                  << "  at " << file << ':' << line << std::endl;
+        std::fprintf(stderr, "Assertion failed: %s\n  at %s:%d\n", condition, file, line);
         std::abort();
+    }
+
+    // Runs the given tasks at once: the first on the calling thread, the rest each on their own.
+    // The spatial sort calls this with 2, 4 and 8 of them, the kd tree with 2.
+    //
+    // geogram ran these lambdas on its own ThreadGroup. Each one writes a distinct variable and
+    // the ranges they sort are disjoint, so the result does not depend on how the work is spread;
+    // only the wall clock does.
+    template <typename F0, typename... F>
+    inline void parallel(F0&& f0, F&&... fs) {
+        std::thread threads[] = {std::thread(std::forward<F>(fs))...};
+        f0();
+        for(std::thread& thread : threads) {
+            thread.join();
+        }
     }
 
 }

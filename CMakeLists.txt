@@ -36,9 +36,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ##############################################################################
 
-# FloatTetwild options
-option(FLOAT_TETWILD_USE_FLOAT "Use floats instead of double" OFF)
-
 # ##############################################################################
 # Dependencies
 # ##############################################################################
@@ -75,10 +72,6 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
-
-if(FLOAT_TETWILD_USE_FLOAT)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC -DFLOAT_TETWILD_USE_FLOAT)
-endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
 

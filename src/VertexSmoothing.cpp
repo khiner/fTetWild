@@ -7,12 +7,185 @@
 //
 
 #include "LocalOperations.h"
-#include "VertexSmoothing.h"
 
 #include "ParallelFor.hpp"
 
+#include <limits>
+#include <utility>
+
 namespace floatTetWild {
 namespace {
+
+// Column-pivoting Householder QR for the Newton step's 3x3 system, and the pieces it needs. This
+// follows Eigen 3.4's ColPivHouseholderQR::computeInPlace and _solve_impl step for step, including
+// the pivot threshold and the LAPACK norm downdate, because the mesh has to come out the same.
+
+inline Scalar inner_product(const Scalar* a, const Scalar* b, int n)
+{
+    Scalar s = a[0] * b[0];
+    for (int i = 1; i < n; i++) s = add_product(s, a[i], b[i]);
+    return s;
+}
+
+// Householder reflector for the column segment v[0..n-1], stored back in place: v[1..n-1] becomes
+// the essential part, beta is the new diagonal coefficient and tau the reflector coefficient.
+inline void make_householder_in_place(Scalar* v, int stride, int n, Scalar& tau, Scalar& beta)
+{
+    Scalar tail_sq_norm = 0;
+    if (n > 1) {
+        const Scalar x = v[stride];
+        tail_sq_norm = x * x;
+        for (int i = 2; i < n; i++) tail_sq_norm = add_product(tail_sq_norm, v[i * stride], v[i * stride]);
+    }
+    const Scalar c0  = v[0];
+    const Scalar tol = (std::numeric_limits<Scalar>::min)();
+
+    if (n == 1 || tail_sq_norm <= tol) {
+        tau  = 0;
+        beta = c0;
+        for (int i = 1; i < n; i++) v[i * stride] = 0;
+    }
+    else {
+        beta = std::sqrt(add_product(tail_sq_norm, c0, c0));
+        if (c0 >= 0) beta = -beta;
+        const Scalar d = c0 - beta;
+        for (int i = 1; i < n; i++) v[i * stride] /= d;
+        tau = (beta - c0) / beta;
+    }
+}
+
+// Applies the reflector whose coefficient is tau and whose essential part is `essential` to one
+// column, from row k down. Both the decomposition and the solve need this, and the two have to
+// stay the same arithmetic.
+inline void apply_householder(Scalar* col, int k, const Scalar* essential, int essential_size, Scalar tau)
+{
+    Scalar tmp = inner_product(essential, col + k + 1, essential_size);
+    tmp    = tmp + col[k];
+    col[k] = sub_product(col[k], tau, tmp);
+    for (int i = 0; i < essential_size; i++)
+        col[k + 1 + i] = sub_product(col[k + 1 + i], tau * essential[i], tmp);
+}
+
+Vector3 solve_col_piv_householder_qr(const Matrix3& matrix, const Vector3& rhs)
+{
+    // Column-major, so that a column is a contiguous run and reads like Eigen's m_qr.col(k).
+    Scalar qr[9];
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++) qr[j * 3 + i] = matrix(i, j);
+
+    Scalar h_coeffs[3];
+    Scalar norms_updated[3];
+    Scalar norms_direct[3];
+    int    transpositions[3];
+
+    for (int k = 0; k < 3; k++) {
+        const Scalar* c = qr + k * 3;
+        Scalar        s = c[0] * c[0];
+        s               = add_product(s, c[1], c[1]);
+        s               = add_product(s, c[2], c[2]);
+        norms_direct[k]  = std::sqrt(s);
+        norms_updated[k] = norms_direct[k];
+    }
+
+    const Scalar eps      = std::numeric_limits<Scalar>::epsilon();
+    Scalar       max_norm = norms_updated[0];
+    for (int k = 1; k < 3; k++)
+        if (norms_updated[k] > max_norm) max_norm = norms_updated[k];
+    const Scalar threshold_helper        = (max_norm * eps) * (max_norm * eps) / 3;
+    const Scalar norm_downdate_threshold = std::sqrt(eps);
+
+    int nonzero_pivots = 3;
+
+    for (int k = 0; k < 3; k++) {
+        int    biggest_col_index = k;
+        Scalar biggest           = norms_updated[k];
+        for (int i = k + 1; i < 3; i++) {
+            if (norms_updated[i] > biggest) {
+                biggest           = norms_updated[i];
+                biggest_col_index = i;
+            }
+        }
+        const Scalar biggest_col_sq_norm = biggest * biggest;
+
+        // Bug 941 in Eigen: the decomposition runs to the end even once the pivots stop being
+        // meaningful, so that the original matrix is still reproduced.
+        if (nonzero_pivots == 3 && biggest_col_sq_norm < threshold_helper * Scalar(3 - k))
+            nonzero_pivots = k;
+
+        transpositions[k] = biggest_col_index;
+        if (k != biggest_col_index) {
+            for (int i = 0; i < 3; i++) std::swap(qr[k * 3 + i], qr[biggest_col_index * 3 + i]);
+            std::swap(norms_updated[k], norms_updated[biggest_col_index]);
+            std::swap(norms_direct[k], norms_direct[biggest_col_index]);
+        }
+
+        Scalar beta;
+        make_householder_in_place(qr + k * 3 + k, 1, 3 - k, h_coeffs[k], beta);
+        qr[k * 3 + k] = beta;
+
+        // Apply the reflector to the trailing columns.
+        const Scalar tau            = h_coeffs[k];
+        const int    essential_size = 3 - k - 1;
+        if (essential_size > 0 && tau != 0) {
+            const Scalar* essential = qr + k * 3 + k + 1;
+            for (int j = k + 1; j < 3; j++)
+                apply_householder(qr + j * 3, k, essential, essential_size, tau);
+        }
+
+        // LAPACK's stable norm downdate, xGEQP3 lines 278-297.
+        for (int j = k + 1; j < 3; j++) {
+            if (norms_updated[j] != 0) {
+                Scalar temp = std::abs(qr[j * 3 + k]) / norms_updated[j];
+                temp        = (1 + temp) * (1 - temp);
+                temp        = temp < 0 ? 0 : temp;
+                const Scalar ratio = norms_updated[j] / norms_direct[j];
+                const Scalar temp2 = temp * (ratio * ratio);
+                if (temp2 <= norm_downdate_threshold) {
+                    Scalar s = qr[j * 3 + k + 1] * qr[j * 3 + k + 1];
+                    for (int i = k + 2; i < 3; i++) s = add_product(s, qr[j * 3 + i], qr[j * 3 + i]);
+                    norms_direct[j]  = std::sqrt(s);
+                    norms_updated[j] = norms_direct[j];
+                }
+                else {
+                    norms_updated[j] *= std::sqrt(temp);
+                }
+            }
+        }
+    }
+
+    int permutation[3] = {0, 1, 2};
+    for (int k = 0; k < 3; k++) std::swap(permutation[k], permutation[transpositions[k]]);
+
+    Vector3 dst;
+    if (nonzero_pivots == 0) {
+        dst.setZero();
+        return dst;
+    }
+
+    Scalar c[3] = {rhs[0], rhs[1], rhs[2]};
+
+    // c <- Q^T c, reflectors in increasing order.
+    for (int k = 0; k < nonzero_pivots; k++) {
+        const Scalar tau            = h_coeffs[k];
+        const int    essential_size = 3 - k - 1;
+        if (essential_size == 0) {
+            c[k] *= 1 - tau;
+        }
+        else if (tau != 0)
+            apply_householder(c, k, qr + k * 3 + k + 1, essential_size, tau);
+    }
+
+    // Back substitution over the leading nonzero_pivots block.
+    for (int kk = 0; kk < nonzero_pivots; kk++) {
+        const int i = nonzero_pivots - kk - 1;
+        c[i] /= qr[i * 3 + i];
+        for (int j = 0; j < i; j++) c[j] = sub_product(c[j], c[i], qr[i * 3 + j]);
+    }
+
+    for (int i = 0; i < nonzero_pivots; i++) dst[permutation[i]] = c[i];
+    for (int i = nonzero_pivots; i < 3; i++) dst[permutation[i]] = 0;
+    return dst;
+}
 
 // The vertices grouped into sets that can be smoothed at the same time, plus the ones that have
 // to go one at a time: the removed ones, and the colours with fewer than two members. Greedy
@@ -99,10 +272,7 @@ bool project_and_check(Mesh&                mesh,
         int   j = t.find(v_id);
         if (is_inverted(mesh, t_id, j, p))
             return false;
-        Scalar new_q = get_quality(p,
-                                   mesh.tet_vertices[t[(j + 1) % 4]].pos,
-                                   mesh.tet_vertices[t[(j + 2) % 4]].pos,
-                                   mesh.tet_vertices[t[(j + 3) % 4]].pos);
+        Scalar new_q = get_quality(mesh, t_id, j, p);
         if (new_q > max_q)
             return false;
         new_qs.push_back(new_q);
@@ -116,12 +286,9 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
     auto& tets         = mesh.tets;
     auto& tet_vertices = mesh.tet_vertices;
 
-    std::vector<int> js;
-    js.reserve(tet_vertices[v_id].conn_tets.size());
     std::vector<std::array<Scalar, 12>> Ts;
     for (int t_id : tet_vertices[v_id].conn_tets) {
         int j = tets[t_id].find(v_id);
-        js.push_back(j);
 
         std::array<int, 4> loop_ids = {{0, 1, 2, 3}};
         if (is_inverted(tet_vertices[tets[t_id][j]].pos,
@@ -198,10 +365,8 @@ bool find_new_pos(Mesh& mesh, const int v_id, Vector3& x)
             set_candidate(x_next);
 
             bool is_valid = true;
-            int  ii       = 0;
             for (int t_id : tet_vertices[v_id].conn_tets) {
-                int j = js[ii++];
-                if (is_inverted(mesh, t_id, j, x_next)) {
+                if (is_inverted(mesh, t_id, tets[t_id].find(v_id), x_next)) {
                     is_valid = false;
                     break;
                 }

@@ -17,9 +17,9 @@
 // pattern no real cut produces holds an empty list, which the insertion loop skips over.
 namespace floatTetWild {
 	namespace CutTable {
-		const std::vector<std::vector<Vector4i>>& get_tet_confs(const int idx);
-		const std::vector<std::vector<Vector2i>>& get_diag_confs(const int idx);
-		const std::vector<std::vector<std::array<bool, 4>>>& get_surface_confs(const int idx);
-		const std::vector<std::vector<Vector4i>>& get_face_id_confs(const int idx);
+		const std::vector<std::vector<Vector4i>>& get_tet_confs(int idx);
+		const std::vector<std::vector<Vector2i>>& get_diag_confs(int idx);
+		const std::vector<std::vector<std::array<bool, 4>>>& get_surface_confs(int idx);
+		const std::vector<std::vector<Vector4i>>& get_face_id_confs(int idx);
 	}
 }

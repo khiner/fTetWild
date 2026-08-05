@@ -5,7 +5,10 @@
 
 #include "geo_kd_tree.h"
 #include "geo_geometry.h"
-#include "geo_parallel.h"
+
+#include <algorithm>
+
+#include <limits>
 
 namespace floatTetWild {
 namespace geo {
@@ -135,6 +138,26 @@ namespace geo {
     }
 
 /****************************************************************************/
+
+    index_t BalancedKdTree::max_node_index(index_t node_id, index_t b, index_t e) {
+        if(e - b <= MAX_LEAF_SIZE) {
+            return node_id;
+        }
+        index_t m = b + (e - b) / 2;
+        return std::max(
+            max_node_index(2 * node_id, b, m),
+            max_node_index(2 * node_id + 1, m, e)
+        );
+    }
+
+    void BalancedKdTree::create_kd_tree_recursive(index_t node_index, index_t b, index_t e) {
+        if(e - b <= MAX_LEAF_SIZE) {
+            return;
+        }
+        index_t m = split_kd_node(node_index, b, e);
+        create_kd_tree_recursive(2 * node_index, b, m);
+        create_kd_tree_recursive(2 * node_index + 1, m, e);
+    }
 
     void BalancedKdTree::build_tree() {
         index_t sz = max_node_index(1, 0, nb_points_) + 1;

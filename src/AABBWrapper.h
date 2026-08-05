@@ -4,8 +4,6 @@
 #include "geo/geo_mesh.h"
 #include "Mesh.hpp"
 
-#include <memory>
-
 namespace floatTetWild {
 
     namespace geo {
@@ -25,9 +23,14 @@ namespace floatTetWild {
     // facets a query lands on, and the mesher's envelope tests carry that facet forward as a hint.
     class MeshFacetsAABBWithEps {
     public:
+        // An empty tree, so the b and tmp_b trees below can be members built after construction.
+        // Querying it is invalid until a real tree is assigned over it.
+        MeshFacetsAABBWithEps() = default;
+
         // \p M must already be triangulated and Morton-ordered by mesh_reorder(): geogram did both
-        // here, and every caller now does them beforehand.
-        MeshFacetsAABBWithEps(const geo::Mesh& M);
+        // here, and every caller now does them beforehand. The mesh is referenced, not copied, so
+        // it has to outlive the tree.
+        explicit MeshFacetsAABBWithEps(const geo::Mesh& M);
 
         // The facet nearest to \p p, along with the point on it and the squared distance.
         geo::index_t nearest_facet(
@@ -36,7 +39,7 @@ namespace floatTetWild {
 
         // The same, but stopping as soon as a point within \p sq_epsilon is found. Starting from a
         // facet the caller already has saves the search for a hint, so \p nearest_facet is read as
-        // well as written, and geo::NO_FACET means there is none yet. \p nearest_point and
+        // well as written, and geo::NO_INDEX means there is none yet. \p nearest_point and
         // \p sq_dist are overwritten before they are read, whatever they arrive holding.
         void facet_in_envelope_with_hint(
             const geo::vec3& p, double sq_epsilon,
@@ -53,7 +56,7 @@ namespace floatTetWild {
         ) const;
 
         std::vector<geo::Box> bboxes_;
-        const geo::Mesh& mesh_;
+        const geo::Mesh* mesh_ = nullptr;
     };
 
     inline geo::vec3 to_geo_p(const Vector3 &p) { return geo::vec3(p[0], p[1], p[2]); }
@@ -70,7 +73,8 @@ namespace floatTetWild {
         // The length of the diagonal of the bounding box of the surface mesh.
         Scalar get_sf_diag() const;
 
-        void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, Mesh &mesh);
+        // Returns whether the input surface is closed, i.e. has no boundary edges.
+        bool init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
 
         void init_tmp_b_mesh_and_tree(const std::vector<Vector3> &input_vertices,
                                       const std::vector<std::array<int, 2>> &b_edges1,
@@ -78,8 +82,8 @@ namespace floatTetWild {
 
         // Moves p onto the nearest point of the envelope and returns how far it moved, squared.
         inline Scalar project_to_sf(Vector3 &p) const { return project(sf_tree, p); }
-        inline Scalar project_to_b(Vector3 &p) const { return project(*b_tree, p); }
-        inline Scalar project_to_tmp_b(Vector3 &p) const { return project(*tmp_b_tree, p); }
+        inline Scalar project_to_b(Vector3 &p) const { return project(b_tree, p); }
+        inline Scalar project_to_tmp_b(Vector3 &p) const { return project(tmp_b_tree, p); }
 
         inline int get_nearest_face_sf(const Vector3 &p) const {
             geo::vec3 nearest_p;
@@ -88,29 +92,23 @@ namespace floatTetWild {
         }
 
         // A set of sample points is outside when any one of them is.
-        inline bool is_out_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
-                                      geo::index_t prev_facet = geo::NO_FACET) const {
-            return is_out(*b_tree, ps, eps_2, prev_facet);
+        inline bool is_out_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2) const {
+            return is_out(b_tree, ps, eps_2, geo::NO_INDEX);
         }
 
         inline bool is_out_tmp_b_envelope(const std::vector<geo::vec3> &ps, const Scalar eps_2,
-                                          geo::index_t prev_facet = geo::NO_FACET) const {
-            return is_out(*tmp_b_tree, ps, eps_2, prev_facet);
+                                          geo::index_t prev_facet = geo::NO_INDEX) const {
+            return is_out(tmp_b_tree, ps, eps_2, prev_facet);
         }
 
-        inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2) const {
-            geo::index_t prev_facet;
-            return is_out(sf_tree, p, eps_2, prev_facet);
-        }
-
-        // The overloads taking prev_facet hand back the facet the query landed on, which the
-        // caller passes to the next query as a hint.
+        // prev_facet comes back as the facet the query landed on, which the caller passes to the
+        // next query as a hint.
         inline bool is_out_sf_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
             return is_out(sf_tree, p, eps_2, prev_facet);
         }
 
         inline bool is_out_tmp_b_envelope(const Vector3 &p, const Scalar eps_2, geo::index_t &prev_facet) const {
-            return is_out(*tmp_b_tree, p, eps_2, prev_facet);
+            return is_out(tmp_b_tree, p, eps_2, prev_facet);
         }
 
         // Same query, but carrying the previous facet and its distance across calls. Walking a
@@ -144,7 +142,7 @@ namespace floatTetWild {
                            geo::index_t &prev_facet) {
             geo::vec3 nearest_p;
             double sq_dist;
-            prev_facet = geo::NO_FACET;
+            prev_facet = geo::NO_INDEX;
             return is_out(tree, to_geo_p(p), eps_2, prev_facet, sq_dist, nearest_p);
         }
 
@@ -163,8 +161,8 @@ namespace floatTetWild {
         // is rebuilt every time more triangles go in.
         geo::Mesh b_mesh;
         geo::Mesh tmp_b_mesh;
-        std::unique_ptr<MeshFacetsAABBWithEps> b_tree;
-        std::unique_ptr<MeshFacetsAABBWithEps> tmp_b_tree;
+        MeshFacetsAABBWithEps b_tree;
+        MeshFacetsAABBWithEps tmp_b_tree;
         MeshFacetsAABBWithEps sf_tree;
     };
 }

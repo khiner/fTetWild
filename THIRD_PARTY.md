@@ -14,13 +14,13 @@ that per-file notice is the actual grant: libigl, for instance, ships both `LICE
 | File | Upstream | Licence |
 |---|---|---|
 | `src/MeshCleanup.hpp`, `src/MeshCleanup.cpp` | libigl — `igl/{sort,sortrows,round,unique_rows,remove_duplicate_vertices,vertex_components,orientable_patches,bfs_orient}` | MPL 2.0 |
-| `src/writeOBJ.h` | libigl — `igl/writeOBJ.h` | MPL 2.0 |
+| `src/main.cpp` (the `writeOBJ` function only) | libigl — `igl/writeOBJ.h` | MPL 2.0 |
 | `src/FastWindingNumber.h`, `src/FastWindingNumber.cpp` | [Side Effects Software](https://github.com/sideeffects/WindingNumber), via libigl | MIT |
 | `src/predicates.c` | [Jonathan Richard Shewchuk](https://www.cs.cmu.edu/~quake/robust.html), CMU | Public domain |
 | `src/AABBWrapper.h`, `src/AABBWrapper.cpp` (the `MeshFacetsAABBWithEps` tree only) | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause |
 | `src/geo/*` | [geogram](https://github.com/BrunoLevy/geogram) — Bruno Levy, Inria | BSD 3-clause (`src/geo/LICENSE.geogram`) |
 | `src/triangle_triangle_intersection.cpp` | Guigue & Devillers, *Journal of Graphics Tools* 8(1), 2003 | **none stated** |
-| `src/getRSS.c` | David Robert Nadeau, [NadeauSoftware.com](http://NadeauSoftware.com/) | CC BY 3.0 |
+| `src/main.cpp` (the `getPeakRSS` function only) | David Robert Nadeau, [NadeauSoftware.com](http://NadeauSoftware.com/) | CC BY 3.0 |
 | `src/MeshIO.cpp` (the Gmsh 2.2 writer only) | [PyMesh](https://github.com/PyMesh/PyMesh) — Qingnan Zhou | **none — see below** |
 
 `src/Predicates.hpp` and `src/Predicates.cpp` are fTetWild's own wrapper over Shewchuk's
@@ -36,8 +36,8 @@ that per-file notice is the actual grant: libigl, for instance, ships both `LICE
   with the source. BSD 3-clause also forbids using "Inria" or the "ALICE Project-Team" name to
   promote anything derived from it.
 - **CC BY 3.0** requires attribution. Creative Commons discourages CC licences for software and
-  this one is not OSI-approved, so `getRSS.c` is the untidiest entry here — though the obligation
-  itself is only attribution.
+  this one is not OSI-approved, so `getPeakRSS` is the untidiest entry here — though the
+  obligation itself is only attribution.
 - **Public domain** (`predicates.c`) carries no obligation. The attribution is kept because it
   documents the algorithm.
 

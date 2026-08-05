@@ -116,6 +116,9 @@ namespace floatTetWild {
 
     Scalar get_quality(const Mesh& mesh, const MeshTet& t);
     Scalar get_quality(const Mesh& mesh, int t_id);
+    // The quality tet t_id would have with its corner j moved to p, the counterpart of
+    // is_inverted(mesh, t_id, j, p) below.
+    Scalar get_quality(const Mesh& mesh, int t_id, int j, const Vector3& p);
     // The largest quality among the given tets, 0 when there are none.
     Scalar get_max_quality(const Mesh& mesh, const std::vector<int>& t_ids);
     Scalar get_quality(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
@@ -124,7 +127,7 @@ namespace floatTetWild {
     bool is_inverted(const Mesh& mesh, int t_id, int j, const Vector3& new_p);
     bool is_inverted(const Vector3& v0, const Vector3& v1, const Vector3& v2, const Vector3& v3);
 
-    bool is_out_envelope(Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
+    bool is_out_envelope(const Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
     bool is_out_boundary_envelope(const Mesh& mesh, int v_id, const Vector3& new_pos, const AABBWrapper& tree);
     void sample_triangle(const std::array<Vector3, 3>& vs, std::vector<geo::vec3>& ps, Scalar sampling_dist);
     bool sample_triangle_and_check_is_out(const std::array<Vector3, 3>& vs, Scalar sampling_dist,
@@ -183,24 +186,18 @@ namespace floatTetWild {
         std::array<int, 2> v_ids;
         Scalar weight;
     };
-    struct cmp_l {
+    template<bool Longest>
+    struct EdgeCmp {
         bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) const {
             if (e1.weight == e2.weight)
-                return e1.v_ids > e2.v_ids;
-            return e1.weight < e2.weight;
-        }
-    };
-    struct cmp_s {
-        bool operator()(const ElementInQueue &e1, const ElementInQueue &e2) const {
-            if (e1.weight == e2.weight)
-                return e1.v_ids < e2.v_ids;
-            return e1.weight > e2.weight;
+                return Longest ? e1.v_ids > e2.v_ids : e1.v_ids < e2.v_ids;
+            return Longest ? e1.weight < e2.weight : e1.weight > e2.weight;
         }
     };
 
     // The queues the local operations drive themselves from, named for what they pop first.
-    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_l> LongestFirstQueue;
-    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, cmp_s> ShortestFirstQueue;
+    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, EdgeCmp<true>> LongestFirstQueue;
+    typedef std::priority_queue<ElementInQueue, std::vector<ElementInQueue>, EdgeCmp<false>> ShortestFirstQueue;
 
     // The same edge can sit in the queue more than once. After taking one, drop the copies behind
     // it.
@@ -213,6 +210,17 @@ namespace floatTetWild {
     Scalar AMIPS_energy(const std::array<Scalar, 12>& T);
     void AMIPS_jacobian(const std::array<Scalar, 12>& T, Vector3& result_0);
     void AMIPS_hessian(const std::array<Scalar, 12>& T, Matrix3& result_0);
+
+    // The four local-operation passes MeshImprovement drives, each defined in its own .cpp.
+    void edge_splitting(Mesh& mesh, const AABBWrapper& tree);
+    void edge_collapsing(Mesh& mesh, const AABBWrapper& tree);
+    void edge_swapping(Mesh& mesh);
+    void vertex_smoothing(Mesh& mesh, const AABBWrapper& tree);
+
+    // tet_tss, when given, receives ts + 1 on every tet the collapse rewires, which is how
+    // edge_collapsing tells whether anything moved near a previously failed edge.
+    bool collapse_an_edge(Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree,
+             std::vector<std::array<int, 2>>& new_edges, int ts, std::vector<int>* tet_tss);
 }
 
 #endif //FLOATTETWILD_LOCALOPERATIONS_H

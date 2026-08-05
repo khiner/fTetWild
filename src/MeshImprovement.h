@@ -19,7 +19,7 @@ namespace floatTetWild {
             Mesh &mesh, AABBWrapper& tree);
 
     void correct_tracked_surface_orientation(Mesh &mesh, AABBWrapper& tree);
-    void get_tracked_surface(Mesh& mesh, MatrixXs &V, MatrixXi &F, int c_id = 0);
+    void get_tracked_surface(Mesh& mesh, MatrixXd &V, MatrixXi &F, int c_id = 0);
     void boolean_operation(Mesh& mesh, int op);
     // Vs and Fs are the loaded csg operand meshes, one entry per id in the tree. Empty means
     // use the tracked surfaces instead. The caller loads them so the library reads no files.
@@ -29,7 +29,7 @@ namespace floatTetWild {
     void filter_outside(Mesh& mesh, const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
     // V and F are the tracked surface, from get_tracked_surface. The caller supplies it so
     // it is computed once even when it is also wanted for output.
-    void filter_outside(Mesh& mesh, const MatrixXs& V, const MatrixXi& F);
+    void filter_outside(Mesh& mesh, const MatrixXd& V, const MatrixXi& F);
     void filter_outside_floodfill(Mesh& mesh);
     void smooth_open_boundary(Mesh& mesh, const AABBWrapper& tree);
     void get_surface(Mesh& mesh, MatrixXd& V, MatrixXi& F);

@@ -16,11 +16,11 @@
 // which would break them. Under gcc that needs -ffp-contract=off, and under MSVC
 // #pragma fp_contract(off).
 
-#define FPG_UNCERTAIN_VALUE 0
-
 namespace {
 
     using namespace floatTetWild::geo;
+
+    constexpr int FPG_UNCERTAIN_VALUE = 0;
 
     inline double det4x4(
         double a11, double a12, double a13, double a14,

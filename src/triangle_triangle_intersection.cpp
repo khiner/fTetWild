@@ -22,11 +22,7 @@
 
 // modified by Aaron to better detect coplanarity
 
-#ifdef FLOAT_TETWILD_USE_FLOAT
-    typedef float real;                      // float
-#else
-    typedef double real;                      // double
-#endif
+    typedef double real;
 
 #include "geo/geo_predicates.h"
 
