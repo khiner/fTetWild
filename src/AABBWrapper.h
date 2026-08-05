@@ -21,7 +21,7 @@ namespace floatTetWild {
         // The length of the diagonal of the bounding box of the surface mesh.
         Scalar get_sf_diag() const;
 
-        void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
+        void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, Mesh &mesh);
 
         void init_tmp_b_mesh_and_tree(const std::vector<Vector3> &input_vertices,
                                       const std::vector<std::array<int, 2>> &b_edges1,

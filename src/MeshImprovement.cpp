@@ -810,9 +810,9 @@ void operation(const std::vector<Vector3> &input_vertices, const std::vector<Vec
                        mesh.get_v_num(), mesh.get_t_num(), max_energy, avg_energy,
                        int(std::count(is_face_inserted.begin(), is_face_inserted.end(), false))});
 
-    // An input that is now fully inserted has no cut left to preserve. Otherwise the boundary
-    // marks only survive where they still sit inside the boundary envelope.
-    const bool drop_all = mesh.is_input_all_inserted;
+    // A closed input that is now fully inserted has no cut left to preserve. Otherwise the
+    // boundary marks only survive where they still sit inside the boundary envelope.
+    const bool drop_all = mesh.is_input_all_inserted && mesh.is_closed;
     for (auto &v : mesh.tet_vertices) {
         if (v.is_removed)
             continue;

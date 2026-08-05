@@ -117,6 +117,9 @@ namespace floatTetWild {
         int t_empty_start = 0;
         int v_empty_start = 0;
 
+        // Whether the input surface had no boundary edges. Set by init_b_mesh_and_tree().
+        bool is_closed = false;
+
         bool is_input_all_inserted = false;
         bool is_coarsening = false;
 

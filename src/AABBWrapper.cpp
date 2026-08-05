@@ -75,7 +75,8 @@ Scalar AABBWrapper::get_sf_diag() const
 }
 
 void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertices,
-                                       const std::vector<Vector3i>& input_faces)
+                                       const std::vector<Vector3i>& input_faces,
+                                       Mesh&                        mesh)
 {
     b_mesh.clear();
 
@@ -89,6 +90,8 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
                         _,
                         _1,
                         b_edges);
+
+    mesh.is_closed = b_edges.empty();
 
     std::vector<std::array<Vector3, 2>> segments;
     segments.reserve(b_edges.size());

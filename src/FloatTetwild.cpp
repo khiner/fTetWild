@@ -85,7 +85,7 @@ int tetrahedralization(AABBWrapper&           tree,
 
     timer.start();
     simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);
-    tree.init_b_mesh_and_tree(input_vertices, input_faces);
+    tree.init_b_mesh_and_tree(input_vertices, input_faces, mesh);
     finish_step(StateInfo::preprocessing_id,
                 "preprocessing",
                 input_vertices.size(),
