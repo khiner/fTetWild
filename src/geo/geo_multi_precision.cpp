@@ -12,6 +12,34 @@ namespace {
     // The helpers below are Shewchuk's, in his naming: two_one means a length 2 expansion and a
     // double, and the trailing numbers on the outputs run from high magnitude to low.
 
+    // Each of the next three turns an exact operation on two doubles into a length 2 expansion:
+    // x is the rounded result and y the part that did not fit. two_diff, their sibling, stays in
+    // the header for assign_diff().
+    inline void two_sum(double a, double b, double& x, double& y) {
+        x = a + b;
+        double bvirt = x - a;
+        double avirt = x - bvirt;
+        double bround = b - bvirt;
+        double around = a - avirt;
+        y = around + bround;
+    }
+
+    // fma() is exact, so it recovers the rounding error of the product outright. Shewchuk's
+    // splitting version does the same in seven operations and is what geogram falls back to
+    // without hardware fused multiply-add; nothing here needs that path.
+    //
+    // Note: under gcc, automatic generation of fma() for a*b+c has to be deactivated with
+    // -ffp-contract=off, else it breaks functions such as fast_expansion_sum_zeroelim().
+    inline void two_product(double a, double b, double& x, double& y) {
+        x = a*b;
+        y = fma(a,b,-x);
+    }
+
+    inline void square(double a, double& x, double& y) {
+        x = a*a;
+        y = fma(a,a,-x);
+    }
+
     // Like two_sum, but only correct when |a| > |b|.
     inline void fast_two_sum(double a, double b, double& x, double& y) {
         x = a + b;
@@ -96,6 +124,12 @@ namespace {
 namespace floatTetWild {
 namespace geo {
 
+    // This and fast_expansion_combine_zeroelim below are adapted from Jonathan Shewchuk's code,
+    // see either version of his paper for details. In each, \p h cannot be \p e or \p f, and zero
+    // components are dropped from the result.
+
+    // h = b * e. Maintains the nonoverlapping property, and with round-to-even (as with IEEE 754)
+    // the strongly nonoverlapping and nonadjacent properties as well.
     void scale_expansion_zeroelim(
         const expansion& e, double b, expansion& h
     ) {
@@ -137,6 +171,8 @@ namespace geo {
     // h = e +/- f. The two are the same walk over the two expansions, merging by magnitude, and
     // differ only in that the difference negates every component of f as it reads it. Negation is
     // exact, so both are Shewchuk's fast_expansion_sum_zeroelim() with his arithmetic unchanged.
+    // With round-to-even, the sum maintains the strongly nonoverlapping property, but NOT the
+    // nonoverlapping or nonadjacent ones.
     template <bool Negate>
     void fast_expansion_combine_zeroelim(
         const expansion& e, const expansion& f, expansion& h
@@ -271,7 +307,7 @@ namespace geo {
         const expansion& a, const expansion& b,
         const expansion& c, const expansion& d
     ) {
-        geo_debug_assert(capacity() >= sum_capacity(a, b, c));
+        geo_debug_assert(capacity() >= sum_capacity(a, b, c, d));
         expansion& ab = expansion_sum(a, b);
         expansion& cd = expansion_sum(c, d);
         this->assign_sum(ab, cd);

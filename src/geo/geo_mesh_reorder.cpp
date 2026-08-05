@@ -35,6 +35,39 @@ namespace {
 
     /************************************************************************/
 
+    // Reorders the vertices so that vertex k becomes the vertex that was at permutation[k], and
+    // sends the facet corners after them.
+    void permute_vertices(Mesh& M, const vector<index_t>& permutation) {
+        std::vector<double> reordered(M.points.size());
+        for(index_t v = 0; v < permutation.size(); ++v) {
+            const double* from = M.point_ptr(permutation[v]);
+            std::copy(from, from + 3, reordered.begin() + v * 3);
+        }
+        M.points.swap(reordered);
+
+        // The vertex that was at permutation[v] is now at v, so a corner naming the old index
+        // has to be sent the other way.
+        vector<index_t> old_to_new(permutation.size());
+        for(index_t v = 0; v < permutation.size(); ++v) {
+            old_to_new[permutation[v]] = v;
+        }
+        for(index_t& corner : M.corners) {
+            corner = old_to_new[corner];
+        }
+    }
+
+    // The same for the facets.
+    void permute_facets(Mesh& M, const vector<index_t>& permutation) {
+        // Every facet is a triangle, so the corners move three at a time.
+        std::vector<index_t> reordered(M.corners.size());
+        for(index_t f = 0; f < permutation.size(); ++f) {
+            for(index_t lv = 0; lv < 3; ++lv) {
+                reordered[3 * f + lv] = M.corners[3 * permutation[f] + lv];
+            }
+        }
+        M.corners.swap(reordered);
+    }
+
     // The coordinate a vertex sorts by: its own.
     struct VertexCoord {
         const double* points;
@@ -201,7 +234,7 @@ namespace geo {
                 VertexCoord{M.points.data()},
                 sorted_indices.begin(), sorted_indices.end()
             );
-            M.permute_vertices(sorted_indices);
+            permute_vertices(M, sorted_indices);
         }
 
         // Step 2: reorder facets
@@ -215,7 +248,7 @@ namespace geo {
             if(facet_permutation != nullptr) {
                 *facet_permutation = sorted_indices;
             }
-            M.permute_facets(sorted_indices);
+            permute_facets(M, sorted_indices);
         }
 
     }

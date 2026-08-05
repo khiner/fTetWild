@@ -18,9 +18,10 @@ namespace floatTetWild {
 
         AABBWrapper(const geo::Mesh &sf_mesh) : sf_mesh(sf_mesh), sf_tree(sf_mesh) {}
 
-        inline Scalar get_sf_diag() const { return geo::bbox_diagonal(sf_mesh); }
+        // The length of the diagonal of the bounding box of the surface mesh.
+        Scalar get_sf_diag() const;
 
-        void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces, Mesh &mesh);
+        void init_b_mesh_and_tree(const std::vector<Vector3> &input_vertices, const std::vector<Vector3i> &input_faces);
 
         void init_tmp_b_mesh_and_tree(const std::vector<Vector3> &input_vertices,
                                       const std::vector<std::array<int, 2>> &b_edges1,
@@ -35,12 +36,6 @@ namespace floatTetWild {
             geo::vec3 nearest_p;
             double sq_dist = std::numeric_limits<double>::max();
             return sf_tree.nearest_facet(to_geo_p(p), nearest_p, sq_dist);
-        }
-
-        // How far p is from the surface, squared, leaving p where it is.
-        inline Scalar get_sq_dist_to_sf(const Vector3 &p) const {
-            Vector3 q = p;
-            return project_to_sf(q);
         }
 
         // A set of sample points is outside when any one of them is.

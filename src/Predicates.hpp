@@ -2,6 +2,8 @@
 
 #include <floattetwild/Types.hpp>
 
+#include <climits>
+
 namespace floatTetWild {
 namespace Predicates {
 

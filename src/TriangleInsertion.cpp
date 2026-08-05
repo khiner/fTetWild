@@ -24,10 +24,6 @@
 #include <bitset>
 #include <floattetwild/EdgeCollapsing.h>
 
-// The faces the current insertion laid onto the cut plane. subdivide_tets fills it and
-// simplify_subdivision_result consumes it, both under one insert_one_triangle, which is serial.
-static std::vector<std::array<int, 3>> covered_tet_fs;
-
 namespace floatTetWild {
 namespace {
 
@@ -203,7 +199,6 @@ void push_new_tets(Mesh&                                         mesh,
     track_surface_fs.insert(track_surface_fs.end(),
                             sub.track_surface_fs.begin() + sub.modified_t_ids.size(),
                             sub.track_surface_fs.end());
-    sub.modified_t_ids.clear();
 }
 
 void find_cutting_tets(int                           f_id,
@@ -300,13 +295,14 @@ void find_cutting_tets(int                           f_id,
 bool subdivide_tets(
   int                                           insert_f_id,
   Mesh&                                         mesh,
-  CutMesh&                                      cut_mesh,
+  CutMesh*                                      cut_mesh,  // null when no face is marked surface
   std::vector<Vector3>&                         points,
   std::map<std::array<int, 2>, int>&            map_edge_to_intersecting_point,
   std::vector<std::array<std::vector<int>, 4>>& track_surface_fs,
   std::vector<int>&                             subdivide_t_ids,
   std::vector<bool>&                            is_mark_surface,
-  Subdivision&                                  sub)
+  Subdivision&                                  sub,
+  std::vector<std::array<int, 3>>&              covered_tet_fs)
 {
     static const std::array<std::array<int, 2>, 6> t_es = {
       {{{0, 1}}, {{1, 2}}, {{2, 0}}, {{0, 3}}, {{1, 3}}, {{2, 3}}}};
@@ -341,8 +337,8 @@ bool subdivide_tets(
                 for (int j = 0; j < 4; j++) {
                     int cnt_on = 0;
                     for (int k = 0; k < 3; k++) {
-                        if (cut_mesh.is_v_on_plane(
-                              cut_mesh.map_v_ids[mesh.tets[t_id][(j + k + 1) % 4]])) {
+                        if (cut_mesh->is_v_on_plane(
+                              cut_mesh->map_v_ids[mesh.tets[t_id][(j + k + 1) % 4]])) {
                             cnt_on++;
                         }
                     }
@@ -537,12 +533,14 @@ bool subdivide_tets(
     return true;
 }
 
+// covered_tet_fs is the faces subdivide_tets laid onto the cut plane for this insertion.
 void simplify_subdivision_result(
   int                                           insert_f_id,
   int                                           input_v_size,
   Mesh&                                         mesh,
   AABBWrapper&                                  tree,
-  std::vector<std::array<std::vector<int>, 4>>& track_surface_fs)
+  std::vector<std::array<std::vector<int>, 4>>& track_surface_fs,
+  std::vector<std::array<int, 3>>&              covered_tet_fs)
 {
     if (covered_tet_fs.empty())
         return;
@@ -650,7 +648,7 @@ void simplify_subdivision_result(
             mesh.tets[t_id].quality = get_quality(mesh, t_id);
 
         if (collapse_an_edge(
-              mesh, v_ids[0], v_ids[1], tree, new_edges, 0, tet_tss, true, false)) {
+              mesh, v_ids[0], v_ids[1], tree, new_edges, 0, tet_tss, false)) {
             for (const auto& e : new_edges) {
                 if (all_v_ids.count(e[0]) && all_v_ids.count(e[1]))
                     push_free_ends(e[0], e[1]);
@@ -760,21 +758,24 @@ bool insert_one_triangle(
     cut_t_ids.insert(cut_t_ids.end(), tmp.begin(), tmp.end());
     is_mark_surface.resize(is_mark_surface.size() + tmp.size(), false);
 
-    Subdivision sub;
+    Subdivision                     sub;
+    std::vector<std::array<int, 3>> covered_tet_fs;
     if (!subdivide_tets(insert_f_id,
                         mesh,
-                        cut_mesh,
+                        &cut_mesh,
                         points,
                         map_edge_to_intersecting_point,
                         track_surface_fs,
                         cut_t_ids,
                         is_mark_surface,
-                        sub))
+                        sub,
+                        covered_tet_fs))
         return failed("FAIL subdivide_tets");
 
     push_new_tets(mesh, track_surface_fs, points, sub);
 
-    simplify_subdivision_result(insert_f_id, input_vertices.size(), mesh, tree, track_surface_fs);
+    simplify_subdivision_result(
+      insert_f_id, input_vertices.size(), mesh, tree, track_surface_fs, covered_tet_fs);
 
     return true;
 }
@@ -812,7 +813,7 @@ void pair_track_surface_fs(
     }
 }
 
-bool insert_boundary_edges_get_intersecting_edges_and_points(
+void insert_boundary_edges_get_intersecting_edges_and_points(
   const std::vector<std::vector<std::pair<int, int>>>& covered_fs_infos,
   const std::vector<Vector3>&                          input_vertices,
   const std::vector<Vector3i>&                         input_faces,
@@ -989,8 +990,6 @@ bool insert_boundary_edges_get_intersecting_edges_and_points(
         }
     }
     vector_unique(snapped_v_ids);
-
-    return true;
 }
 
 void insert_boundary_edges(
@@ -1075,24 +1074,18 @@ void insert_boundary_edges(
         std::map<std::array<int, 2>, int> map_edge_to_intersecting_point;
         std::vector<int>                  snapped_v_ids;
         std::vector<std::array<int, 3>>   cut_fs;
-        if (!insert_boundary_edges_get_intersecting_edges_and_points(covered_fs_infos,
-                                                                     input_vertices,
-                                                                     input_faces,
-                                                                     e,
-                                                                     n_f_ids,
-                                                                     track_surface_fs,
-                                                                     mesh,
-                                                                     points,
-                                                                     map_edge_to_intersecting_point,
-                                                                     snapped_v_ids,
-                                                                     cut_fs,
-                                                                     is_again)) {
-            for (int f_id : n_f_ids)
-                is_face_inserted[f_id] = false;
-
-            logger().warn("FAIL insert_boundary_edges_get_intersecting_edges_and_points");
-            continue;
-        }
+        insert_boundary_edges_get_intersecting_edges_and_points(covered_fs_infos,
+                                                                input_vertices,
+                                                                input_faces,
+                                                                e,
+                                                                n_f_ids,
+                                                                track_surface_fs,
+                                                                mesh,
+                                                                points,
+                                                                map_edge_to_intersecting_point,
+                                                                snapped_v_ids,
+                                                                cut_fs,
+                                                                is_again);
         if (points.empty()) {  // everything snapped, nothing to subdivide
             record_boundary_info(points, snapped_v_ids, e, is_on_cut);
             cnt++;
@@ -1109,17 +1102,18 @@ void insert_boundary_edges(
         }
         vector_unique(cut_t_ids);
         std::vector<bool> is_mark_surface(cut_t_ids.size(), false);
-        CutMesh           empty_cut_mesh(mesh, Vector3(0, 0, 0), std::array<Vector3, 3>());
-        Subdivision sub;
+        Subdivision       sub;
+        std::vector<std::array<int, 3>> _;
         if (!subdivide_tets(-1,
                             mesh,
-                            empty_cut_mesh,
+                            nullptr,
                             points,
                             map_edge_to_intersecting_point,
                             track_surface_fs,
                             cut_t_ids,
                             is_mark_surface,
-                            sub)) {
+                            sub,
+                            _)) {
             bool is_inside_envelope = true;
             for (auto& f : cut_fs) {
                 geo::index_t prev_facet = geo::NO_FACET;

@@ -65,12 +65,12 @@ floatTetWild::Scalar floatTetWild::p_seg_squared_dist_3d(const Vector3 &v, const
 }
 
 bool floatTetWild::seg_plane_intersection(const Vector3& p1, const Vector3& p2, const Vector3& a, const Vector3& n,
-                                          Vector3& p, Scalar& d1) {
+                                          Vector3& p) {
     Vector3 u = p2 - p1;
     Vector3 w = p1 - a;
 
     Scalar D = n.dot(u);
-    d1 = -n.dot(w);
+    Scalar d1 = -n.dot(w);
 
     if (fabs(D) == 0)  // parallel to the plane, whether or not it lies in it
         return false;
@@ -195,14 +195,10 @@ int floatTetWild::is_tri_tri_cutted_hint(const Vector3& p1, const Vector3& p2, c
         return CUT_EMPTY;
     }
 
-    // The test only reads its six corners, so they go in as they are.
-    const auto coords = [](const Vector3& p) { return const_cast<Scalar*>(p.data()); };
-
-    int coplanar = 0;
     std::array<Scalar, 3> s = {{0,0,0}}, t = {{0,0,0}};
-    int result = tri_tri_intersection_test_3d(coords(p1), coords(p2), coords(p3),
-                                              coords(q1), coords(q2), coords(q3),
-                                              &coplanar, &s[0], &t[0]);
+    int result = tri_tri_intersection_test_3d(p1.data(), p2.data(), p3.data(),
+                                              q1.data(), q2.data(), q3.data(),
+                                              &s[0], &t[0]);
     if (result != 1) {
         return CUT_EMPTY;
     }

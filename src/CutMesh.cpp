@@ -215,9 +215,8 @@ bool floatTetWild::CutMesh::get_intersecting_edges_and_points(std::vector<Vector
         int v1_id = v_ids[e[0]];
         int v2_id = v_ids[e[1]];
         Vector3 p;
-        Scalar _;
         bool is_result = seg_plane_intersection(mesh.tet_vertices[v1_id].pos, mesh.tet_vertices[v2_id].pos,
-                                                p_vs[0], p_n, p, _);
+                                                p_vs[0], p_n, p);
         if (!is_result) {
             logger().error("seg_plane_intersection no result!");
             return false;

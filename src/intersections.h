@@ -31,7 +31,7 @@ namespace floatTetWild {
     bool seg_seg_intersection_2d(const std::array<Vector2, 2> &seg1, const std::array<Vector2, 2> &seg2, Scalar& t2);
     bool seg_line_intersection_2d(const std::array<Vector2, 2> &seg, const std::array<Vector2, 2> &line, Scalar& t_seg);
     bool seg_plane_intersection(const Vector3 &p1, const Vector3 &p2, const Vector3 &a, const Vector3 &n,
-                                Vector3 &p, Scalar &d1);
+                                Vector3 &p);
 
     int get_t(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2);
     Vector2 to_2d(const Vector3 &p, int t);
@@ -56,10 +56,9 @@ namespace floatTetWild {
 
 // Guigue-Devillers, in triangle_triangle_intersection.cpp, which has no header of its own. Returns
 // 1 when the triangles overlap, and then source and target are the ends of the shared segment.
-int tri_tri_intersection_test_3d(floatTetWild::Scalar p1[3], floatTetWild::Scalar q1[3],
-                                 floatTetWild::Scalar r1[3], floatTetWild::Scalar p2[3],
-                                 floatTetWild::Scalar q2[3], floatTetWild::Scalar r2[3],
-                                 int* coplanar, floatTetWild::Scalar source[3],
-                                 floatTetWild::Scalar target[3]);
+int tri_tri_intersection_test_3d(const floatTetWild::Scalar p1[3], const floatTetWild::Scalar q1[3],
+                                 const floatTetWild::Scalar r1[3], const floatTetWild::Scalar p2[3],
+                                 const floatTetWild::Scalar q2[3], const floatTetWild::Scalar r2[3],
+                                 floatTetWild::Scalar source[3], floatTetWild::Scalar target[3]);
 
 #endif //FLOATTETWILD_INTERSECTIONS_H

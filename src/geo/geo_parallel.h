@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "geo_basic.h"
-
 #include <functional>
 #include <thread>
 #include <vector>
@@ -15,24 +13,20 @@
 namespace floatTetWild {
 namespace geo {
 
-    namespace impl {
-        inline void run_parallel(std::vector<std::function<void()>> tasks) {
-            std::vector<std::thread> threads;
-            threads.reserve(tasks.size() - 1);
-            for(size_t i = 1; i < tasks.size(); ++i) {
-                threads.emplace_back(tasks[i]);
-            }
-            tasks[0]();
-            for(std::thread& thread : threads) {
-                thread.join();
-            }
-        }
-    }
-
     // Runs the given tasks at once. The spatial sort calls this with 2, 4 and 8 of them.
     template <typename... F>
     inline void parallel(F&&... fs) {
-        impl::run_parallel({std::function<void()>(std::forward<F>(fs))...});
+        std::vector<std::function<void()>> tasks = {
+            std::function<void()>(std::forward<F>(fs))...};
+        std::vector<std::thread> threads;
+        threads.reserve(tasks.size() - 1);
+        for(size_t i = 1; i < tasks.size(); ++i) {
+            threads.emplace_back(tasks[i]);
+        }
+        tasks[0]();
+        for(std::thread& thread : threads) {
+            thread.join();
+        }
     }
 }
 }

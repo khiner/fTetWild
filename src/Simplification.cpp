@@ -112,7 +112,7 @@ bool is_out_envelope(const std::array<Vector3, 3>& vs,
       vs, params.dd_simplification, params.eps_2_simplification, tree, prev_facet);
 }
 
-bool remove_duplicates(std::vector<Vector3>&  input_vertices,
+void remove_duplicates(std::vector<Vector3>&  input_vertices,
                        std::vector<Vector3i>& input_faces,
                        std::vector<int>&      input_tags,
                        const Parameters&      params)
@@ -146,7 +146,7 @@ bool remove_duplicates(std::vector<Vector3>&  input_vertices,
         face_tags[i] = input_tags[IF(i)];
     if (V_in.rows() == 0 || F_in.rows() == 0) {
         input_tags = face_tags;
-        return false;
+        return;
     }
 
     logger().info("remove duplicates: ");
@@ -173,8 +173,6 @@ bool remove_duplicates(std::vector<Vector3>&  input_vertices,
         input_faces.push_back(F_in.row(i));
         input_tags.push_back(face_tags[i]);
     }
-
-    return true;
 }
 
 void collapsing(std::vector<Vector3>&                 input_vertices,
@@ -329,7 +327,7 @@ void collapsing(std::vector<Vector3>&                 input_vertices,
     logger().debug("{}  faces are collapsed!!", cnt_suc);
 }
 
-void swapping(std::vector<Vector3>&                 input_vertices,
+void swapping(const std::vector<Vector3>&           input_vertices,
               std::vector<Vector3i>&                input_faces,
               const AABBWrapper&                    tree,
               const Parameters&                     params,

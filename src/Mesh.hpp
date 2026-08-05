@@ -116,7 +116,6 @@ namespace floatTetWild {
 
         int t_empty_start = 0;
         int v_empty_start = 0;
-        bool is_closed = true;
 
         bool is_input_all_inserted = false;
         bool is_coarsening = false;
@@ -142,18 +141,6 @@ namespace floatTetWild {
                 cnt++;
             }
             avg_energy /= cnt;
-        }
-
-        inline Scalar get_max_energy() const {
-            Scalar max_energy, _;
-            get_max_avg_energy(max_energy, _);
-            return max_energy;
-        }
-
-        inline Scalar get_avg_energy() const {
-            Scalar _, avg_energy;
-            get_max_avg_energy(_, avg_energy);
-            return avg_energy;
         }
     };
 }

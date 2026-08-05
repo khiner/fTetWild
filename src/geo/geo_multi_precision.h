@@ -22,18 +22,9 @@
 namespace floatTetWild {
 namespace geo {
 
-    // The three primitives below are Shewchuk's. Each turns an exact operation on two doubles into
-    // a length 2 expansion: x is the rounded result and y the part that did not fit.
-
-    inline void two_sum(double a, double b, double& x, double& y) {
-        x = a + b;
-        double bvirt = x - a;
-        double avirt = x - bvirt;
-        double bround = b - bvirt;
-        double around = a - avirt;
-        y = around + bround;
-    }
-
+    // Shewchuk's primitive: turns an exact difference of two doubles into a length 2 expansion,
+    // x the rounded result and y the part that did not fit. Its siblings two_sum, two_product and
+    // square live in geo_multi_precision.cpp, the only place that uses them.
     inline void two_diff(double a, double b, double& x, double& y) {
         x = a - b;
         double bvirt = a - x;
@@ -41,22 +32,6 @@ namespace geo {
         double bround = bvirt - b;
         double around = a - avirt;
         y = around + bround;
-    }
-
-    // fma() is exact, so it recovers the rounding error of the product outright. Shewchuk's
-    // splitting version does the same in seven operations and is what geogram falls back to
-    // without hardware fused multiply-add; nothing here needs that path.
-    //
-    // Note: under gcc, automatic generation of fma() for a*b+c has to be deactivated with
-    // -ffp-contract=off, else it breaks functions such as fast_expansion_sum_zeroelim().
-    inline void two_product(double a, double b, double& x, double& y) {
-        x = a*b;
-        y = fma(a,b,-x);
-    }
-
-    inline void square(double a, double& x, double& y) {
-        x = a*a;
-        y = fma(a,a,-x);
     }
 
     /************************************************************************/
@@ -251,7 +226,7 @@ namespace geo {
         return geo_sgn(x_[length() - 1]);
     }
 
-    protected:
+    private:
     static index_t sub_product_capacity(
         index_t a_length, index_t b_length
     ) {
@@ -323,29 +298,6 @@ namespace geo {
     new_expansion_on_stack(                     \
         expansion::sq_dist_capacity()           \
     )->assign_sq_dist(a, b)
-
-    /************************************************************************/
-
-    // The three below are adapted from Jonathan Shewchuk's code, see either version of his paper
-    // for details. In each, \p h cannot be \p e or \p f, and zero components are dropped from the
-    // result.
-
-    // h = b * e. Maintains the nonoverlapping property, and with round-to-even (as with IEEE 754)
-    // the strongly nonoverlapping and nonadjacent properties as well.
-    void scale_expansion_zeroelim(
-        const expansion& e, double b, expansion& h
-    );
-
-    // h = e + f. With round-to-even, maintains the strongly nonoverlapping property, but NOT the
-    // nonoverlapping or nonadjacent ones.
-    void fast_expansion_sum_zeroelim(
-        const expansion& e, const expansion& f, expansion& h
-    );
-
-    // h = e - f, with the same guarantees.
-    void fast_expansion_diff_zeroelim(
-        const expansion& e, const expansion& f, expansion& h
-    );
 
     /************************************************************************/
 } }

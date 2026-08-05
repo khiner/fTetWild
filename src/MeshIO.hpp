@@ -14,15 +14,9 @@
 
 namespace floatTetWild
 {
-	// Morton-reorder a geo::Mesh and read the permuted vertices, faces and per-face tags back out
-	// of it. tags is left alone unless it has one entry per face, in which case it is carried
-	// through the reorder as a facet attribute and comes back permuted alongside the faces.
-	void reorder_and_read_back(geo::Mesh &mesh, std::vector<Vector3> &points,
-	                           std::vector<Vector3i> &faces, std::vector<int> &tags);
-
 	bool load_mesh(const std::string &path, std::vector<Vector3> &points, std::vector<Vector3i> &faces, geo::Mesh& input, std::vector<int> &flags);
 
 	// Writes the live tets, dropping the slots the mesher has freed.
 	void write_mesh(const std::string &path, const Mesh &mesh,
-	                const std::vector<Scalar> &color = std::vector<Scalar>(), const bool binary = true, const bool separate_components = false);
+	                const std::vector<Scalar> &color = std::vector<Scalar>(), bool binary = true, bool separate_components = false);
 }

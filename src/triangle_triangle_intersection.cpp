@@ -33,7 +33,7 @@
 /* The sign of the volume of the tetrahedron pa, pb, pc, pd, inverted: which side of the plane
 *  through the first three points the fourth is on. Exact, so a coplanar quadruple gives 0.
 */
-static int sub_sub_cross_sub_dot(real pa[3], real pb[3], real pc[3], real pd[3]) {
+static int sub_sub_cross_sub_dot(const real pa[3], const real pb[3], const real pc[3], const real pd[3]) {
     return -floatTetWild::geo::PCK::orient_3d(pa, pb, pc, pd);
 }
 
@@ -136,20 +136,18 @@ static int sub_sub_cross_sub_dot(real pa[3], real pb[3], real pc[3], real pd[3])
       if (dr2 > 0) CONSTRUCT_INTERSECTION(p1,q1,r1,r2,p2,q2)\
       else if (dr2 < 0) CONSTRUCT_INTERSECTION(p1,r1,q1,r2,p2,q2)\
       else { \
-        *coplanar = 1; \
        return -1;\
      } \
   }} }
 
 /*
    Computes the segment of intersection of the two triangles if it exists.
-   coplanar returns whether the triangles are coplanar, and source and target
-   the endpoints of the line segment of intersection.
+   source and target return the endpoints of the line segment of intersection.
+   Returns -1 when the triangles are coplanar.
 */
 
-int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
-                                 real p2[3], real q2[3], real r2[3],
-                                 int* coplanar,
+int tri_tri_intersection_test_3d(const real p1[3], const real q1[3], const real r1[3],
+                                 const real p2[3], const real q2[3], const real r2[3],
                                  real source[3], real target[3] )
 
 {
@@ -165,8 +163,6 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
     SUB(v1,p2,r2)
     SUB(v2,q2,r2)
     CROSS(N2,v1,v2)
-
-    *coplanar = 0;
 
     // Compute distance signs  of p1, q1 and r1
     // to the plane of triangle(p2,q2,r2)
@@ -211,9 +207,8 @@ int tri_tri_intersection_test_3d(real p1[3], real q1[3], real r1[3],
             else if (dr1 < 0) TRI_TRI_INTER_3D(r1,p1,q1,p2,r2,q2,dp2,dr2,dq2)
             else {
                 // triangles are co-planar
-                *coplanar = 1;
                 return -1;
             }
         }
     }
-};
+}

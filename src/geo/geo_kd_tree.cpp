@@ -221,6 +221,18 @@ namespace geo {
     coord_index_t BalancedKdTree::best_splitting_coord(
         index_t b, index_t e
     ) {
+        // The extent of the [b,e) sequence along a coordinate.
+        const auto spread = [&](coord_index_t coord) {
+            double minval = std::numeric_limits<double>::max();
+            double maxval = std::numeric_limits<double>::lowest();
+            for(index_t i = b; i < e; ++i) {
+                double val = point_ptr(point_index_[i])[coord];
+                minval = std::min(minval, val);
+                maxval = std::max(maxval, val);
+            }
+            return maxval - minval;
+        };
+
         // Returns the coordinates that maximizes
         // point's spread. We should probably
         // use a tradeoff between spread and
@@ -228,9 +240,9 @@ namespace geo {
         // this simple method seems to give good
         // results in our case.
         coord_index_t result = 0;
-        double max_spread = spread(b, e, 0);
+        double max_spread = spread(0);
         for(coord_index_t c = 1; c < DIMENSION; ++c) {
-            double coord_spread = spread(b, e, c);
+            double coord_spread = spread(c);
             if(coord_spread > max_spread) {
                 result = c;
                 max_spread = coord_spread;

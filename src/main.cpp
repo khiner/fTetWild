@@ -29,6 +29,33 @@
 
 using namespace floatTetWild;
 
+// Peak resident set size in bytes, from getRSS.c. Only the summary line below asks.
+extern "C" size_t getPeakRSS();
+
+namespace {
+
+// Every recorded state as a row, then a summary row with id -1: the time the stages up to the
+// winding number took together, the last state's counts and energies, and the peak memory.
+void write_stats_csv(std::ostream& stream, const std::vector<StateInfo>& states)
+{
+    double time           = 0;
+    int    cnt_uninserted = 0;
+    for (const StateInfo& s : states) {
+        stream << s.id << ", " << s.time << ", " << s.v_num << ", " << s.t_num << ", "
+               << s.max_energy << ", " << s.avg_energy << ", " << s.cnt_fail_inserted_face
+               << ", -1" << std::endl;
+        if (s.cnt_fail_inserted_face >= 0)
+            cnt_uninserted = s.cnt_fail_inserted_face;
+        if (s.id < 6)
+            time += s.time;
+    }
+    stream << -1 << ", " << time << ", " << states.back().v_num << ", " << states.back().t_num
+           << ", " << states.back().max_energy << ", " << states.back().avg_energy << ", "
+           << cnt_uninserted << ", " << getPeakRSS() / (1024 * 1024) << std::endl;
+}
+
+}  // namespace
+
 int main(int argc, char** argv)
 {
     bool skip_simplify = false;
@@ -267,12 +294,14 @@ int main(int argc, char** argv)
     else {
         get_surface(mesh, V_sf, F_sf);
     }
+    Scalar max_energy, avg_energy;
+    mesh.get_max_avg_energy(max_energy, avg_energy);
     stats().push_back({StateInfo::wn_id,
                        timer.getElapsedTimeInSec(),
                        mesh.get_v_num(),
                        mesh.get_t_num(),
-                       mesh.get_max_energy(),
-                       mesh.get_avg_energy()});
+                       max_energy,
+                       avg_energy});
     logger().info("after winding number");
     logger().info("#v = {}", mesh.get_v_num());
     logger().info("#t = {}", mesh.get_t_num());

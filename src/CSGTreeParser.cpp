@@ -8,38 +8,14 @@
 
 #include <floattetwild/CSGTreeParser.hpp>
 
+#include <floattetwild/FloatTetwild.h>
 #include <floattetwild/Logger.hpp>
-#include <floattetwild/MeshIO.hpp>
 
 #include <map>
 
 namespace floatTetWild {
 
 namespace {
-// Build a geo::Mesh from vertex and face vectors, then reorder it and read the permuted result
-// back out, the same way MeshIO::load_mesh does for a file.
-void build_reordered_sf_mesh(std::vector<Vector3>&  points,
-                             std::vector<Vector3i>& faces,
-                             geo::Mesh&             input,
-                             std::vector<int>&      flags)
-{
-    input.clear();
-    input.create_vertices((int)points.size());
-    for (int i = 0; i < (int)input.nb_vertices(); ++i) {
-        geo::vec3& p = input.point(i);
-        p[0]         = points[i](0);
-        p[1]         = points[i](1);
-        p[2]         = points[i](2);
-    }
-    input.create_triangles((int)faces.size());
-    for (int c = 0; c < (int)input.nb_facets(); ++c) {
-        for (int lv = 0; lv < 3; ++lv) {
-            input.set_facet_vertex(c, lv, faces[c](lv));
-        }
-    }
-
-    reorder_and_read_back(input, points, faces, flags);
-}
 // Just enough JSON for the csg tree format. Objects and strings are read straight into CSGTree, and
 // a value under any other key is skipped whatever its type, which is what parsing the file into a
 // general json value and reading three keys back out of it used to do.
@@ -408,7 +384,24 @@ void CSGTreeParser::merge(const std::vector<std::vector<Vector3>>&  Vs,
         offset += Vs[id].size();
     }
 
-    build_reordered_sf_mesh(V, F, sf_mesh, tags);
+    // Build the merged geo::Mesh, then reorder it and read the permuted result back out, the same
+    // way load_mesh does for a file.
+    sf_mesh.clear();
+    sf_mesh.create_vertices((int)V.size());
+    for (int i = 0; i < (int)sf_mesh.nb_vertices(); ++i) {
+        geo::vec3& p = sf_mesh.point(i);
+        p[0]         = V[i](0);
+        p[1]         = V[i](1);
+        p[2]         = V[i](2);
+    }
+    sf_mesh.create_triangles((int)F.size());
+    for (int c = 0; c < (int)sf_mesh.nb_facets(); ++c) {
+        for (int lv = 0; lv < 3; ++lv) {
+            sf_mesh.set_facet_vertex(c, lv, F[c](lv));
+        }
+    }
+
+    reorder_and_read_back(sf_mesh, V, F, tags);
 }
 
 bool CSGTreeParser::keep_tet(const CSGTree&                      csg_tree_with_ids,

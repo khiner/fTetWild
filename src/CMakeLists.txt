@@ -39,7 +39,6 @@ set(SOURCES
 	ParallelFor.hpp
 	ParallelFor.cpp
 	Matrix.hpp
-	Matrix.ipp
 	Mesh.hpp
 	Parameters.h
 	Statistics.h
@@ -63,13 +62,12 @@ set(VENDORED_SOURCES
 	# Guigue-Devillers triangle-triangle overlap, from the JGT paper. No licence stated upstream.
 	triangle_triangle_intersection.cpp
 
-	# Peak RSS, CC BY 3.0. Read through get_peak_mem in Statistics.h.
+	# Peak RSS, CC BY 3.0. Read by the stats csv summary row in main.cpp.
 	getRSS.c
 
 	# libigl, MPL 2.0, the same licence as fTetWild.
 	MeshCleanup.hpp
 	MeshCleanup.cpp
-	writeOBJ.h
 
 	# The fast winding number, Side Effects Software, MIT. Runs on ParallelFor.hpp.
 	FastWindingNumber.h
@@ -83,14 +81,12 @@ float_tetwild_copy_headers(${SOURCES})
 float_tetwild_set_source_group(${SOURCES})
 target_sources(FloatTetwild PRIVATE ${SOURCES})
 
-# File I/O is not part of the core library: the binary owns it. The headers are still copied so
-# writer, reached only from MeshIO, so it belongs on this side too.
+# File I/O is not part of the core library: the binary owns it. writeOBJ.h is vendored libigl,
+# MPL 2.0, reached only from main.cpp.
 set(IO_SOURCES
 	MeshIO.hpp
 	MeshIO.cpp
-	SurfaceMeshLoad.hpp
-	SurfaceMeshLoad.cpp
-
+	writeOBJ.h
 )
 prepend_current_path(IO_SOURCES)
 float_tetwild_copy_headers(${IO_SOURCES})

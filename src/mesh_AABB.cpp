@@ -12,6 +12,14 @@ namespace {
 
     using namespace floatTetWild::geo;
 
+    // The smallest Box that encloses \p B1 and \p B2.
+    inline void bbox_union(Box& target, const Box& B1, const Box& B2) {
+        for(index_t c = 0; c < 3; ++c) {
+            target.xyz_min[c] = std::min(B1.xyz_min[c], B2.xyz_min[c]);
+            target.xyz_max[c] = std::max(B1.xyz_max[c], B2.xyz_max[c]);
+        }
+    }
+
     void get_facet_bbox(
         const Mesh& M, Box& B, index_t f
     ) {

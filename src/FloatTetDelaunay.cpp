@@ -90,7 +90,8 @@ namespace floatTetWild {
                     const Scalar py = (j == n_voxels(1)) ? max(1) : (min(1) + delta(1) * j);
                     for (int k = 0; k <= n_voxels(2); ++k) {
                         const Scalar pz = (k == n_voxels(2)) ? max(2) : (min(2) + delta(2) * k);
-                        if (tree.get_sq_dist_to_sf(Vector3(px, py, pz)) > sq_distg)
+                        Vector3      q(px, py, pz);
+                        if (tree.project_to_sf(q) > sq_distg)
                             voxels.emplace_back(px, py, pz);
                     }
                 }

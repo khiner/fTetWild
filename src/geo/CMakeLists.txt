@@ -8,7 +8,6 @@ set(SOURCES
 	geo_geometry.h
 
 	geo_mesh.h
-	geo_mesh.cpp
 	geo_mesh_reorder.h
 	geo_mesh_reorder.cpp
 
@@ -18,11 +17,9 @@ set(SOURCES
 	geo_kd_tree.h
 	geo_kd_tree.cpp
 
-	geo_cavity.h
 	geo_delaunay_3d.h
 	geo_delaunay_3d.cpp
 
-	predicates_orient3d.h
 	geo_predicates.h
 	geo_predicates.cpp
 )

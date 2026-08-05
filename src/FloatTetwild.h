@@ -11,10 +11,17 @@
 #include <floattetwild/AABBWrapper.h>
 #include <floattetwild/Mesh.hpp>
 #include <floattetwild/Types.hpp>
+#include <floattetwild/geo_mesh.h>
 
 #include <vector>
 
 namespace floatTetWild {
+
+// Morton-orders the surface mesh the AABB tree will wrap, and reads the permuted vertices, faces
+// and per-face tags back out, so that they stay aligned with it. Every input reaches
+// tetrahedralization() through this, whether it came from a file or from a csg merge.
+void reorder_and_read_back(geo::Mesh& mesh, std::vector<Vector3>& points,
+                           std::vector<Vector3i>& faces, std::vector<int>& tags);
 
 // Run the meshing pipeline on an input surface: preprocessing, tetrahedralization, cutting,
 // optimization, and tracked surface orientation. Reads and writes no files.

@@ -66,18 +66,6 @@ namespace geo {
             double& best_sq_dist
         ) const;
 
-        // The extent of the [b,e) sequence along \p coord.
-        double spread(index_t b, index_t e, coord_index_t coord) const {
-            double minval = std::numeric_limits<double>::max();
-            double maxval = std::numeric_limits<double>::lowest();
-            for(index_t i = b; i < e; ++i) {
-                double val = point_ptr(point_index_[i])[coord];
-                minval = std::min(minval, val);
-                maxval = std::max(maxval, val);
-            }
-            return maxval - minval;
-        }
-
         // The largest node index the subtree rooted at \p node_id reaches, which is what the
         // per-node arrays have to be sized for.
         static index_t max_node_index(

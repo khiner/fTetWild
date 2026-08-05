@@ -11,6 +11,14 @@
 
 namespace floatTetWild {
 
+    namespace geo {
+        // Axis-aligned bounding box.
+        struct Box {
+            double xyz_min[3];
+            double xyz_max[3];
+        };
+    }
+
     // Axis-aligned bounding box tree of the facets of a mesh, for locating the facet nearest to a
     // 3d query point.
     class MeshFacetsAABBWithEps {

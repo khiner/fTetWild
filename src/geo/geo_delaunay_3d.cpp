@@ -13,6 +13,43 @@
 namespace floatTetWild {
 namespace geo {
 
+    namespace {
+
+        // orient_3d from the plain floating point determinant, for the inexact walk.
+        inline Sign orient_3d_inexact(
+            const double* p0, const double* p1,
+            const double* p2, const double* p3
+        ) {
+            double a11 = p1[0] - p0[0] ;
+            double a12 = p1[1] - p0[1] ;
+            double a13 = p1[2] - p0[2] ;
+
+            double a21 = p2[0] - p0[0] ;
+            double a22 = p2[1] - p0[1] ;
+            double a23 = p2[2] - p0[2] ;
+
+            double a31 = p3[0] - p0[0] ;
+            double a32 = p3[1] - p0[1] ;
+            double a33 = p3[2] - p0[2] ;
+
+            double Delta =
+                a11*det2x2(a22,a23,a32,a33)
+                -a21*det2x2(a12,a13,a32,a33)
+                +a31*det2x2(a12,a13,a22,a23);
+
+            return geo_sgn(Delta);
+        }
+
+        bool points_are_identical_3d(const double* p1, const double* p2) {
+            return
+                (p1[0] == p2[0]) &&
+                (p1[1] == p2[1]) &&
+                (p1[2] == p2[2])
+                ;
+        }
+
+    }
+
     const index_t Delaunay3d::halfedge_facet_[4][4] = {
         {4, 2, 3, 1},
         {3, 4, 0, 2},
@@ -198,7 +235,7 @@ namespace geo {
                 // convention as in CGAL).
                 const double* pv_bkp = pv[f];
                 pv[f] = p;
-                Sign ori = PCK::orient_3d_inexact(pv[0], pv[1], pv[2], pv[3]);
+                Sign ori = orient_3d_inexact(pv[0], pv[1], pv[2], pv[3]);
 
                 //   If the orientation is not negative, then we cannot
                 // walk towards t_next, and examine the next candidate
@@ -654,7 +691,7 @@ namespace geo {
         iv1 = 1;
         while(
             iv1 < nb_vertices() &&
-            PCK::points_are_identical_3d(
+            points_are_identical_3d(
                 vertex_ptr(iv0), vertex_ptr(iv1)
             )
         ) {

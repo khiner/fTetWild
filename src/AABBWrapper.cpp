@@ -5,6 +5,25 @@
 namespace floatTetWild {
 namespace {
 
+double bbox_diagonal(const geo::Mesh& M)
+{
+    double xyzmin[3];
+    double xyzmax[3];
+    for (geo::index_t c = 0; c < 3; ++c) {
+        xyzmin[c] = std::numeric_limits<double>::max();
+        xyzmax[c] = std::numeric_limits<double>::lowest();
+    }
+    for (geo::index_t v = 0; v < M.nb_vertices(); ++v) {
+        const double* p = M.point_ptr(v);
+        for (geo::index_t c = 0; c < 3; ++c) {
+            xyzmin[c] = std::min(xyzmin[c], p[c]);
+            xyzmax[c] = std::max(xyzmax[c], p[c]);
+        }
+    }
+    return ::sqrt(geo::geo_sqr(xyzmax[0] - xyzmin[0]) + geo::geo_sqr(xyzmax[1] - xyzmin[1]) +
+                  geo::geo_sqr(xyzmax[2] - xyzmin[2]));
+}
+
 // The envelope trees are built over segments, which geogram's AABB stores as degenerate triangles
 // with the first corner repeated. An empty edge list still needs a mesh to query, so it gets one
 // triangle collapsed to the origin.
@@ -50,9 +69,13 @@ void build_segment_tree(geo::Mesh&                                mesh,
 
 }  // namespace
 
+Scalar AABBWrapper::get_sf_diag() const
+{
+    return bbox_diagonal(sf_mesh);
+}
+
 void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertices,
-                                       const std::vector<Vector3i>& input_faces,
-                                       Mesh&                        mesh)
+                                       const std::vector<Vector3i>& input_faces)
 {
     b_mesh.clear();
 
@@ -73,9 +96,6 @@ void AABBWrapper::init_b_mesh_and_tree(const std::vector<Vector3>&  input_vertic
         segments.push_back({{input_vertices[e[0]], input_vertices[e[1]]}});
 
     build_segment_tree(b_mesh, b_tree, segments);
-
-    if (b_edges.empty())
-        mesh.is_closed = true;
 }
 
 void AABBWrapper::init_tmp_b_mesh_and_tree(const std::vector<Vector3>&            input_vertices,

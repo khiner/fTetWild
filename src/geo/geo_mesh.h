@@ -3,8 +3,8 @@
 //
 // Reimplemented rather than copied, unlike its neighbours here. A container addresses elements by
 // index and has no comparisons of its own, so there is no tie-breaking to preserve; what it does
-// have to match is the element order geogram's operations leave behind, which is why
-// permute_vertices() and permute_facets() reproduce what geogram's permute_elements() leaves.
+// have to match is the element order geogram's operations leave behind, which is why the permute
+// functions in geo_mesh_reorder.cpp reproduce what geogram's permute_elements() leaves.
 //
 // geogram spreads this over MeshVertices, MeshFacetCorners and MeshFacets, and supports polygons,
 // other dimensions and cells. Every facet built here is a triangle -- the loaders fan polygons as
@@ -18,7 +18,6 @@
 namespace floatTetWild {
 namespace geo {
 
-    static const index_t NO_VERTEX = index_t(-1);
     static const index_t NO_FACET = index_t(-1);
 
     // A triangle surface mesh: three coordinates per vertex, then three vertex indices per facet
@@ -77,7 +76,7 @@ namespace geo {
         // The same for triangles, with no vertices set yet.
         index_t create_triangles(index_t nb) {
             index_t first = nb_facets();
-            corners.resize(size_t(first + nb) * 3, NO_VERTEX);
+            corners.resize(size_t(first + nb) * 3, NO_INDEX);
             return first;
         }
 
@@ -87,16 +86,6 @@ namespace geo {
             corners.clear();
             corners.shrink_to_fit();
         }
-
-        // Reorders the vertices so that vertex \p k becomes the vertex that was at
-        // \p permutation[k], and sends the facet corners after them.
-        void permute_vertices(const vector<index_t>& permutation);
-
-        // The same for the facets.
-        void permute_facets(const vector<index_t>& permutation);
     };
-
-    // The length of the diagonal of the bounding box of \p M.
-    double bbox_diagonal(const Mesh& M);
 }
 }

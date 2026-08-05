@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -15,7 +14,6 @@
 #include <iostream>
 #include <limits>
 #include <random>
-#include <thread>
 #include <vector>
 
 namespace floatTetWild {
@@ -105,15 +103,6 @@ namespace geo {
         const T& operator[] (index_t i) const {
             geo_debug_assert(i < size());
             return baseclass::operator[] (i);
-        }
-
-        // Null rather than unspecified when empty, which is what geogram's callers assume.
-        T* data() {
-            return size() == 0 ? nullptr : &(*this)[0];
-        }
-
-        const T* data() const {
-            return size() == 0 ? nullptr : &(*this)[0];
         }
     };
 

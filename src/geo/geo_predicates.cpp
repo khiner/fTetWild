@@ -18,11 +18,145 @@
 
 #define FPG_UNCERTAIN_VALUE 0
 
-#include "predicates_orient3d.h"
-
 namespace {
 
     using namespace floatTetWild::geo;
+
+    inline double det4x4(
+        double a11, double a12, double a13, double a14,
+        double a21, double a22, double a23, double a24,
+        double a31, double a32, double a33, double a34,
+        double a41, double a42, double a43, double a44
+    ) {
+        double m12 = a21*a12 - a11*a22;
+        double m13 = a31*a12 - a11*a32;
+        double m14 = a41*a12 - a11*a42;
+        double m23 = a31*a22 - a21*a32;
+        double m24 = a41*a22 - a21*a42;
+        double m34 = a41*a32 - a31*a42;
+
+        double m123 = m23*a13 - m13*a23 + m12*a33;
+        double m124 = m24*a13 - m14*a23 + m12*a43;
+        double m134 = m34*a13 - m14*a33 + m13*a43;
+        double m234 = m34*a23 - m24*a33 + m23*a43;
+
+        return (m234*a14 - m134*a24 + m124*a34 - m123*a44);
+    }
+
+    // Arithmetic filter for orient_3d(). Generated from source file orient3d.pck, unchanged.
+    inline int orient_3d_filter(const double* p0, const double* p1, const double* p2, const double* p3) {
+        double a11;
+        a11 = (p1[0] - p0[0]);
+        double a12;
+        a12 = (p1[1] - p0[1]);
+        double a13;
+        a13 = (p1[2] - p0[2]);
+        double a21;
+        a21 = (p2[0] - p0[0]);
+        double a22;
+        a22 = (p2[1] - p0[1]);
+        double a23;
+        a23 = (p2[2] - p0[2]);
+        double a31;
+        a31 = (p3[0] - p0[0]);
+        double a32;
+        a32 = (p3[1] - p0[1]);
+        double a33;
+        a33 = (p3[2] - p0[2]);
+        double Delta;
+        Delta = (((a11 * ((a22 * a33) - (a23 * a32))) - (a21 * ((a12 * a33) - (a13 * a32)))) + (a31 * ((a12 * a23) - (a13 * a22))));
+        int int_tmp_result;
+        double eps;
+        double max1 = fabs(a11);
+        if((max1 < fabs(a21)))
+        {
+            max1 = fabs(a21);
+        }
+        if((max1 < fabs(a31)))
+        {
+            max1 = fabs(a31);
+        }
+        double max2 = fabs(a12);
+        if((max2 < fabs(a13)))
+        {
+            max2 = fabs(a13);
+        }
+        if((max2 < fabs(a22)))
+        {
+            max2 = fabs(a22);
+        }
+        if((max2 < fabs(a23)))
+        {
+            max2 = fabs(a23);
+        }
+        double max3 = fabs(a22);
+        if((max3 < fabs(a23)))
+        {
+            max3 = fabs(a23);
+        }
+        if((max3 < fabs(a32)))
+        {
+            max3 = fabs(a32);
+        }
+        if((max3 < fabs(a33)))
+        {
+            max3 = fabs(a33);
+        }
+        double lower_bound_1;
+        double upper_bound_1;
+        lower_bound_1 = max1;
+        upper_bound_1 = max1;
+        if((max2 < lower_bound_1))
+        {
+            lower_bound_1 = max2;
+        }
+        else
+        {
+            if((max2 > upper_bound_1))
+            {
+                upper_bound_1 = max2;
+            }
+        }
+        if((max3 < lower_bound_1))
+        {
+            lower_bound_1 = max3;
+        }
+        else
+        {
+            if((max3 > upper_bound_1))
+            {
+                upper_bound_1 = max3;
+            }
+        }
+        if((lower_bound_1 < 1.63288018496748314939e-98))
+        {
+            return FPG_UNCERTAIN_VALUE;
+        }
+        else
+        {
+            if((upper_bound_1 > 5.59936185544450928309e+101))
+            {
+                return FPG_UNCERTAIN_VALUE;
+            }
+            eps = (5.11071278299732992696e-15 * ((max2 * max3) * max1));
+            if((Delta > eps))
+            {
+                int_tmp_result = 1;
+            }
+            else
+            {
+                if((Delta < -eps))
+                {
+                    int_tmp_result = -1;
+                }
+                else
+                {
+                    return FPG_UNCERTAIN_VALUE;
+                }
+            }
+        }
+        return int_tmp_result;
+    }
 
     // geogram writes these two with SSE2 intrinsics under __SSE2__, and the plain expressions
     // otherwise. It never included the intrinsics header, so only the plain path was ever
@@ -327,17 +461,6 @@ namespace geo {
                 result = orient_3d_exact(p0, p1, p2, p3);
             }
             return result;
-        }
-
-        bool points_are_identical_3d(
-            const double* p1,
-            const double* p2
-        ) {
-            return
-                (p1[0] == p2[0]) &&
-                (p1[1] == p2[1]) &&
-                (p1[2] == p2[2])
-                ;
         }
 
         bool points_are_colinear_3d(

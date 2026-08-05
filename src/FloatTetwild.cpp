@@ -14,10 +14,38 @@
 #include <floattetwild/Statistics.h>
 #include <floattetwild/Timer.h>
 #include <floattetwild/TriangleInsertion.h>
+#include <floattetwild/geo_mesh_reorder.h>
 
 #include <algorithm>
 
 namespace floatTetWild {
+
+void reorder_and_read_back(geo::Mesh&             mesh,
+                           std::vector<Vector3>&  points,
+                           std::vector<Vector3i>& faces,
+                           std::vector<int>&      tags)
+{
+    const bool has_tags = (tags.size() == mesh.nb_facets());
+
+    geo::vector<geo::index_t> facet_permutation;
+    geo::mesh_reorder(mesh, &facet_permutation);
+
+    if (has_tags) {
+        std::vector<int> reordered(mesh.nb_facets(), 0);
+        for (geo::index_t f = 0; f < facet_permutation.size(); ++f)
+            reordered[f] = tags[facet_permutation[f]];
+        tags.swap(reordered);
+    }
+
+    points.resize(mesh.nb_vertices());
+    for (size_t i = 0; i < points.size(); i++)
+        points[i] = Vector3(mesh.point(i)[0], mesh.point(i)[1], mesh.point(i)[2]);
+
+    faces.resize(mesh.nb_facets());
+    for (size_t i = 0; i < faces.size(); i++)
+        faces[i] = Vector3i(int(mesh.facet_vertex(i, 0)), int(mesh.facet_vertex(i, 1)),
+                            int(mesh.facet_vertex(i, 2)));
+}
 
 int tetrahedralization(AABBWrapper&           tree,
                        std::vector<Vector3>&  input_vertices,
@@ -57,7 +85,7 @@ int tetrahedralization(AABBWrapper&           tree,
 
     timer.start();
     simplify(input_vertices, input_faces, input_tags, tree, params, skip_simplify);
-    tree.init_b_mesh_and_tree(input_vertices, input_faces, mesh);
+    tree.init_b_mesh_and_tree(input_vertices, input_faces);
     finish_step(StateInfo::preprocessing_id,
                 "preprocessing",
                 input_vertices.size(),
@@ -75,23 +103,25 @@ int tetrahedralization(AABBWrapper&           tree,
 
     timer.start();
     insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, false);
+    Scalar max_energy, avg_energy;
+    mesh.get_max_avg_energy(max_energy, avg_energy);
     finish_step(StateInfo::cutting_id,
                 "cutting",
                 mesh.get_v_num(),
                 mesh.get_t_num(),
-                mesh.get_max_energy(),
-                mesh.get_avg_energy(),
+                max_energy,
+                avg_energy,
                 std::count(is_face_inserted.begin(), is_face_inserted.end(), false));
 
     timer.start();
-    optimization(
-      input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
+    optimization(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree);
+    mesh.get_max_avg_energy(max_energy, avg_energy);
     finish_step(StateInfo::optimization_id,
                 "mesh optimization",
                 mesh.get_v_num(),
                 mesh.get_t_num(),
-                mesh.get_max_energy(),
-                mesh.get_avg_energy());
+                max_energy,
+                avg_energy);
 
     correct_tracked_surface_orientation(mesh, tree);
     logger().info("correct_tracked_surface_orientation done");

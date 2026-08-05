@@ -16,7 +16,7 @@ namespace floatTetWild {
     void edge_collapsing(Mesh& mesh, const AABBWrapper& tree);
     bool collapse_an_edge(Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree,
              std::vector<std::array<int, 2>>& new_edges, int ts, std::vector<int>& tet_tss,
-             bool is_check_quality = true, bool is_update_tss = true);
+             bool is_update_tss = true);
 }
 
 #endif //FLOATTETWILD_EDGECOLLAPSING_H

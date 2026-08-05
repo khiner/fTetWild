@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "geo_geometry.h"
+#include "geo_basic.h"
 
 namespace floatTetWild {
 namespace geo {
@@ -31,38 +31,6 @@ namespace geo {
         Sign orient_3d(
             const double* p0, const double* p1,
             const double* p2, const double* p3
-        );
-
-        // The same, from the plain floating point determinant.
-        inline Sign orient_3d_inexact(
-            const double* p0, const double* p1,
-            const double* p2, const double* p3
-        ) {
-            double a11 = p1[0] - p0[0] ;
-            double a12 = p1[1] - p0[1] ;
-            double a13 = p1[2] - p0[2] ;
-
-            double a21 = p2[0] - p0[0] ;
-            double a22 = p2[1] - p0[1] ;
-            double a23 = p2[2] - p0[2] ;
-
-            double a31 = p3[0] - p0[0] ;
-            double a32 = p3[1] - p0[1] ;
-            double a33 = p3[2] - p0[2] ;
-
-            double Delta = det3x3(
-                a11,a12,a13,
-                a21,a22,a23,
-                a31,a32,a33
-            );
-
-            return geo_sgn(Delta);
-        }
-
-        // Whether \p p1 and \p p2 have exactly the same coordinates.
-        bool points_are_identical_3d(
-            const double* p1,
-            const double* p2
         );
 
         bool points_are_colinear_3d(

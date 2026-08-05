@@ -27,12 +27,11 @@ using Point = std::array<Scalar, 3>;
 
 // The overlap test's result for two triangles that are known not to be coplanar.
 int intersect(Point p1, Point q1, Point r1, Point p2, Point q2, Point r2) {
-    int       coplanar = 0;
-    Scalar    s[3]     = {0, 0, 0};
-    Scalar    t[3]     = {0, 0, 0};
-    const int res      = tri_tri_intersection_test_3d(
-      p1.data(), q1.data(), r1.data(), p2.data(), q2.data(), r2.data(), &coplanar, s, t);
-    REQUIRE(coplanar == 0);
+    Scalar    s[3] = {0, 0, 0};
+    Scalar    t[3] = {0, 0, 0};
+    const int res  = tri_tri_intersection_test_3d(
+      p1.data(), q1.data(), r1.data(), p2.data(), q2.data(), r2.data(), s, t);
+    REQUIRE(res != -1);
     return res;
 }
 }  // namespace

@@ -144,10 +144,6 @@ namespace floatTetWild {
     void split_tets_at(Mesh& mesh, int v_id, int v1_id, int v2_id,
                        const std::vector<int>& old_t_ids, std::vector<int>& new_t_ids);
 
-    inline Scalar get_area(const Vector3& a, const Vector3& b, const Vector3& c) {
-        return tri_normal(a, b, c).norm();
-    }
-
     // The edges of the given tets, each once, appended to out. This is what an operation re-queues
     // after it rebuilds a patch.
     template<typename Tets>

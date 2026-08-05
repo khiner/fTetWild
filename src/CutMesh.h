@@ -60,10 +60,8 @@ namespace floatTetWild {
         std::vector<bool> is_projected;
 
         Mesh &mesh;
-        // By value: subdivide_tets() is also reached with a cut that has no plane, and holding
-        // references there would mean binding them to temporaries the caller does not keep.
-        const Vector3 p_n;
-        const std::array<Vector3, 3> p_vs;
+        const Vector3 &p_n;
+        const std::array<Vector3, 3> &p_vs;
     };
 }
 
